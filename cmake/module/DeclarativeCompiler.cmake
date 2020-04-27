@@ -1,0 +1,6 @@
+function(add_dialect dialect dialect_namespace)
+  set(LLVM_TARGET_DEFINITIONS ${dialect.td})
+  mlir_tablegen(${dialect}.h.inc   -gen-op-defs  -I ${MLIR_TABLEGEN_INCUDE})
+  mlir_tablegen(${dialect}.cpp.inc -gen-op-decls -I ${MLIR_TABLEGEN_INCUDE})
+  add_public_tablegen_target(${dialect}IncGen)
+endfunction()
