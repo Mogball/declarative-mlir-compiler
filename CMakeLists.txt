@@ -30,6 +30,10 @@ message(STATUS "MLIR directory: ${MLIR_DIR}")
 # Include project-specific configs
 list(APPEND CMAKE_MODULE_PATH cmake/module)
 
+# Global options
+add_compile_options(-fno-rtti -fno-exceptions)
+
 # Global includes
 include_directories(include ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
 add_subdirectory(lib)
+add_subdirectory(tools)
