@@ -15,4 +15,10 @@ int main() {
   assert(dialectTest1 == mlirContext.getRegisteredDialect("test1"));
   assert(nullptr == mlirContext.getRegisteredDialect("test2"));
   std::cout << "All good!" << std::endl;
+
+  dialectTest0->registerDynamicOp("opA");
+  dialectTest0->registerDynamicOp("opB");
+  dialectTest1->registerDynamicOp("opC");
+  dialectTest1->registerDynamicOp("opD");
+  std::cout << "Ops registered" << std::endl;
 }

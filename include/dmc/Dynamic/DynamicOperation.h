@@ -13,6 +13,8 @@ class DynamicOperation : public DynamicObject {
 public:
   DynamicOperation(llvm::StringRef name, DynamicDialect *dialect);
 
+  /// Get the Op representation.
+  inline mlir::AbstractOperation getOpInfo() { return opInfo; }
 private:
   mlir::AbstractOperation opInfo;
 };

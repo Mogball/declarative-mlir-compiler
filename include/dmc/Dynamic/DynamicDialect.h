@@ -15,6 +15,10 @@ class DynamicDialect : public mlir::Dialect,
                        public DynamicObject {
 public:
   DynamicDialect(llvm::StringRef name, DynamicContext *ctx);
+
+  /// Create a new Op associated with this Dialect.
+  /// TODO wrap Op config in a struct
+  void registerDynamicOp(llvm::StringRef name);
 };
 
 } // end namespace dmc

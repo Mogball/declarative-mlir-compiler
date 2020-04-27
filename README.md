@@ -5,3 +5,7 @@
 ## Build Requirements
 
 - `cmake>=3.10`
+
+## Long-Term TODOs
+
+- Add graceful failures (e.g. multiple Ops with the same name) instead of relying on MLIR asserts to better support dynamic environment
