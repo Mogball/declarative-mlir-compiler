@@ -4,6 +4,7 @@
 namespace dmc {
 
 DynamicObject::DynamicObject(DynamicContext *ctx)
-    : typeId{ctx->getTypeIDAlloc()->allocateID()} {}
+    : ctx{ctx},
+      typeId{ctx->getTypeIDAlloc()->allocateID()} {}
 
 } // end namespace dmc

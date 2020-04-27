@@ -6,9 +6,12 @@
 
 namespace dmc {
 
+/// Forward declarations.
+class DynamicDialect;
+
 class DynamicOperation : public DynamicObject {
 public:
-  DynamicOperation(llvm::StringRef name, DynamicContext *ctx);
+  DynamicOperation(llvm::StringRef name, DynamicDialect *dialect);
 
 private:
   mlir::AbstractOperation opInfo;
