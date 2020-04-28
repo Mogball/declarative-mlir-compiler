@@ -28,10 +28,19 @@ FunctionWriter::FunctionWriter(FuncOp func)
 }
 
 Operation *FunctionWriter::createOp(
-    DynamicOperation *op, 
-    ValueRange args, ArrayRef<Type> retTys) {
+    DynamicOperation *op, ValueRange args, ArrayRef<Type> retTys) {
+  return createOp(op->getOpInfo(), args, retTys);
+}
+
+Operation *FunctionWriter::createOp(
+    StringRef name, ValueRange args, ArrayRef<Type> retTys) {
+  return createOp(OperationName{name, func.getContext()}, args, retTys);
+}
+
+Operation *FunctionWriter::createOp(
+    OperationName opName, ValueRange args, ArrayRef<Type> retTys) {
   // TODO location data
-  OperationState state{builder.getUnknownLoc(), op->getOpInfo()};
+  OperationState state{builder.getUnknownLoc(), opName};
   state.addOperands(args);
   state.addTypes(retTys);
   return builder.createOperation(state);

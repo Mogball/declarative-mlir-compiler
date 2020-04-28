@@ -36,8 +36,11 @@ public:
   inline auto getArguments() { return func.getArguments(); }
 
   mlir::Operation *createOp(
-      DynamicOperation *op,
-      mlir::ValueRange args, 
+      DynamicOperation *op, mlir::ValueRange args, 
+      llvm::ArrayRef<mlir::Type> retTys);
+
+  mlir::Operation *createOp(
+      llvm::StringRef name, mlir::ValueRange args,
       llvm::ArrayRef<mlir::Type> retTys);
 
 private:
@@ -45,6 +48,11 @@ private:
   mlir::FuncOp func;
 
   mlir::Block *entryBlock;
+
+  /// Create a generic Operation.
+  mlir::Operation *createOp(
+      mlir::OperationName opName, mlir::ValueRange args,
+      llvm::ArrayRef<mlir::Type> retTys);
 };
 
 } // end namespace dmc

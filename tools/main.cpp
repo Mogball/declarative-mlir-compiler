@@ -7,11 +7,14 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/StandardTypes.h>
 #include <mlir/Analysis/Verifier.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 #include <iostream>
 
 using namespace mlir;
 using namespace dmc;
+
+static DialectRegistration<StandardOpsDialect> registerStandardOps;
 
 int main() {
   MLIRContext mlirContext;
@@ -38,7 +41,8 @@ int main() {
   auto testFunc = writer.createFunction("testFunc",
       {b.getIntegerType(32)}, {b.getIntegerType(64)});
   FunctionWriter funcWriter{testFunc};
-  funcWriter.createOp(opA, testFunc.getArguments(), {b.getIntegerType(64)});
+  auto *testOpInstance = funcWriter.createOp(opA, testFunc.getArguments(), {b.getIntegerType(64)});
+  funcWriter.createOp("std.return", testOpInstance->getResult(0), {});
 
   writer.getModule().print(llvm::outs());
   llvm::outs() << "\n";
