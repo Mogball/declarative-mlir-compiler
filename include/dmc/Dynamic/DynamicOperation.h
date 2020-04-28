@@ -13,6 +13,8 @@ class DynamicDialect;
 class DynamicTrait {
 public:
   virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const = 0;
+  virtual mlir::AbstractOperation::OperationProperties 
+  getTraitProperties() const = 0;
 };
 
 /// This class dynamically captures properties of an Operation.
