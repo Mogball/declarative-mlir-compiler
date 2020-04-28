@@ -20,6 +20,9 @@ public:
   /// Create a new Op associated with this Dialect.
   /// TODO wrap Op config in a struct
   DynamicOperation *createDynamicOp(llvm::StringRef name);
+
+private:
+  friend class DynamicOperation;
 };
 
 } // end namespace dmc

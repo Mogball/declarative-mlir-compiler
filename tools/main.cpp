@@ -1,4 +1,10 @@
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/IO/ModuleWriter.h"
+
+#include <mlir/IR/Module.h>
+#include <mlir/IR/Function.h>
+#include <mlir/IR/Builders.h>
+#include <mlir/IR/StandardTypes.h>
 
 #include <iostream>
 
@@ -11,26 +17,23 @@ int main() {
 
   auto *dialectTest0 = ctx.createDynamicDialect("test0");
   auto *dialectTest1 = ctx.createDynamicDialect("test1");
-  assert(dialectTest0 == mlirContext.getRegisteredDialect("test0"));
-  assert(dialectTest1 == mlirContext.getRegisteredDialect("test1"));
-  assert(nullptr == mlirContext.getRegisteredDialect("test2"));
-  std::cout << "All good!" << std::endl;
+  std::cout << "Dialects registered" << std::endl;
 
-  dialectTest0->createDynamicOp("opA");
-  dialectTest0->createDynamicOp("opB");
-  dialectTest1->createDynamicOp("opC");
-  dialectTest1->createDynamicOp("opD");
+  auto *opA = dialectTest0->createDynamicOp("opA");
+  auto *opB = dialectTest0->createDynamicOp("opB");
+  auto *opC = dialectTest1->createDynamicOp("opC");
+  auto *opD = dialectTest1->createDynamicOp("opD");
   std::cout << "Ops registered" << std::endl;
 
-  auto *opA = AbstractOperation::lookup("test0.opA", &mlirContext);
-  auto *opB = AbstractOperation::lookup("test0.opB", &mlirContext);
-  auto *opC = AbstractOperation::lookup("test1.opC", &mlirContext);
-  auto *opD = AbstractOperation::lookup("test1.opD", &mlirContext);
+  // Test creating modules
+  ModuleWriter writer{&ctx};
+  OpBuilder b{&mlirContext};
 
-  assert(opA != nullptr);
-  assert(opB != nullptr);
-  assert(opC != nullptr);
-  assert(opD != nullptr);
-  assert(AbstractOperation::lookup("test0.opC", &mlirContext) == nullptr);
-  std::cout << "All ops found" << std::endl;
+  auto testFunc = writer.createFunction("testFunc", 
+      {b.getIntegerType(32)}, {b.getIntegerType(64)});
+  FunctionWriter funcWriter{testFunc};
+  funcWriter.createOp(opA, testFunc.getArguments(), {b.getIntegerType(64)});
+
+  writer.getModule().print(llvm::outs());
+  llvm::outs() << "\n";
 }

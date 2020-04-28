@@ -24,6 +24,8 @@ public:
   /// Register a DynamicOperation with this context so its config
   /// is stored for later use. The context takes ownership.
   void registerDynamicOp(DynamicOperation *op);
+  /// Lookup the DynamicOperation belonging to an Operation.
+  DynamicOperation *lookupOp(mlir::Operation *op);
 
 private:
   class Impl;
