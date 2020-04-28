@@ -40,8 +40,8 @@ struct SameOperandsAndResultType  : public BindTrait<mlir::OpTrait::SameOperands
 struct SameTypeOperands           : public BindTrait<mlir::OpTrait::SameTypeOperands>           {};
 
 struct IsTerminator  : public BindTrait<mlir::OpTrait::IsTerminator>  {};
+struct IsCommutative : public BindTrait<mlir::OpTrait::IsCommutative> {};
 struct IsIsolatedFromAbove : public BindTrait<mlir::OpTrait::IsIsolatedFromAbove> {};
-// IsCommutative is an Op property but not a verifiable trait
 
 struct OperandsAreFloatLike : public BindTrait<mlir::OpTrait::OperandsAreFloatLike> {};
 struct OperandsAreSignlessIntegerLike : public BindTrait<mlir::OpTrait::OperandsAreSignlessIntegerLike> {};
