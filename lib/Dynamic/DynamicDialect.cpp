@@ -10,9 +10,11 @@ DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
     : Dialect{name, ctx->getContext()},
       DynamicObject{ctx} {}
 
-void DynamicDialect::registerDynamicOp(llvm::StringRef name) {
-  // TODO DynamicOperation instance is tossed
-  addOperation(DynamicOperation{name, this}.getOpInfo());
+DynamicOperation *DynamicDialect::createDynamicOp(llvm::StringRef name) {
+  // Allocate on heap so AbstractOperation references stay valid
+  auto *op = new DynamicOperation{name, this};
+  addOperation(op->getOpInfo());
+  return op;
 }
 
 } // end namespace dmc

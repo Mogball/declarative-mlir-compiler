@@ -8,6 +8,7 @@ namespace dmc {
 
 /// Forward declarations.
 class DynamicContext;
+class DynamicOperation;
 
 /// Dynamic dialect underlying class. This class hooks Dialect methods
 /// into user-specified functions.
@@ -18,7 +19,7 @@ public:
 
   /// Create a new Op associated with this Dialect.
   /// TODO wrap Op config in a struct
-  void registerDynamicOp(llvm::StringRef name);
+  DynamicOperation *createDynamicOp(llvm::StringRef name);
 };
 
 } // end namespace dmc

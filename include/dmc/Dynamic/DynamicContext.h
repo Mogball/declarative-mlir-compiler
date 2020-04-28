@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DynamicDialect.h"
+#include "DynamicOperation.h"
 #include "TypeIDAllocator.h"
 
 namespace dmc {
@@ -9,6 +10,8 @@ namespace dmc {
 /// Dialects, Operations, Types, and Attributes.
 class DynamicContext {
 public:
+  ~DynamicContext();
+
   DynamicContext(mlir::MLIRContext *ctx);
 
   mlir::MLIRContext *getContext() { return ctx; }
@@ -18,7 +21,14 @@ public:
   /// the MLIRContext.
   DynamicDialect *createDynamicDialect(llvm::StringRef name);
 
+  /// Register a DynamicOperation with this context so its config
+  /// is stored for later use. The context takes ownership.
+  void registerDynamicOp(DynamicOperation *op);
+
 private:
+  class Impl;
+  std::unique_ptr<Impl> impl;
+
   mlir::MLIRContext *ctx;
   TypeIDAllocator *typeIdAlloc;
 };
