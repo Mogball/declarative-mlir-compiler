@@ -31,6 +31,13 @@ int main() {
 
   opA->addOpTrait(std::make_unique<OneOperand>());
   opA->addOpTrait(std::make_unique<OneResult>());
+  opA->addOpTrait(std::make_unique<IsCommutative>());
+
+  // Finalize ops
+  opA->finalize();
+  opB->finalize();
+  opC->finalize();
+  opD->finalize();
 
   std::cout << "Ops registered" << std::endl;
 
@@ -42,6 +49,7 @@ int main() {
       {b.getIntegerType(32)}, {b.getIntegerType(64)});
   FunctionWriter funcWriter{testFunc};
   auto *testOpInstance = funcWriter.createOp(opA, testFunc.getArguments(), {b.getIntegerType(64)});
+  assert(testOpInstance->isCommutative());
   funcWriter.createOp("std.return", testOpInstance->getResult(0), {});
 
   writer.getModule().print(llvm::outs());

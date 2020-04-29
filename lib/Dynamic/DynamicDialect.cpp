@@ -11,11 +11,9 @@ DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
       DynamicObject{ctx} {}
 
 DynamicOperation *DynamicDialect::createDynamicOp(llvm::StringRef name) {
-  // Allocate on heap so AbstractOperation references stay valid
-  auto *op = new DynamicOperation(name, this);
-  // Give ownership to context
-  getDynContext()->registerDynamicOp(op);
-  return op;
+  /// Allocate on heap so AbstractOperation references stay valid.
+  /// Ownership must be passed to DynamicContext.
+  return new DynamicOperation(name, this);
 }
 
 } // end namespace dmc

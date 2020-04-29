@@ -11,7 +11,7 @@ struct BindTrait : public DynamicTrait {
     // Provide dummy template arg
     return BaseTrait<int>::verifyTrait(op);
   }
-  mlir::AbstractOperation::OperationProperties 
+  mlir::AbstractOperation::OperationProperties
   getTraitProperties() const override {
     return BaseTrait<int>::getTraitProperties();
   }

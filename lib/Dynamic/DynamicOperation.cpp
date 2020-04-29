@@ -16,7 +16,7 @@ class DynamicOpTrait :
     public OpTrait::TraitBase<ConcreteType, DynamicOpTrait> {
 public:
   static LogicalResult verifyTrait(Operation *op) {
-    // Lookup the backing DynamicOperation 
+    // Lookup the backing DynamicOperation
     auto *dialect = reinterpret_cast<DynamicDialect *>(op->getDialect());
     auto *dynOp = dialect->getDynContext()->lookupOp(op);
     // Hook into the DynamicTraits
@@ -54,7 +54,7 @@ AbstractOperation getBaseOpInfo(StringRef name, DynamicDialect *dialect,
   return AbstractOperation(
       name, *dialect, BaseOp::getOperationProperties(),
       typeId, BaseOp::parseAssembly, BaseOp::printAssembly,
-      BaseOp::verifyInvariants, BaseOp::foldHook, 
+      BaseOp::verifyInvariants, BaseOp::foldHook,
       BaseOp::getCanonicalizationPatterns,
       BaseOp::getRawInterface, BaseOp::hasTrait);
 }
@@ -63,26 +63,45 @@ AbstractOperation getBaseOpInfo(StringRef name, DynamicDialect *dialect,
 
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
     : DynamicObject{dialect->getDynContext()},
-      name{(dialect->getNamespace() + "." + name).str()} {
-  // Add the operation to the dialect
-  dialect->addOperation(getBaseOpInfo(this->name, dialect, getTypeID()));
-  // Grab the reference to the allocated AbstractOperation
-  opInfo = AbstractOperation::lookup(
-      this->name, getDynContext()->getContext());
-  assert(opInfo != nullptr && "Failed to add DynamicOperation");
-}
+      name{(dialect->getNamespace() + "." + name).str()},
+      dialect{dialect} {}
 
 void DynamicOperation::addOpTrait(std::unique_ptr<DynamicTrait> trait) {
   traits.emplace_back(std::move(trait));
 }
 
-LogicalResult DynamicOperation::verifyOpTraits(Operation *op) {
-  for (auto &trait : traits) {
+void DynamicOperation::finalize() {
+  // Add the operation to the dialect
+  dialect->addOperation({
+      name, *dialect, getOpProperties(), getTypeID(),
+      BaseOp::parseAssembly, BaseOp::printAssembly,
+      BaseOp::verifyInvariants, BaseOp::foldHook,
+      BaseOp::getCanonicalizationPatterns,
+      BaseOp::getRawInterface, BaseOp::hasTrait
+  });
+  // Grab the reference to the allocated AbstractOperation
+  opInfo = AbstractOperation::lookup(
+      name, dialect->getContext());
+  assert(opInfo != nullptr && "Failed to add DynamicOperation");
+  // Give ownership to DynamicContext
+  getDynContext()->registerDynamicOp(this);
+}
+
+LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {
+  for (const auto &trait : traits) {
     if (failed(trait->verifyOp(op))) {
       return failure();
     }
   }
   return success();
+}
+
+AbstractOperation::OperationProperties DynamicOperation::getOpProperties() const {
+  AbstractOperation::OperationProperties props{};
+  for (const auto &trait : traits) {
+    props |= trait->getTraitProperties();
+  }
+  return props;
 }
 
 } // end namespace dmc

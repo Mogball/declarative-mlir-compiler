@@ -17,8 +17,8 @@ class DynamicDialect : public mlir::Dialect,
 public:
   DynamicDialect(llvm::StringRef name, DynamicContext *ctx);
 
-  /// Create a new Op associated with this Dialect.
-  /// TODO wrap Op config in a struct
+  /// Create a new Op associated with this Dialect. Additional configs are
+  /// added directly to the returned DynamicOperation before it is finalized.
   DynamicOperation *createDynamicOp(llvm::StringRef name);
 
 private:
