@@ -1,6 +1,8 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/IO/ModuleWriter.h"
 #include "dmc/Traits/StandardTraits.h"
+#include "dmc/Spec/SpecDialect.h"
+#include "dmc/Spec/SpecTypes.h"
 
 #include <mlir/IR/Module.h>
 #include <mlir/IR/Function.h>
@@ -15,6 +17,7 @@ using namespace mlir;
 using namespace dmc;
 
 static DialectRegistration<StandardOpsDialect> registerStandardOps;
+static DialectRegistration<SpecDialect> registerSpecOps;
 
 int main() {
   MLIRContext mlirContext;
@@ -58,4 +61,13 @@ int main() {
   if (failed(mlir::verify(writer.getModule()))) {
     llvm::outs() << "Failed to verify module\n";
   }
+
+  // Check AnyOf is order-independent
+  auto anyOf0 = AnyOfType::get({b.getIntegerType(16), b.getIntegerType(32), b.getIntegerType(64)});
+  auto anyOf1 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(16), b.getIntegerType(32)});
+  auto anyOf2 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(16)});
+  assert(anyOf0.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
+  assert(anyOf2.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
+  auto anyOf3 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(8)});
+  assert(anyOf3.getAsOpaquePointer() != anyOf0.getAsOpaquePointer());
 }

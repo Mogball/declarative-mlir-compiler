@@ -17,7 +17,7 @@ class DynamicOpTrait :
 public:
   static LogicalResult verifyTrait(Operation *op) {
     // Lookup the backing DynamicOperation
-    auto *dialect = reinterpret_cast<DynamicDialect *>(op->getDialect());
+    auto *dialect = static_cast<DynamicDialect *>(op->getDialect());
     auto *dynOp = dialect->getDynContext()->lookupOp(op);
     // Hook into the DynamicTraits
     return dynOp->verifyOpTraits(op);
