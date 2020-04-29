@@ -44,13 +44,6 @@ struct TypeComparator {
 /// Storage for SpecTypes parameterized by a list of Types. Lists must
 /// be equal regardless of element order.
 struct TypeListStorage : public TypeStorage {
-  struct TypeComparator {
-    bool operator()(Type lhs, Type rhs) {
-      // Using the opaque pointer will ensure consistent ordering
-      return lhs.getAsOpaquePointer() < rhs.getAsOpaquePointer();
-    }
-  };
-
   /// Compound key of all the contained types.
   using KeyTy = ImmutableSortedList<Type>;
 
