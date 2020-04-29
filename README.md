@@ -8,6 +8,10 @@
 
 Build with `cmake --build . --target DMC<lib>`.
 
+## Short-Term TODOs
+
+- Dynamic type and attribute definitions
+
 ## Long-Term TODOs
 
 - Add graceful failures (e.g. multiple Ops with the same name) instead of relying on MLIR asserts to better support dynamic environment
