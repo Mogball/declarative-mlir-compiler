@@ -25,8 +25,12 @@ namespace dmc {
 class SpecDialect : public mlir::Dialect {
 public:
   explicit SpecDialect(mlir::MLIRContext *ctx);
+  static llvm::StringRef getDialectNamespace() { return "dmc"; }
 
-  static llvm::StringRef getDialect
+  /// Custom parser and printer for operand and result type specs.
+  mlir::Type parseType(mlir::DialectAsmParser &parser) const override;
+  void printType(mlir::Type type,
+                 mlir::DialectAsmPrinter &printer) const override;
 };
 
 } // end namespace dmc
