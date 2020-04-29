@@ -9,7 +9,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
   addTypes<
       AnyType, NoneType, AnyOfType, 
-      AnyIntegerType, AnyIType
+      AnyIntegerType, AnyIType, AnyIntOfWidthsType
   >();
 }
 

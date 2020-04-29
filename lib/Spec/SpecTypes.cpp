@@ -4,6 +4,8 @@
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/Diagnostics.h>
 
+#include <unordered_set>
+
 using namespace mlir;
 
 namespace dmc {
@@ -15,7 +17,8 @@ template <typename T>
 struct ImmutableSortedList : public llvm::SmallVector<T, 4> {
   /// Sort on creation with comparator.
   template <typename Container, typename ComparatorT>
-  ImmutableSortedList(const Container &c, ComparatorT comparator) 
+  ImmutableSortedList(const Container &c, 
+                      ComparatorT comparator = ComparatorT{}) 
       : llvm::SmallVector<T, 4>{std::begin(c), std::end(c)} {
     llvm::sort(this->begin(), this->end(), comparator);
   }
@@ -82,7 +85,7 @@ struct WidthStorage : public TypeStorage {
 
   /// Create the WidthStorage;
   static WidthStorage *construct(TypeStorageAllocator &alloc,
-      const KeyTy &key) {
+                                 const KeyTy &key) {
     return new (alloc.allocate<WidthStorage>())
         WidthStorage{key};
   } 
@@ -95,6 +98,25 @@ struct WidthStorage : public TypeStorage {
 /// regardless of element order.
 struct WidthListStorage : public TypeStorage {
   /// Use list of widths as a compound key.
+  using KeyTy = ImmutableSortedList<unsigned>;
+
+  explicit WidthListStorage(KeyTy key) : widths{std::move(key)} {}
+
+  /// Compare all types.
+  bool operator==(const KeyTy &key) const { return key == widths; }
+  /// Hash all the widths together.
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return key.hash();
+  }
+
+  /// Create the WidthListStorage.
+  static WidthListStorage *construct(TypeStorageAllocator &alloc,
+                                     const KeyTy &key) {
+    return new (alloc.allocate<WidthListStorage>())
+        WidthListStorage{key};
+  }
+
+  KeyTy widths;
 };
 
 } // end namespace detail
@@ -116,7 +138,7 @@ LogicalResult AnyOfType::verifyConstructionInvariants(
   if (tys.empty()) 
     return emitError(loc) << "empty Type list passed to 'AnyOf'";
   llvm::SmallPtrSet<Type, 4> types{std::begin(tys), std::end(tys)};
-  if (types.size() != tys.size())
+  if (std::size(types) != std::size(tys))
     return emitError(loc) << "duplicate Types in list passed to 'AnyOf'";
   return success();
 }
@@ -146,13 +168,196 @@ LogicalResult AnyIType::verifyConstructionInvariants(
   case 64:
     return success();
   default:
-    return emitError(loc) << "width passed to AnyI must be one of "
-                          << "[1, 8, 16, 32, 64]";
+    return emitError(loc) << "width must be one of [1, 8, 16, 32, 64]";
   }
 }
 
 LogicalResult AnyIType::verify(Type ty) const {
   return success(ty.isInteger(getImpl()->width));
+}
+
+/// AnyIntOfWidthsType implementation.
+AnyIntOfWidthsType AnyIntOfWidthsType::get(MLIRContext *ctx,
+                                          ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>    
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::get(ctx, SpecTypes::AnyIntOfWidths, 
+                   std::move(sortedWidths));
+}
+
+AnyIntOfWidthsType AnyIntOfWidthsType::getChecked(Location loc,
+                                           ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>    
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::getChecked(loc, SpecTypes::AnyIntOfWidths,
+                          std::move(sortedWidths));
+}
+
+LogicalResult AnyIntOfWidthsType::verifyConstructionInvariants(
+    Location loc, ArrayRef<unsigned> widths) {
+  if (widths.empty()) 
+    return emitError(loc) << "empty integer width list passed";
+  std::unordered_set<unsigned> widthSet{std::begin(widths), 
+                                        std::end(widths)}; 
+  if (std::size(widthSet) != std::size(widths))
+    return emitError(loc) << "repeated integer widths passed";
+  for (auto width : widths) {
+    if (failed(AnyIType::verifyConstructionInvariants(loc, width)))
+      return failure();
+  }
+  return success();
+}
+
+LogicalResult AnyIntOfWidthsType::verify(Type ty) const {
+  for (auto width : getImpl()->widths) {
+    if (ty.isInteger(width)) 
+      return success();
+  }
+  return failure();
+}
+
+/// IType implementation.
+IType IType::get(MLIRContext *ctx, unsigned width) {
+  return Base::get(ctx, SpecTypes::I, width);
+}
+
+IType IType::getChecked(Location loc, unsigned width) {
+  return Base::getChecked(loc, SpecTypes::I, width);
+}
+
+LogicalResult IType::verifyConstructionInvariants(
+    Location loc, unsigned width) {
+  return AnyIType::verifyConstructionInvariants(loc, width);
+}
+
+LogicalResult IType::verify(Type ty) const {
+  return success(ty.isSignlessInteger(getImpl()->width));
+}
+
+/// SignlessIntOfWidthsType implementation.
+SignlessIntOfWidthsType SignlessIntOfWidthsType::get(
+    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>    
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::get(ctx, SpecTypes::SignlessIntOfWidths, 
+                   std::move(sortedWidths));
+}
+
+SignlessIntOfWidthsType SignlessIntOfWidthsType::getChecked(
+    Location loc, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>    
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::getChecked(loc, SpecTypes::SignlessIntOfWidths,
+                          std::move(sortedWidths));
+}
+
+LogicalResult SignlessIntOfWidthsType::verifyConstructionInvariants(
+    Location loc, ArrayRef<unsigned> widths) {
+  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
+}
+
+LogicalResult SignlessIntOfWidthsType::verify(Type ty) const {
+  for (auto width : getImpl()->widths) {
+    if (ty.isSignlessInteger(width))
+      return success();
+  }
+  return failure();
+}
+
+/// SIType implementation.
+SIType SIType::get(MLIRContext *ctx, unsigned width) {
+  return Base::get(ctx, SpecTypes::SI, width);
+}
+
+SIType SIType::getChecked(Location loc, unsigned width) {
+  return Base::getChecked(loc, SpecTypes::SI, width);
+}
+
+LogicalResult SIType::verifyConstructionInvariants(
+    Location loc, unsigned width) {
+  return AnyIType::verifyConstructionInvariants(loc, width);
+}
+
+LogicalResult SIType::verify(Type ty) const {
+  return success(ty.isSignedInteger(getImpl()->width));
+}
+
+/// SignedIntOfWidthsType implementation.
+SignedIntOfWidthsType SignedIntOfWidthsType::get(
+    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::get(ctx, SpecTypes::SignedIntOfWidths,
+                   std::move(sortedWidths));
+}
+
+SignedIntOfWidthsType SignedIntOfWidthsType::getChecked(
+    Location loc, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::getChecked(loc, SpecTypes::SignedIntOfWidths,
+                          std::move(sortedWidths));
+}
+
+LogicalResult SignedIntOfWidthsType::verifyConstructionInvariants(
+    Location loc, ArrayRef<unsigned> widths) {
+  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
+}
+
+LogicalResult SignedIntOfWidthsType::verify(Type ty) const {
+  for (auto width : getImpl()->widths) {
+    if (ty.isSignedInteger(width))
+      return success();
+  }
+  return failure();
+}
+
+/// UIType implementation.
+UIType UIType::get(MLIRContext *ctx, unsigned width) {
+  return Base::get(ctx, SpecTypes::UI, width);
+}
+
+UIType UIType::getChecked(Location loc, unsigned width) {
+  return Base::getChecked(loc, SpecTypes::UI, width);
+}
+
+LogicalResult UIType::verifyConstructionInvariants(
+    Location loc, unsigned width) {
+  return AnyIType::verifyConstructionInvariants(loc, width);
+}
+
+LogicalResult UIType::verify(Type ty) const {
+  return success(ty.isUnsignedInteger(getImpl()->width));
+}
+
+/// UnsignedIntOfWidthsType implementation.
+UnsignedIntOfWidthsType UnsignedIntOfWidthsType::get(
+    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::get(ctx, SpecTypes::UnsignedIntOfWidths,
+                   std::move(sortedWidths));
+}
+
+UnsignedIntOfWidthsType UnsignedIntOfWidthsType::getChecked(
+    Location loc, ArrayRef<unsigned> widths) {
+  detail::ImmutableSortedList<unsigned>
+      sortedWidths{widths, std::less<unsigned>{}};
+  return Base::getChecked(loc, SpecTypes::UnsignedIntOfWidths,
+                          std::move(sortedWidths));
+}
+
+LogicalResult UnsignedIntOfWidthsType::verifyConstructionInvariants(
+    Location loc, ArrayRef<unsigned> widths) {
+  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
+}
+
+LogicalResult UnsignedIntOfWidthsType::verify(Type ty) const {
+  for (auto width : getImpl()->widths) {
+    if (ty.isUnsignedInteger(width))
+      return success();
+  }
+  return failure();
 }
 
 } // end namespace dmc

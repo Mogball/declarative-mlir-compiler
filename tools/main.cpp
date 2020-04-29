@@ -70,4 +70,8 @@ int main() {
   assert(anyOf2.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
   auto anyOf3 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(8)});
   assert(anyOf3.getAsOpaquePointer() != anyOf0.getAsOpaquePointer());
+
+  auto anyWidth = AnyIntOfWidthsType::get(&mlirContext, {8, 16, 32});
+  assert(failed(anyWidth.verify(b.getIntegerType(64))));
+  assert(succeeded(anyWidth.verify(b.getIntegerType(32))));
 }
