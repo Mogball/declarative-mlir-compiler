@@ -1,4 +1,5 @@
 #include "dmc/Spec/SpecDialect.h"
+#include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
 
 #include <mlir/IR/DialectImplementation.h>
@@ -10,6 +11,9 @@ namespace dmc {
 /// SpecDialect.
 SpecDialect::SpecDialect(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
+  addOperations<
+      DialectOp, DialectTerminatorOp
+  >();
   addTypes<
       AnyType, NoneType, AnyOfType, 
       AnyIntegerType, AnyIType, AnyIntOfWidthsType,
