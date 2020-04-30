@@ -3,6 +3,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/TypeUtilities.h>
 
 #include <unordered_set>
 
@@ -141,6 +142,31 @@ struct OneTypeStorage : public TypeStorage {
   }
 
   KeyTy type;
+};
+
+/// Storage the Dialect and Type names.
+struct OpaqueTypeStorage : public TypeStorage {
+  /// Storage will only hold references.
+  using KeyTy = std::pair<StringRef, StringRef>;
+
+  explicit OpaqueTypeStorage(StringRef dialectName, StringRef typeName)
+      : dialectName{dialectName}, typeName{typeName} {}
+
+  bool operator==(const KeyTy &key) const {
+    return key.first == dialectName && key.second == typeName;
+  }
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return llvm::hash_combine(key.first, key.second);
+  }
+
+  static OpaqueTypeStorage *construct(TypeStorageAllocator &alloc, 
+      const KeyTy &key) {
+    return new (alloc.allocate<OpaqueTypeStorage>())
+        OpaqueTypeStorage{key.first, key.second};
+  }
+
+  StringRef dialectName;
+  StringRef typeName;
 };
 
 } // end namespace detail
@@ -473,6 +499,31 @@ LogicalResult ComplexType::verify(Type ty) {
       return success(elTyBase == elTy);
   }
   return failure();
+}
+
+/// OpaqueType implementation.
+OpaqueType OpaqueType::get(MLIRContext *ctx, StringRef dialectName,
+                           StringRef typeName) {
+  return Base::get(ctx, SpecTypes::Opaque, dialectName, typeName);
+}
+
+OpaqueType OpaqueType::getChecked(Location loc, StringRef dialectName,
+                                  StringRef typeName) {
+  return Base::getChecked(loc, SpecTypes::Opaque, dialectName, typeName);
+}
+
+LogicalResult OpaqueType::verifyConstructionInvariants(
+    Location loc, StringRef dialectName, StringRef typeName) {
+  if (dialectName.empty())
+    return emitError(loc) << "dialect name cannot be empty";
+  if (typeName.empty())
+    return emitError(loc) << "type name cannot be empty";
+  return success();
+}
+
+LogicalResult OpaqueType::verify(Type ty) {
+  return success(mlir::isOpaqueTypeWithName(
+        ty, getImpl()->dialectName, getImpl()->typeName));
 }
 
 } // end namespace dmc

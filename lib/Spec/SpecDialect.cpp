@@ -14,7 +14,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnySignedIntegerType, SIType, SignedIntOfWidthsType,
       AnyUnsignedIntegerType, UIType, UnsignedIntOfWidthsType,
       IndexType, AnyFloatType, FType, FloatOfWidthsType, BF16Type,
-      AnyComplexType, ComplexType
+      AnyComplexType, ComplexType, OpaqueType
   >();
 }
 

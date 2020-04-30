@@ -57,6 +57,8 @@ LogicalResult delegateVerify(Type base, Type ty) {
     return base.cast<AnyComplexType>().verify(ty);
   case Complex:
     return base.cast<ComplexType>().verify(ty);
+  case Opaque:
+    return base.cast<OpaqueType>().verify(ty);
   default:
     llvm_unreachable("Unknown SpecType");
     return failure();

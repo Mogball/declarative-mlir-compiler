@@ -34,6 +34,7 @@ struct TypeListStorage;
 struct WidthStorage;
 struct WidthListStorage;
 struct OneTypeStorage;
+struct OpaqueTypeStorage;
 } // end namespace detail
 
 namespace SpecTypes {
@@ -67,6 +68,9 @@ enum Kinds {
 
   AnyComplex,
   Complex,
+
+  Opaque,
+  Function,
 
   NUM_TYPES
 };
@@ -345,5 +349,32 @@ public:
   static ComplexType getChecked(mlir::Location loc, Type elTy);
   mlir::LogicalResult verify(Type ty);
 };
+
+/// Match an opaque type based on name.
+class OpaqueType : public SpecType<OpaqueType, SpecTypes::Opaque,
+                                   detail::OpaqueTypeStorage> {
+public:
+  using Base::Base;
+
+  static OpaqueType get(mlir::MLIRContext *ctx,
+                        llvm::StringRef dialectName, llvm::StringRef typeName);
+  static OpaqueType getChecked(mlir::Location loc,
+                        llvm::StringRef dialectName, llvm::StringRef typeName);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, 
+      llvm::StringRef dialectName, llvm::StringRef typeName);
+  mlir::LogicalResult verify(Type ty);
+};
+
+/// Match a FunctionType.
+class FunctionType : public SimpleType<FunctionType, SpecTypes::Function> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Type ty) {
+    return mlir::success(ty.isa<mlir::FunctionType>());
+  }
+};
+
+/// TODO Container types (vectors, tensors, etc.), memref types, tuples.
 
 } // end namespace dmc
