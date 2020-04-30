@@ -33,6 +33,7 @@ namespace detail {
 struct TypeListStorage;
 struct WidthStorage;
 struct WidthListStorage;
+struct OneTypeStorage;
 } // end namespace detail
 
 namespace SpecTypes {
@@ -62,7 +63,12 @@ enum Kinds {
   AnyFloat,
   F,
   FloatOfWidths,
-  BF16
+  BF16,
+
+  AnyComplex,
+  Complex,
+
+  NUM_TYPES
 };
 } // end namespace SpecTypes
 
@@ -367,6 +373,41 @@ public:
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
+  mlir::LogicalResult verify(mlir::Type ty) const override;
+};
+
+/// Match BF16.
+class BF16Type : public SimpleType<BF16Type, SpecTypes::BF16> {
+public:
+  using Base::Base;
+  mlir::LogicalResult verify(mlir::Type ty) const override {
+    return mlir::success(ty.isBF16());
+  }
+};
+
+/// Match any ComplexType.
+class AnyComplexType : public SimpleType<AnyComplexType, 
+                                         SpecTypes::AnyComplex> {
+public:
+  using Base::Base;
+  mlir::LogicalResult verify(mlir::Type ty) const override {
+    return mlir::success(ty.isa<mlir::ComplexType>());
+  }
+}
+
+/// Match a ComplexType of an element type.
+class ComplexType : public mlir::Type::TypeBase<ComplexType, mlir::Type,
+                                                detail::OneTypeStorage>,
+                    public SpecType {
+public:
+  using Base::Base;
+
+  static inline bool kindof(unsigned kind) {
+    return kind == SpecTypes::Complex;
+  }
+
+  static ComplexType get(mlir::Type elTy);
+  static ComplexType getChecked(Location loc, mlir::Type elTy);
   mlir::LogicalResult verify(mlir::Type ty) const override;
 };
 

@@ -119,6 +119,30 @@ struct WidthListStorage : public TypeStorage {
   KeyTy widths;
 };
 
+/// Storage for TypeConstraints with one Type parameter.
+struct OneTypeStorage : public TypeStorage {
+  /// Use the type as the key.
+  using KeyTy = Type;
+
+  explicit OneTypeStorage(KeyTy key) : type{key} {}
+
+  /// Compare the Type.
+  bool operator==(const KeyTy &key) const { return key == type; }
+  /// Hash the type.
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return llvm::hash_value(key);
+  }
+
+  /// Create the single Type storage.
+  static OneTypeStorage *construct(TypeStorageAllocator &alloc,
+                                   const KeyTy &key) {
+    return new (alloc.allocate<OneTypeStorage>())
+        OneTypeStorage{key};
+  }
+
+  KeyTy type;
+};
+
 } // end namespace detail
 
 /// Helper functions.
@@ -143,6 +167,10 @@ LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
 
 auto getSortedWidths(ArrayRef<unsigned> widths) {
   return detail::ImmutableSortedList<unsigned>{widths, std::less<unsigned>{}};
+}
+
+inline bool isSpecType(Type ty) {
+  return SpecTypes::Any <= ty.getKind() && ty.getKind() < SpecTypes::NUM_TYPES;
 }
 
 } // end anonymous namespace
@@ -425,6 +453,25 @@ LogicalResult FloatOfWidthsType::verify(Type ty) const {
   for (auto width : getImpl()->widths) {
     if (succeeded(verifyFloatWidth(width, ty)))
       return success();
+  }
+  return failure();
+}
+
+/// ComplexType implementation.
+ComplexType ComplexType::get(Type elTy) {
+  return Base::get(elTy.getContext(), SpecTypes::Complex, elTy);
+}
+
+ComplexType ComplexType::getChecked(Location loc, Type elTy) {
+  return Base::getChecked(loc, SpecTypes::Complex, elTy);
+}
+
+LogicalResult ComplexType::verify(Type ty) const {
+  // Check that the Type is a ComplexType
+  if (auto complexTy = ty.dyn_cast<mlir::ComplexType>()) {
+    auto elTy = getImpl()->type;
+    if (isSpecType(elTy)) 
+      return 
   }
   return failure();
 }
