@@ -2,6 +2,7 @@
 
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/SymbolTable.h>
+#include <mlir/IR/FunctionSupport.h>
 
 namespace dmc {
 
@@ -55,6 +56,46 @@ public:
     return "dmc.DialectTerminator"; 
   }
   static inline void build(mlir::OpBuilder &, mlir::OperationState &) {}
+};
+
+/// Dialect Op definition Op. This Op captures information about an operation:
+///
+/// dmc.Op @MyOpA(!dmc.Any, !dmc.AnyOf<!dmc.I<32>, !dmc.F<32>>) ->
+///     (!dmc.AnyFloat, !dmc.AnyInteger) 
+///     attributes { attr0 = !dmc.Any, attr1 = !dmc.StrAttr }
+///     config { parser = @MyOpAParser, printer = @MyOpAPrinter 
+///              traits = [@Commutative]}
+///
+/// TODO attributes and config
+class OperationOp
+    : public mlir::Op<OperationOp,
+                      mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
+                      mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::FunctionLike,
+                      mlir::SymbolOpInterface::Trait> {
+public:
+  using Op::Op;
+
+  static llvm::StringRef getOperationName() { return "dmc.Op"; }
+
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result, 
+                    llvm::StringRef name, mlir::FunctionType type,
+                    llvm::ArrayRef<mlir::NamedAttribute> attrs);
+
+  /// Operation hooks.
+  static mlir::ParseResult parse(mlir::OpAsmParser &parser, 
+                                 mlir::OperationState &result);
+  void print(mlir::OpAsmPrinter &printer);
+  mlir::LogicalResult verify();
+
+  /// Getters.
+  llvm::StringRef getName();
+
+private:
+  /// Hooks for FunctionLike
+  friend class mlir::OpTrait::FunctionLike<OperationOp>;
+  unsigned getNumFuncArguments() { return getType().getInputs().size(); }
+  unsigned getNumFuncResults() { return getType().getResults().size(); }
+  mlir::LogicalResult verifyType();
 };
 
 } // end namespace dmc

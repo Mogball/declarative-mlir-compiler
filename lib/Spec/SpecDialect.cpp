@@ -12,7 +12,7 @@ namespace dmc {
 SpecDialect::SpecDialect(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
   addOperations<
-      DialectOp, DialectTerminatorOp
+      DialectOp, DialectTerminatorOp, OperationOp
   >();
   addTypes<
       AnyType, NoneType, AnyOfType, 
