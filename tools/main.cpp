@@ -63,15 +63,34 @@ int main() {
   }
 
   // Check AnyOf is order-independent
-  auto anyOf0 = AnyOfType::get({b.getIntegerType(16), b.getIntegerType(32), b.getIntegerType(64)});
-  auto anyOf1 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(16), b.getIntegerType(32)});
-  auto anyOf2 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(16)});
-  assert(anyOf0.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
-  assert(anyOf2.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
-  auto anyOf3 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(8)});
-  assert(anyOf3.getAsOpaquePointer() != anyOf0.getAsOpaquePointer());
+  {
+    auto anyOf0 = AnyOfType::get({b.getIntegerType(16), b.getIntegerType(32), b.getIntegerType(64)});
+    auto anyOf1 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(16), b.getIntegerType(32)});
+    auto anyOf2 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(16)});
+    assert(anyOf0.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
+    assert(anyOf2.getAsOpaquePointer() == anyOf1.getAsOpaquePointer());
+    auto anyOf3 = AnyOfType::get({b.getIntegerType(64), b.getIntegerType(32), b.getIntegerType(8)});
+    assert(anyOf3.getAsOpaquePointer() != anyOf0.getAsOpaquePointer());
+  }
 
-  auto anyWidth = AnyIntOfWidthsType::get(&mlirContext, {8, 16, 32});
-  assert(failed(anyWidth.verify(b.getIntegerType(64))));
-  assert(succeeded(anyWidth.verify(b.getIntegerType(32))));
+  {
+    auto anyWidth = AnyIntOfWidthsType::get(&mlirContext, {8, 16, 32});
+    assert(failed(anyWidth.verify(b.getIntegerType(64))));
+    assert(succeeded(anyWidth.verify(b.getIntegerType(32))));
+  }
+
+  {
+    auto complexTy = dmc::ComplexType::get(AnyIntegerType::get(&mlirContext));
+    auto complexTyArg0 = mlir::ComplexType::get(b.getIntegerType(64));
+    auto complexTyArg1 = mlir::ComplexType::get(b.getIntegerType(16));
+    auto complexTyArg2 = mlir::ComplexType::get(b.getF32Type());
+    assert(succeeded(complexTy.verify(complexTyArg0)));
+    assert(succeeded(complexTy.verify(complexTyArg1)));
+    assert(failed(complexTy.verify(complexTyArg2)));
+    assert(failed(complexTy.verify(b.getIntegerType(64))));
+    auto complexTy0 = dmc::ComplexType::get(b.getIntegerType(64));
+    assert(succeeded(complexTy0.verify(complexTyArg0)));
+    assert(failed(complexTy0.verify(complexTyArg1)));
+    assert(failed(complexTy0.verify(complexTyArg2)));
+  }
 }

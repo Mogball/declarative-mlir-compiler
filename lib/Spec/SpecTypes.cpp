@@ -130,7 +130,7 @@ struct OneTypeStorage : public TypeStorage {
   bool operator==(const KeyTy &key) const { return key == type; }
   /// Hash the type.
   static llvm::hash_code hashKey(const KeyTy &key) {
-    return llvm::hash_value(key);
+    return hash_value(Type{key});
   }
 
   /// Create the single Type storage.
@@ -169,10 +169,6 @@ auto getSortedWidths(ArrayRef<unsigned> widths) {
   return detail::ImmutableSortedList<unsigned>{widths, std::less<unsigned>{}};
 }
 
-inline bool isSpecType(Type ty) {
-  return SpecTypes::Any <= ty.getKind() && ty.getKind() < SpecTypes::NUM_TYPES;
-}
-
 } // end anonymous namespace
 
 /// AnyOfType implementation.
@@ -197,7 +193,7 @@ LogicalResult AnyOfType::verifyConstructionInvariants(
   return success();
 }
 
-LogicalResult AnyOfType::verify(Type ty) const {
+LogicalResult AnyOfType::verify(Type ty) {
   // Success if the Type is found
   auto &types = getImpl()->types;
   return success(llvm::find(types, ty) != std::end(types));
@@ -226,7 +222,7 @@ LogicalResult AnyIType::verifyConstructionInvariants(
   }
 }
 
-LogicalResult AnyIType::verify(Type ty) const {
+LogicalResult AnyIType::verify(Type ty) {
   return success(ty.isInteger(getImpl()->width));
 }
 
@@ -249,7 +245,7 @@ LogicalResult AnyIntOfWidthsType::verifyConstructionInvariants(
   return verifyWidthList<AnyIType>(loc, widths, "integer");
 }
 
-LogicalResult AnyIntOfWidthsType::verify(Type ty) const {
+LogicalResult AnyIntOfWidthsType::verify(Type ty) {
   for (auto width : getImpl()->widths) {
     if (ty.isInteger(width))
       return success();
@@ -271,7 +267,7 @@ LogicalResult IType::verifyConstructionInvariants(
   return AnyIType::verifyConstructionInvariants(loc, width);
 }
 
-LogicalResult IType::verify(Type ty) const {
+LogicalResult IType::verify(Type ty) {
   return success(ty.isSignlessInteger(getImpl()->width));
 }
 
@@ -293,7 +289,7 @@ LogicalResult SignlessIntOfWidthsType::verifyConstructionInvariants(
   return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
 }
 
-LogicalResult SignlessIntOfWidthsType::verify(Type ty) const {
+LogicalResult SignlessIntOfWidthsType::verify(Type ty) {
   for (auto width : getImpl()->widths) {
     if (ty.isSignlessInteger(width))
       return success();
@@ -315,7 +311,7 @@ LogicalResult SIType::verifyConstructionInvariants(
   return AnyIType::verifyConstructionInvariants(loc, width);
 }
 
-LogicalResult SIType::verify(Type ty) const {
+LogicalResult SIType::verify(Type ty) {
   return success(ty.isSignedInteger(getImpl()->width));
 }
 
@@ -337,7 +333,7 @@ LogicalResult SignedIntOfWidthsType::verifyConstructionInvariants(
   return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
 }
 
-LogicalResult SignedIntOfWidthsType::verify(Type ty) const {
+LogicalResult SignedIntOfWidthsType::verify(Type ty) {
   for (auto width : getImpl()->widths) {
     if (ty.isSignedInteger(width))
       return success();
@@ -359,7 +355,7 @@ LogicalResult UIType::verifyConstructionInvariants(
   return AnyIType::verifyConstructionInvariants(loc, width);
 }
 
-LogicalResult UIType::verify(Type ty) const {
+LogicalResult UIType::verify(Type ty) {
   return success(ty.isUnsignedInteger(getImpl()->width));
 }
 
@@ -381,7 +377,7 @@ LogicalResult UnsignedIntOfWidthsType::verifyConstructionInvariants(
   return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
 }
 
-LogicalResult UnsignedIntOfWidthsType::verify(Type ty) const {
+LogicalResult UnsignedIntOfWidthsType::verify(Type ty) {
   for (auto width : getImpl()->widths) {
     if (ty.isUnsignedInteger(width))
       return success();
@@ -427,7 +423,7 @@ LogicalResult FType::verifyConstructionInvariants(
   }
 }
 
-LogicalResult FType::verify(Type ty) const {
+LogicalResult FType::verify(Type ty) {
   return verifyFloatWidth(getImpl()->width, ty);
 }
 
@@ -449,7 +445,7 @@ LogicalResult FloatOfWidthsType::verifyConstructionInvariants(
   return verifyWidthList<FType>(loc, widths, "float");
 }
 
-LogicalResult FloatOfWidthsType::verify(Type ty) const {
+LogicalResult FloatOfWidthsType::verify(Type ty) {
   for (auto width : getImpl()->widths) {
     if (succeeded(verifyFloatWidth(width, ty)))
       return success();
@@ -466,12 +462,15 @@ ComplexType ComplexType::getChecked(Location loc, Type elTy) {
   return Base::getChecked(loc, SpecTypes::Complex, elTy);
 }
 
-LogicalResult ComplexType::verify(Type ty) const {
+LogicalResult ComplexType::verify(Type ty) {
   // Check that the Type is a ComplexType
   if (auto complexTy = ty.dyn_cast<mlir::ComplexType>()) {
-    auto elTy = getImpl()->type;
-    if (isSpecType(elTy)) 
-      return 
+    auto elTyBase = getImpl()->type;
+    auto elTy = complexTy.getElementType();
+    if (SpecTypes::is(elTyBase))
+      return SpecTypes::delegateVerify(elTyBase, elTy);
+    else 
+      return success(elTyBase == elTy);
   }
   return failure();
 }
