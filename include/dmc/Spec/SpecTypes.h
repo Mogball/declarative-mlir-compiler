@@ -2,6 +2,7 @@
 
 #include "SpecTypeImplementation.h"
 
+#include <mlir/IR/Dialect.h>
 #include <mlir/IR/StandardTypes.h>
 
 namespace dmc {
@@ -110,6 +111,8 @@ public:
       mlir::Location loc, llvm::ArrayRef<Type> tys);
   /// Check Type is in the list.
   mlir::LogicalResult verify(Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
 };
 
 /// Match any IntegerType.
@@ -348,6 +351,8 @@ public:
   static ComplexType get(Type elTy);
   static ComplexType getChecked(mlir::Location loc, Type elTy);
   mlir::LogicalResult verify(Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
 };
 
 /// Match an opaque type based on name.
@@ -364,6 +369,8 @@ public:
       mlir::Location loc, 
       llvm::StringRef dialectName, llvm::StringRef typeName);
   mlir::LogicalResult verify(Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
 };
 
 /// Match a FunctionType.

@@ -222,7 +222,14 @@ LogicalResult AnyOfType::verifyConstructionInvariants(
 LogicalResult AnyOfType::verify(Type ty) {
   // Success if the Type is found
   auto &types = getImpl()->types;
-  return success(llvm::find(types, ty) != std::end(types));
+  for (auto baseTy : types) {
+    if (SpecTypes::is(baseTy) && 
+        succeeded(SpecTypes::delegateVerify(baseTy, ty)))
+      return success();
+    else if (baseTy == ty)
+      return success();
+  }
+  return failure();
 }
 
 /// AnyIType implementation.

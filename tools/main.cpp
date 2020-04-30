@@ -93,4 +93,16 @@ int main() {
     assert(failed(complexTy0.verify(complexTyArg1)));
     assert(failed(complexTy0.verify(complexTyArg2)));
   }
+
+  {
+    auto anyOfCompound = AnyOfType::get({
+        AnyIntegerType::get(&mlirContext), b.getF32Type()});
+    assert(succeeded(anyOfCompound.verify(b.getIntegerType(32))));
+    assert(succeeded(anyOfCompound.verify(b.getIntegerType(16))));
+    assert(succeeded(anyOfCompound.verify(b.getF32Type())));
+    assert(failed(anyOfCompound.verify(b.getF16Type())));
+    auto anyOfNested = AnyOfType::get({AnyOfType::get({AnyFloatType::get(&mlirContext)})});
+    assert(succeeded(anyOfNested.verify(b.getF16Type())));
+    assert(failed(anyOfNested.verify(b.getIntegerType(32))));
+  }
 }
