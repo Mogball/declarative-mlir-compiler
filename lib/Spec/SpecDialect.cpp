@@ -50,6 +50,7 @@ Type parseWidthListType(DialectAsmParser &parser) {
     return Type{};
   return BaseT::getChecked(loc, widths);
 }
+
 } // end anonymous namespace
 
 /// Type parsing.
@@ -102,6 +103,7 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     return OpaqueType::parse(parser);
   if (!parser.parseOptionalKeyword("Function"))
     return FunctionType::get(getContext());
+  parser.emitError(parser.getCurrentLocation(), "Unknown TypeConstraint");
   return Type{};
 }
 
@@ -142,10 +144,6 @@ Type OpaqueType::parse(DialectAsmParser &parser) {
     return Type{};
   return OpaqueType::getChecked(loc, dialectNameAttr.getValue(),
                                 typeNameAttr.getValue());
-}
-
-void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  // TODO
 }
 
 } // end namespace dmc

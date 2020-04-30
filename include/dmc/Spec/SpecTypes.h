@@ -113,6 +113,7 @@ public:
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 /// Match any IntegerType.
@@ -353,6 +354,7 @@ public:
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 /// Match an opaque type based on name.
@@ -371,6 +373,7 @@ public:
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 /// Match a FunctionType.

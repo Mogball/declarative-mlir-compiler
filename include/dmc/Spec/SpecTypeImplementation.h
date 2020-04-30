@@ -11,6 +11,8 @@ template <typename ConcreteType, unsigned Kind,
           typename StorageType = mlir::DefaultTypeStorage>
 class SpecType 
     : public mlir::Type::TypeBase<ConcreteType, mlir::Type, StorageType> {
+  friend class SpecDialect;
+
 public:
   /// Explicitly define Base class for templated classes.
   using Parent = mlir::Type::TypeBase<ConcreteType, mlir::Type, StorageType>;

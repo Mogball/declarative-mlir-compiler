@@ -1,8 +1,10 @@
+#include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypes.h"
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/TypeUtilities.h>
 
 #include <unordered_set>
@@ -531,6 +533,129 @@ LogicalResult OpaqueType::verifyConstructionInvariants(
 LogicalResult OpaqueType::verify(Type ty) {
   return success(mlir::isOpaqueTypeWithName(
         ty, getImpl()->dialectName, getImpl()->typeName));
+}
+
+/// Type printing.
+namespace {
+void printSingleWidth(StringRef name, detail::WidthStorage *impl,
+                      DialectAsmPrinter &printer) {
+  printer << name << '<' << impl->width << '>';
+}
+
+void printWidthList(StringRef name, detail::WidthListStorage *impl, 
+                    DialectAsmPrinter &printer) {
+  auto it = std::begin(impl->widths);
+  printer << name << '<' << (*it++);
+  for (auto e = std::end(impl->widths); it != e; ++it) 
+    printer << ',' << (*it);
+  printer << '>';
+}
+} // end anonymous namespace
+
+void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
+  using namespace SpecTypes;
+  assert(is(type) && "Not a SpecType");
+  switch (type.getKind()) {
+  case Any:
+    printer << "Any";
+    break;
+  case None:
+    printer << "None";
+    break;
+  case AnyOf:
+    type.cast<AnyOfType>().print(printer);
+    break;
+  case AnyInteger:
+    printer << "AnyInteger";
+    break;
+  case AnyI:
+    printSingleWidth("AnyI", type.cast<AnyIType>().getImpl(), printer);
+    break;
+  case AnyIntOfWidths:
+    printWidthList("AnyIntOfWidths", type.cast<AnyIntOfWidthsType>().getImpl(), 
+                   printer);
+    break;
+  case AnySignlessInteger:
+    printer << "AnySignlessInteger";
+    break;
+  case I:
+    printSingleWidth("I", type.cast<IType>().getImpl(), printer);
+    break;
+  case SignlessIntOfWidths:
+    printWidthList("SignlessIntOfWidths", 
+                   type.cast<SignlessIntOfWidthsType>().getImpl(), printer);
+    break;
+  case AnySignedInteger:
+    printer << "AnySignedInteger";
+    break;
+  case SI:
+    printSingleWidth("SI", type.cast<SIType>().getImpl(), printer);
+    break;
+  case SignedIntOfWidths:
+    printWidthList("SignedIntOfWidths", 
+                   type.cast<SignedIntOfWidthsType>().getImpl(), printer);
+    break;
+  case AnyUnsignedInteger:
+    printer << "AnyUnsignedInteger";
+    break;
+  case UI:
+    printSingleWidth("UI", type.cast<UIType>().getImpl(), printer);
+    break;
+  case UnsignedIntOfWidths:
+    printWidthList("UnsignedIntOfWidths", 
+                   type.cast<UnsignedIntOfWidthsType>().getImpl(), printer);
+    break;
+  case Index:
+    printer << "Index";
+    break;
+  case AnyFloat:
+    printer << "AnyFloat";
+    break;
+  case F:
+    printSingleWidth("F", type.cast<FType>().getImpl(), printer);
+    break;
+  case FloatOfWidths:
+    printWidthList("FloatOfWidths", type.cast<FloatOfWidthsType>().getImpl(),
+                   printer);
+    break;
+  case BF16:
+    printer << "BF16";
+    break;
+  case AnyComplex:
+    printer << "AnyComplex";
+    break;
+  case Complex:
+    type.cast<ComplexType>().print(printer);
+    break;
+  case Opaque:
+    type.cast<OpaqueType>().print(printer);
+    break;
+  default:
+    llvm_unreachable("Unknown SpecType");
+    break;
+  }
+}
+
+void AnyOfType::print(DialectAsmPrinter &printer) {
+  printer << "AnyOf<";
+  auto it = std::begin(getImpl()->types);
+  printer.printType(*it++);
+  for (auto e = std::end(getImpl()->types); it != e; ++it) {
+    printer << ',';
+    printer.printType(*it);
+  }
+  printer << '>';
+}
+
+void ComplexType::print(DialectAsmPrinter &printer) {
+  printer << "Complex<";
+  printer.printType(getImpl()->type);
+  printer << '>';
+}
+
+void OpaqueType::print(DialectAsmPrinter &printer) {
+  printer << "Opaque<" << getImpl()->dialectName << ','
+          << getImpl()->typeName << '>';
 }
 
 } // end namespace dmc
