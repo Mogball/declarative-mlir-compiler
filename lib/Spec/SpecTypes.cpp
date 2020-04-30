@@ -17,8 +17,8 @@ template <typename T>
 struct ImmutableSortedList : public llvm::SmallVector<T, 4> {
   /// Sort on creation with comparator.
   template <typename Container, typename ComparatorT>
-  ImmutableSortedList(const Container &c, 
-                      ComparatorT comparator = ComparatorT{}) 
+  ImmutableSortedList(const Container &c,
+                      ComparatorT comparator = ComparatorT{})
       : llvm::SmallVector<T, 4>{std::begin(c), std::end(c)} {
     llvm::sort(this->begin(), this->end(), comparator);
   }
@@ -88,7 +88,7 @@ struct WidthStorage : public TypeStorage {
                                  const KeyTy &key) {
     return new (alloc.allocate<WidthStorage>())
         WidthStorage{key};
-  } 
+  }
 
   KeyTy width;
 };
@@ -121,6 +121,32 @@ struct WidthListStorage : public TypeStorage {
 
 } // end namespace detail
 
+/// Helper functions.
+namespace {
+
+template <typename BaseT>
+LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
+                              const char *typeName) {
+  if (widths.empty())
+    return emitError(loc) << "empty " << typeName << " width list passed";
+  std::unordered_set<unsigned> widthSet{std::begin(widths),
+                                        std::end(widths)};
+  if (std::size(widthSet) != std::size(widths))
+    return emitError(loc) << "duplicate " << typeName << " widths passed";
+
+  for (auto width : widths) {
+    if (failed(BaseT::verifyConstructionInvariants(loc, width)))
+      return failure();
+  }
+  return success();
+}
+
+auto getSortedWidths(ArrayRef<unsigned> widths) {
+  return detail::ImmutableSortedList<unsigned>{widths, std::less<unsigned>{}};
+}
+
+} // end anonymous namespace
+
 /// AnyOfType implementation.
 AnyOfType AnyOfType::get(ArrayRef<Type> tys) {
   auto *ctx = tys.front().getContext();
@@ -135,7 +161,7 @@ AnyOfType AnyOfType::getChecked(Location loc, ArrayRef<Type> tys) {
 
 LogicalResult AnyOfType::verifyConstructionInvariants(
     Location loc, ArrayRef<Type> tys) {
-  if (tys.empty()) 
+  if (tys.empty())
     return emitError(loc) << "empty Type list passed to 'AnyOf'";
   llvm::SmallPtrSet<Type, 4> types{std::begin(tys), std::end(tys)};
   if (std::size(types) != std::size(tys))
@@ -179,38 +205,25 @@ LogicalResult AnyIType::verify(Type ty) const {
 /// AnyIntOfWidthsType implementation.
 AnyIntOfWidthsType AnyIntOfWidthsType::get(MLIRContext *ctx,
                                           ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>    
-      sortedWidths{widths, std::less<unsigned>{}};
-  return Base::get(ctx, SpecTypes::AnyIntOfWidths, 
-                   std::move(sortedWidths));
+  return Base::get(ctx, SpecTypes::AnyIntOfWidths,
+                   getSortedWidths(widths));
 }
 
 AnyIntOfWidthsType AnyIntOfWidthsType::getChecked(Location loc,
                                            ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>    
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::getChecked(loc, SpecTypes::AnyIntOfWidths,
-                          std::move(sortedWidths));
+                          getSortedWidths(widths));
+
 }
 
 LogicalResult AnyIntOfWidthsType::verifyConstructionInvariants(
     Location loc, ArrayRef<unsigned> widths) {
-  if (widths.empty()) 
-    return emitError(loc) << "empty integer width list passed";
-  std::unordered_set<unsigned> widthSet{std::begin(widths), 
-                                        std::end(widths)}; 
-  if (std::size(widthSet) != std::size(widths))
-    return emitError(loc) << "repeated integer widths passed";
-  for (auto width : widths) {
-    if (failed(AnyIType::verifyConstructionInvariants(loc, width)))
-      return failure();
-  }
-  return success();
+  return verifyWidthList<AnyIType>(loc, widths, "integer");
 }
 
 LogicalResult AnyIntOfWidthsType::verify(Type ty) const {
   for (auto width : getImpl()->widths) {
-    if (ty.isInteger(width)) 
+    if (ty.isInteger(width))
       return success();
   }
   return failure();
@@ -237,18 +250,14 @@ LogicalResult IType::verify(Type ty) const {
 /// SignlessIntOfWidthsType implementation.
 SignlessIntOfWidthsType SignlessIntOfWidthsType::get(
     MLIRContext *ctx, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>    
-      sortedWidths{widths, std::less<unsigned>{}};
-  return Base::get(ctx, SpecTypes::SignlessIntOfWidths, 
-                   std::move(sortedWidths));
+  return Base::get(ctx, SpecTypes::SignlessIntOfWidths,
+                   getSortedWidths(widths));
 }
 
 SignlessIntOfWidthsType SignlessIntOfWidthsType::getChecked(
     Location loc, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>    
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::getChecked(loc, SpecTypes::SignlessIntOfWidths,
-                          std::move(sortedWidths));
+                          getSortedWidths(widths));
 }
 
 LogicalResult SignlessIntOfWidthsType::verifyConstructionInvariants(
@@ -285,18 +294,14 @@ LogicalResult SIType::verify(Type ty) const {
 /// SignedIntOfWidthsType implementation.
 SignedIntOfWidthsType SignedIntOfWidthsType::get(
     MLIRContext *ctx, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::get(ctx, SpecTypes::SignedIntOfWidths,
-                   std::move(sortedWidths));
+                   getSortedWidths(widths));
 }
 
 SignedIntOfWidthsType SignedIntOfWidthsType::getChecked(
     Location loc, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::getChecked(loc, SpecTypes::SignedIntOfWidths,
-                          std::move(sortedWidths));
+                          getSortedWidths(widths));
 }
 
 LogicalResult SignedIntOfWidthsType::verifyConstructionInvariants(
@@ -333,18 +338,14 @@ LogicalResult UIType::verify(Type ty) const {
 /// UnsignedIntOfWidthsType implementation.
 UnsignedIntOfWidthsType UnsignedIntOfWidthsType::get(
     MLIRContext *ctx, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::get(ctx, SpecTypes::UnsignedIntOfWidths,
-                   std::move(sortedWidths));
+                   getSortedWidths(widths));
 }
 
 UnsignedIntOfWidthsType UnsignedIntOfWidthsType::getChecked(
     Location loc, ArrayRef<unsigned> widths) {
-  detail::ImmutableSortedList<unsigned>
-      sortedWidths{widths, std::less<unsigned>{}};
   return Base::getChecked(loc, SpecTypes::UnsignedIntOfWidths,
-                          std::move(sortedWidths));
+                          getSortedWidths(widths));
 }
 
 LogicalResult UnsignedIntOfWidthsType::verifyConstructionInvariants(
@@ -355,6 +356,74 @@ LogicalResult UnsignedIntOfWidthsType::verifyConstructionInvariants(
 LogicalResult UnsignedIntOfWidthsType::verify(Type ty) const {
   for (auto width : getImpl()->widths) {
     if (ty.isUnsignedInteger(width))
+      return success();
+  }
+  return failure();
+}
+
+/// FType implementation.
+namespace {
+inline LogicalResult verifyFloatWidth(unsigned width, Type ty) {
+  switch (width) {
+  case 16:
+    return success(ty.isF16());
+  case 32:
+    return success(ty.isF32());
+  case 64:
+    return success(ty.isF64());
+  default:
+    llvm_unreachable("Invalid floating point width");
+    return failure();
+  }
+}
+} // end anonymous namespace
+
+FType FType::get(MLIRContext *ctx, unsigned width) {
+  return Base::get(ctx, SpecTypes::F, width);
+}
+
+FType FType::getChecked(Location loc, unsigned width) {
+  return Base::getChecked(loc, SpecTypes::F, width);
+}
+
+LogicalResult FType::verifyConstructionInvariants(
+    Location loc, unsigned width) {
+  // Width must be one of [16, 32, 64]
+  switch (width) {
+  case 16:
+  case 32:
+  case 64:
+    return success();
+  default:
+    return emitError(loc) << "float width must be one of [16, 32, 64]";
+  }
+}
+
+LogicalResult FType::verify(Type ty) const {
+  return verifyFloatWidth(getImpl()->width, ty);
+}
+
+/// FLoatOfWidthsType implementation
+FloatOfWidthsType FloatOfWidthsType::get(
+    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+  return Base::get(ctx, SpecTypes::FloatOfWidths,
+                   getSortedWidths(widths));
+}
+
+FloatOfWidthsType FloatOfWidthsType::getChecked(
+    Location loc, ArrayRef<unsigned> widths) {
+  return Base::getChecked(loc, SpecTypes::FloatOfWidths,
+                          getSortedWidths(widths));
+}
+
+LogicalResult FloatOfWidthsType::verifyConstructionInvariants(
+    Location loc, ArrayRef<unsigned> widths) {
+  return verifyWidthList<FType>(loc, widths, "float");
+}
+
+LogicalResult FloatOfWidthsType::verify(Type ty) const {
+  for (auto width : getImpl()->widths) {
+    if (succeeded(verifyFloatWidth(width, ty)))
       return success();
   }
   return failure();

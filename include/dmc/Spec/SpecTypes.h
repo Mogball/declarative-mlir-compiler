@@ -20,8 +20,8 @@ namespace dmc {
 ///     !dmc.Variadic<i32>, !dmc.Variadic<f32> is OK as the types
 ///     are mutually exclusive, but
 ///
-///     !dmc.Variadic<!dmc.Float>, !dmc.Variadic<f32> requires a variadic 
-///     size specifier (SameVariadicSize) as the types may not be 
+///     !dmc.Variadic<!dmc.Float>, !dmc.Variadic<f32> requires a variadic
+///     size specifier (SameVariadicSize) as the types may not be
 ///     mutually exclusive.
 ///
 /// Optional values are specified with !dmc.Optional<$Type>. Optional values
@@ -69,7 +69,7 @@ enum Kinds {
 /// Match any type.
 class AnyType : public SimpleType<AnyType, SpecTypes::Any> {
 public:
-  using Base::Base; 
+  using Base::Base;
 };
 
 /// Match NoneType.
@@ -82,19 +82,19 @@ public:
 };
 
 /// Match any Type in a list. The type list cannot be empty.
-class AnyOfType 
-    : public mlir::Type::TypeBase<AnyOfType, mlir::Type, 
+class AnyOfType
+    : public mlir::Type::TypeBase<AnyOfType, mlir::Type,
                                   detail::TypeListStorage>,
       public SpecType {
 public:
   using Base::Base;
 
-  static inline bool kindof(unsigned kind) { 
-    return kind == SpecTypes::AnyOf; 
+  static inline bool kindof(unsigned kind) {
+    return kind == SpecTypes::AnyOf;
   }
 
   static AnyOfType get(llvm::ArrayRef<mlir::Type> tys);
-  static AnyOfType getChecked(mlir::Location loc, 
+  static AnyOfType getChecked(mlir::Location loc,
                               llvm::ArrayRef<mlir::Type> tys);
 
   /// Type list cannot be empty.
@@ -105,7 +105,7 @@ public:
 };
 
 /// Match any IntegerType.
-class AnyIntegerType 
+class AnyIntegerType
     : public SimpleType<AnyIntegerType, SpecTypes::AnyInteger> {
 public:
   using Base::Base;
@@ -148,7 +148,7 @@ public:
     return kind == SpecTypes::AnyIntOfWidths;
   }
 
-  static AnyIntOfWidthsType get(mlir::MLIRContext *ctx, 
+  static AnyIntOfWidthsType get(mlir::MLIRContext *ctx,
                                 llvm::ArrayRef<unsigned> widths);
   static AnyIntOfWidthsType getChecked(mlir::Location loc,
                                        llvm::ArrayRef<unsigned> widths);
@@ -190,7 +190,7 @@ public:
 };
 
 /// Match a signless integer of one of the specified widths.
-class SignlessIntOfWidthsType 
+class SignlessIntOfWidthsType
     : public mlir::Type::TypeBase<SignlessIntOfWidthsType, mlir::Type,
                                   detail::WidthListStorage>,
       public SpecType {
@@ -211,7 +211,7 @@ public:
 };
 
 /// Match any signed integer.
-class AnySignedIntegerType 
+class AnySignedIntegerType
     : public SimpleType<AnySignedIntegerType,
                         SpecTypes::AnySignedInteger> {
 public:
@@ -240,7 +240,7 @@ public:
 };
 
 /// Match any signed integer of the specified widths.
-class SignedIntOfWidthsType 
+class SignedIntOfWidthsType
     : public mlir::Type::TypeBase<SignedIntOfWidthsType, mlir::Type,
                                   detail::WidthListStorage>,
       public SpecType {
@@ -261,8 +261,8 @@ public:
 };
 
 /// Match any unsigned integer.
-class AnyUnsignedIntegerType 
-    : public SimpleType<AnyUnsignedIntegerType, 
+class AnyUnsignedIntegerType
+    : public SimpleType<AnyUnsignedIntegerType,
                         SpecTypes::AnyUnsignedInteger> {
 public:
   using Base::Base;
@@ -272,7 +272,7 @@ public:
 };
 
 /// Match any unsigned integer of the specified width.
-class UIType 
+class UIType
     : public mlir::Type::TypeBase<UIType, mlir::Type,
                                   detail::WidthStorage>,
       public SpecType {
@@ -290,7 +290,8 @@ public:
   mlir::LogicalResult verify(mlir::Type ty) const override;
 };
 
-class UnsignedIntOfWidthsType 
+/// Match any unsigned integer of the specified widths.
+class UnsignedIntOfWidthsType
     : public mlir::Type::TypeBase<UnsignedIntOfWidthsType, mlir::Type,
                                   detail::WidthListStorage>,
       public SpecType {
@@ -304,6 +305,65 @@ public:
   static UnsignedIntOfWidthsType get(
       mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
   static UnsignedIntOfWidthsType getChecked(
+      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
+  mlir::LogicalResult verify(mlir::Type ty) const override;
+};
+
+/// Match an index type.
+class IndexType : public SimpleType<IndexType, SpecTypes::Index> {
+public:
+  using Base::Base;
+  mlir::LogicalResult verify(mlir::Type ty) const override {
+    return mlir::success(ty.isa<mlir::IndexType>());
+  }
+};
+
+/// Match any floating point type.
+class AnyFloatType : public SimpleType<AnyFloatType,
+                                       SpecTypes::AnyFloat> {
+public:
+  using Base::Base;
+  mlir::LogicalResult verify(mlir::Type ty) const override {
+    return mlir::success(ty.isa<mlir::FloatType>());
+  }
+};
+
+/// Match a float of the specified width.
+class FType : public mlir::Type::TypeBase<FType, mlir::Type,
+                                          detail::WidthStorage>,
+              public SpecType {
+public:
+  using Base::Base;
+
+  static inline bool kindof(unsigned kind) {
+    return kind == SpecTypes::F;
+  }
+
+
+  static FType get(mlir::MLIRContext *ctx, unsigned width);
+  static FType getChecked(mlir::Location loc, unsigned width);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, unsigned width);
+  mlir::LogicalResult verify(mlir::Type ty) const override;
+};
+
+/// Match a float of the specified widths.
+class FloatOfWidthsType
+    : public mlir::Type::TypeBase<FloatOfWidthsType, mlir::Type,
+                                  detail::WidthListStorage>,
+      public SpecType {
+public:
+  using Base::Base;
+
+  static inline bool kindof(unsigned kind) {
+    return kind == SpecTypes::FloatOfWidths;
+  }
+
+  static FloatOfWidthsType get(
+      mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
+  static FloatOfWidthsType getChecked(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
