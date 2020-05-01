@@ -133,7 +133,7 @@ struct OneTypeStorage : public TypeStorage {
   bool operator==(const KeyTy &key) const { return key == type; }
   /// Hash the type.
   static llvm::hash_code hashKey(const KeyTy &key) {
-    return hash_value(Type{key});
+    return hash_value(key);
   }
 
   /// Create the single Type storage.

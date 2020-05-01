@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/SpecAttrs.h"
 
 #include <mlir/IR/DialectImplementation.h>
 
@@ -22,6 +23,10 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyUnsignedIntegerType, UIType, UnsignedIntOfWidthsType,
       IndexType, AnyFloatType, FType, FloatOfWidthsType, BF16Type,
       AnyComplexType, ComplexType, OpaqueType
+  >();
+  addAttributes<
+      AnyAttr, BoolAttr, IndexAttr, APIntAttr,
+      AnyIAttr, IAttr, SIAttr, UIAttr 
   >();
 }
 

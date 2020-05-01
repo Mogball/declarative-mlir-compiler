@@ -3,5 +3,6 @@ add_library(DMCSpec
   SpecTypes.cpp
   SpecTypeImplementation.cpp
   SpecOps.cpp
+  SpecAttrs.cpp
   )
 target_link_libraries(DMCSpec MLIRIR)

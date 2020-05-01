@@ -12,8 +12,8 @@ namespace dmc {
 /// !dmc.AnyOf<$Types...> will assert that the concrete type matches one of
 /// the specified allowed types.
 ///
-/// Variadic operands or results are specified with !dmc.Variadic<$Type>. More
-/// than one variadic operand requires a size specifier trait.
+/// Variadic operands or results are specified with !dmc.Variadic<$Type>. 
+/// More than one variadic operand requires a size specifier trait.
 ///
 /// Optional values are specified with !dmc.Optional<$Type>.
 ///
@@ -375,6 +375,6 @@ public:
 };
 
 /// TODO Container types (vectors, tensors, etc.), memref types, tuples.
-/// TODO variadic and optional types
+/// TODO variadic and optional types.
 
 } // end namespace dmc

@@ -3,6 +3,7 @@
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/SpecAttrs.h"
 
 #include <mlir/IR/Module.h>
 #include <mlir/IR/Function.h>
@@ -104,5 +105,18 @@ int main() {
     auto anyOfNested = AnyOfType::get({AnyOfType::get({AnyFloatType::get(&mlirContext)})});
     assert(succeeded(anyOfNested.verify(b.getF16Type())));
     assert(failed(anyOfNested.verify(b.getIntegerType(32))));
+  }
+
+  {
+    auto anyI = AnyIAttr::get(AnyIType::get(&mlirContext, 32));
+    assert(succeeded(anyI.verify(b.getI32IntegerAttr(1))));
+    assert(succeeded(anyI.verify(b.getI32IntegerAttr(2))));
+    assert(failed(anyI.verify(b.getI64IntegerAttr(1))));
+    assert(failed(anyI.verify(b.getIndexAttr(1))));
+    assert(failed(anyI.verify(b.getStringAttr("hello"))));
+    auto anyI0 = AnyIAttr::get(AnyIType::get(&mlirContext, 64));
+    assert(succeeded(anyI0.verify(b.getI64IntegerAttr(1))));
+    assert(failed(anyI0.verify(b.getI32IntegerAttr(2))));
+    assert(failed(anyI0.verify(b.getStringAttr("hello"))));
   }
 }
