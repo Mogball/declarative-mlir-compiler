@@ -26,20 +26,20 @@ struct TypedAttrStorage : public mlir::AttributeStorage {
 } // end namespace detail
 
 /// AttrConstraint on an IntegerAttr with a specified underlying Type.
-template <unsigned Kind, typename AttrT, typename UnderlyingT>
+template <typename ConcreteType, unsigned Kind, 
+          typename AttrT, typename UnderlyingT>
 class TypedAttrBase 
-    : public SpecAttr<TypedAttrBase<Kind, AttrT, UnderlyingT>, 
-                      Kind, detail::TypedAttrStorage> {
+    : public SpecAttr<ConcreteType, Kind, detail::TypedAttrStorage> {
 public:
-  using Base = TypedAttrBase<Kind, AttrT, UnderlyingT>;
-  using Parent = SpecAttr<Base, Kind, detail::TypedAttrStorage>;
+  using Base = TypedAttrBase<ConcreteType, Kind, AttrT, UnderlyingT>;
+  using Parent = SpecAttr<ConcreteType, Kind, detail::TypedAttrStorage>;
   using Parent::Parent;
 
-  static inline TypedAttrBase get(mlir::Type intType) {
+  static inline ConcreteType get(mlir::Type intType) {
     return Parent::get(intType.getContext(), Kind, intType);
   }
 
-  static inline TypedAttrBase getChecked(
+  static inline ConcreteType getChecked(
       mlir::Location loc, mlir::Type intType) {
     return Parent::getChecked(loc, Kind, intType); 
   }
@@ -55,8 +55,9 @@ public:
 };
 
 /// Out-of-line definitions
-template <unsigned Kind, typename AttrT, typename UnderlyingT>
-mlir::LogicalResult TypedAttrBase<Kind, AttrT, UnderlyingT>
+template <typename ConcreteType, unsigned Kind, 
+          typename AttrT, typename UnderlyingT>
+mlir::LogicalResult TypedAttrBase<ConcreteType, Kind, AttrT, UnderlyingT>
 ::verifyConstructionInvariants(mlir::Location loc, mlir::Type intType) {
   if (!intType)
     return mlir::emitError(loc) << "Type cannot be null";

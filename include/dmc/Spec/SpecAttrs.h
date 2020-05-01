@@ -63,25 +63,25 @@ public:
   }
 };
 
-class AnyIAttr : public TypedAttrBase<
+class AnyIAttr : public TypedAttrBase<AnyIAttr,
                  SpecTypes::AnyI, mlir::IntegerAttr, AnyIType> {
 public:
   using Base::Base;
 };
 
-class IAttr : public TypedAttrBase<
+class IAttr : public TypedAttrBase<IAttr,
               SpecTypes::I, mlir::IntegerAttr, IType> {
 public:
   using Base::Base;
 };
 
-class SIAttr : public TypedAttrBase<
+class SIAttr : public TypedAttrBase<SIAttr,
                SpecTypes::SI, mlir::IntegerAttr, SIType> {
 public:
   using Base::Base;
 };
 
-class UIAttr : public TypedAttrBase<
+class UIAttr : public TypedAttrBase<UIAttr,
                SpecTypes::UI, mlir::IntegerAttr, UIType> {
 public:
   using Base::Base;
