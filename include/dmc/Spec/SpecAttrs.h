@@ -80,31 +80,31 @@ public:
 };
 
 class AnyIAttr : public TypedAttrBase<AnyIAttr,
-                 SpecTypes::AnyI, mlir::IntegerAttr, AnyIType> {
+                 SpecAttrs::AnyI, mlir::IntegerAttr, AnyIType> {
 public:
   using Base::Base;
 };
 
 class IAttr : public TypedAttrBase<IAttr,
-              SpecTypes::I, mlir::IntegerAttr, IType> {
+              SpecAttrs::I, mlir::IntegerAttr, IType> {
 public:
   using Base::Base;
 };
 
 class SIAttr : public TypedAttrBase<SIAttr,
-               SpecTypes::SI, mlir::IntegerAttr, SIType> {
+               SpecAttrs::SI, mlir::IntegerAttr, SIType> {
 public:
   using Base::Base;
 };
 
 class UIAttr : public TypedAttrBase<UIAttr,
-               SpecTypes::UI, mlir::IntegerAttr, UIType> {
+               SpecAttrs::UI, mlir::IntegerAttr, UIType> {
 public:
   using Base::Base;
 };
 
 class FAttr : public TypedAttrBase<FAttr,
-              SpecTypes::F, mlir::FloatAttr, FType> {
+              SpecAttrs::F, mlir::FloatAttr, FType> {
 public:
   using Base::Base;
 };
@@ -186,6 +186,9 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, Attribute attr);
   mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 class AnyOfAttr : public SpecAttr<AnyOfAttr, SpecAttrs::AnyOf,

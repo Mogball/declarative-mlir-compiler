@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/Support.h"
+#include "dmc/Spec/SpecTypeDetail.h"
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
@@ -48,29 +49,25 @@ struct TypeListStorage : public TypeStorage {
   KeyTy types;
 };
 
-/// Storage for SpecTypes parameterized by a width.
-struct WidthStorage : public TypeStorage {
-  /// Use width as key.
-  using KeyTy = unsigned;
+/// WidthStorage implementation.
+WidthStorage::WidthStorage(KeyTy key) : width{key} {}
 
-  explicit WidthStorage(KeyTy key) : width{key} {}
+/// Compare the width.
+bool WidthStorage::operator==(const KeyTy &key) const { 
+  return key == width; 
+}
 
-  /// Compare the width.
-  bool operator==(const KeyTy &key) const { return key == width; }
-  /// Hash the width.
-  static llvm::hash_code hashKey(const KeyTy &key) {
-    return llvm::hash_value(key);
-  }
+/// Hash the width.
+llvm::hash_code WidthStorage::hashKey(const KeyTy &key) {
+  return llvm::hash_value(key);
+}
 
-  /// Create the WidthStorage;
-  static WidthStorage *construct(TypeStorageAllocator &alloc,
-                                 const KeyTy &key) {
-    return new (alloc.allocate<WidthStorage>())
-        WidthStorage{key};
-  }
-
-  KeyTy width;
-};
+/// Create the WidthStorage;
+WidthStorage *WidthStorage::construct(
+    TypeStorageAllocator &alloc, const KeyTy &key) {
+  return new (alloc.allocate<WidthStorage>())
+      WidthStorage{key};
+}
 
 /// Storage for SpecTypes parameterized by a list of widths. Used
 /// commonly for Integer TypeConstraints. Lists must be equal
@@ -546,16 +543,16 @@ LogicalResult OpaqueType::verify(Type ty) {
 }
 
 /// Type printing.
-namespace {
-void printSingleWidth(StringRef name, detail::WidthStorage *impl,
-                      DialectAsmPrinter &printer) {
-  printer << name << '<' << impl->width << '>';
+void SpecDialect::printSingleWidth(detail::WidthStorage *impl,
+                                   DialectAsmPrinter &printer) const {
+  printer << '<' << impl->width << '>';
 }
 
-void printWidthList(StringRef name, detail::WidthListStorage *impl, 
+namespace {
+void printWidthList(detail::WidthListStorage *impl, 
                     DialectAsmPrinter &printer) {
   auto it = std::begin(impl->widths);
-  printer << name << '<' << (*it++);
+  printer << '<' << (*it++);
   for (auto e = std::end(impl->widths); it != e; ++it) 
     printer << ',' << (*it);
   printer << '>';
@@ -581,41 +578,45 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
     printer << "AnyInteger";
     break;
   case AnyI:
-    printSingleWidth("AnyI", type.cast<AnyIType>().getImpl(), printer);
+    printer << "AnyI";
+    printSingleWidth(type.cast<AnyIType>().getImpl(), printer);
     break;
   case AnyIntOfWidths:
-    printWidthList("AnyIntOfWidths", type.cast<AnyIntOfWidthsType>().getImpl(), 
-                   printer);
+    printer << "AnyIntOfWidths";
+    printWidthList(type.cast<AnyIntOfWidthsType>().getImpl(), printer);
     break;
   case AnySignlessInteger:
     printer << "AnySignlessInteger";
     break;
   case I:
-    printSingleWidth("I", type.cast<IType>().getImpl(), printer);
+    printer << "I";
+    printSingleWidth(type.cast<IType>().getImpl(), printer);
     break;
   case SignlessIntOfWidths:
-    printWidthList("SignlessIntOfWidths", 
-                   type.cast<SignlessIntOfWidthsType>().getImpl(), printer);
+    printer << "SignlessIntOfWidths";
+    printWidthList(type.cast<SignlessIntOfWidthsType>().getImpl(), printer);
     break;
   case AnySignedInteger:
     printer << "AnySignedInteger";
     break;
   case SI:
-    printSingleWidth("SI", type.cast<SIType>().getImpl(), printer);
+    printer << "SI";
+    printSingleWidth(type.cast<SIType>().getImpl(), printer);
     break;
   case SignedIntOfWidths:
-    printWidthList("SignedIntOfWidths", 
-                   type.cast<SignedIntOfWidthsType>().getImpl(), printer);
+    printer << "SignedIntOfWidths";
+    printWidthList(type.cast<SignedIntOfWidthsType>().getImpl(), printer);
     break;
   case AnyUnsignedInteger:
     printer << "AnyUnsignedInteger";
     break;
   case UI:
-    printSingleWidth("UI", type.cast<UIType>().getImpl(), printer);
+    printer << "UI";
+    printSingleWidth(type.cast<UIType>().getImpl(), printer);
     break;
   case UnsignedIntOfWidths:
-    printWidthList("UnsignedIntOfWidths", 
-                   type.cast<UnsignedIntOfWidthsType>().getImpl(), printer);
+    printer << "UnsignedIntOfWidths";
+    printWidthList(type.cast<UnsignedIntOfWidthsType>().getImpl(), printer);
     break;
   case Index:
     printer << "Index";
@@ -624,11 +625,12 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
     printer << "AnyFloat";
     break;
   case F:
-    printSingleWidth("F", type.cast<FType>().getImpl(), printer);
+    printer << "F";
+    printSingleWidth(type.cast<FType>().getImpl(), printer);
     break;
   case FloatOfWidths:
-    printWidthList("FloatOfWidths", type.cast<FloatOfWidthsType>().getImpl(),
-                   printer);
+    printer << "FloatOfWidths";
+    printWidthList(type.cast<FloatOfWidthsType>().getImpl(), printer);
     break;
   case BF16:
     printer << "BF16";

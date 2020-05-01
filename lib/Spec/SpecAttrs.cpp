@@ -1,7 +1,10 @@
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/Support.h"
+#include "dmc/Spec/SpecTypeDetail.h"
 
 #include <llvm/ADT/SmallPtrSet.h>
+#include <mlir/IR/DialectImplementation.h>
 
 using namespace mlir;
 
@@ -163,6 +166,114 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
       return failure();
   }
   return success();
+}
+
+/// Attribute printing.
+namespace {
+
+template <typename AttrT>
+auto *getTypeImpl(Attribute attr) {
+  return attr.template cast<AttrT>().getImpl()
+      ->type.template cast<typename AttrT::Underlying>().getImpl();
+}
+
+void printAttrList(detail::AttrListStorage *impl, 
+                   DialectAsmPrinter &printer) {
+  printer << '<';
+  auto &attrs = impl->attrs;
+  auto it = std::begin(attrs);
+  printer.printAttribute(*it++);
+  for (auto e = std::end(attrs); it != e; ++it) {
+    printer << ',';
+    printer.printAttribute(*it);
+  }
+  printer << '>';
+}
+
+} // end anonymous namespace
+
+void SpecDialect::printAttribute(Attribute attr, 
+    DialectAsmPrinter &printer) const {
+  using namespace SpecAttrs;
+  assert(is(attr) && "Not a SpecAttr");
+  switch (attr.getKind()) {
+  case Any:
+    printer << "Any";
+    break;
+  case Bool:
+    printer << "Bool";
+    break;
+  case Index:
+    printer << "Index";
+    break;
+  case APInt:
+    printer << "APInt";
+    break;
+  case AnyI:
+    printer << "AnyI";
+    printSingleWidth(getTypeImpl<AnyIAttr>(attr), printer);
+    break;
+  case I:
+    printer << "I";
+    printSingleWidth(getTypeImpl<IAttr>(attr), printer);
+    break;
+  case SI:
+    printer << "SI";
+    printSingleWidth(getTypeImpl<SIAttr>(attr), printer);
+    break;
+  case UI:
+    printer << "UI";
+    printSingleWidth(getTypeImpl<UIAttr>(attr), printer);
+    break;
+  case F:
+    printer << "F";
+    printSingleWidth(getTypeImpl<FAttr>(attr), printer);
+    break;
+  case String:
+    printer << "String";
+    break;
+  case Type:
+    printer << "Type";
+    break;
+  case Unit:
+    printer << "Unit";
+    break;
+  case Dictionary:
+    printer << "Dictionary";
+    break;
+  case Elements:
+    printer << "Elements";
+    break;
+  case Array:
+    printer << "Array";
+    break;
+  case SymbolRef:
+    printer << "SymbolRef";
+    break;
+  case FlatSymbolRef:
+    printer << "FlatSymbolRef";
+    break;
+  case Constant:
+    attr.cast<ConstantAttr>().print(printer);
+    break;
+  case AnyOf:
+    printer << "AnyOf";
+    printAttrList(attr.cast<AnyOfAttr>().getImpl(), printer);
+    break;
+  case AllOf:
+    printer << "AllOf";
+    printAttrList(attr.cast<AllOfAttr>().getImpl(), printer);
+    break;
+  default:
+    llvm_unreachable("Unknown SpecAttr");
+    break;
+  }
+}
+
+void ConstantAttr::print(DialectAsmPrinter &printer) {
+  printer << "Constant<";
+  printer.printAttribute(getImpl()->attr);
+  printer << '>';
 }
 
 } // end namespace dmc

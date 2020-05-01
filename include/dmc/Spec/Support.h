@@ -14,7 +14,7 @@ struct ImmutableSortedList : public llvm::SmallVector<T, 4> {
   ImmutableSortedList(const Container &c,
                       ComparatorT comparator = ComparatorT{})
       : llvm::SmallVector<T, 4>{std::begin(c), std::end(c)} {
-    llvm::sort(this->begin(), this->end(), comparator);
+    llvm::sort(std::begin(*this), std::end(*this), comparator);
   }
 
   /// Compare list sizes and contents.

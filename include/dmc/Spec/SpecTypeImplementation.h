@@ -30,6 +30,8 @@ public:
 
   /// Compare type kinds.
   static bool kindof(unsigned kind) { return kind == Kind; }
+
+  auto getImpl() { return Parent::getImpl(); }
 };
 
 /// Simple type shorthand class.

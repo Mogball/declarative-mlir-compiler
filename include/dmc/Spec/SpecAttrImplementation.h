@@ -18,6 +18,8 @@ public:
   using Parent::Parent;
 
   static bool kindof(unsigned kind) { return kind == Kind; }
+
+  auto getImpl() { return Parent::getImpl(); }
 };
 
 template <typename ConcreteType, unsigned Kind>

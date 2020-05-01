@@ -102,7 +102,6 @@ public:
   /// Check Type is in the list.
   mlir::LogicalResult verify(Type ty);
 
-  static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
 };
 
@@ -118,7 +117,6 @@ public:
       mlir::Location loc, llvm::ArrayRef<Type> tys);
   mlir::LogicalResult verify(Type ty);
 
-  static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
 };
 

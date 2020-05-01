@@ -33,19 +33,20 @@ class TypedAttrBase
 public:
   using Base = TypedAttrBase<ConcreteType, Kind, AttrT, UnderlyingT>;
   using Parent = SpecAttr<ConcreteType, Kind, detail::TypedAttrStorage>;
+  using Underlying = UnderlyingT;
   using Parent::Parent;
 
-  static inline ConcreteType get(mlir::Type intType) {
-    return Parent::get(intType.getContext(), Kind, intType);
+  static inline ConcreteType get(UnderlyingT ty) {
+    return Parent::get(ty.getContext(), Kind, ty);
   }
 
   static inline ConcreteType getChecked(
-      mlir::Location loc, mlir::Type intType) {
-    return Parent::getChecked(loc, Kind, intType); 
+      mlir::Location loc, UnderlyingT ty) {
+    return Parent::getChecked(loc, Kind, ty); 
   }
 
   static inline mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, mlir::Type intType);
+      mlir::Location loc, UnderlyingT ty);
 
   inline mlir::LogicalResult verify(mlir::Attribute attr) {
     return mlir::success(attr.isa<AttrT>() &&
@@ -58,11 +59,9 @@ public:
 template <typename ConcreteType, unsigned Kind, 
           typename AttrT, typename UnderlyingT>
 mlir::LogicalResult TypedAttrBase<ConcreteType, Kind, AttrT, UnderlyingT>
-::verifyConstructionInvariants(mlir::Location loc, mlir::Type intType) {
-  if (!intType)
+::verifyConstructionInvariants(mlir::Location loc, UnderlyingT ty) {
+  if (!ty)
     return mlir::emitError(loc) << "Type cannot be null";
-  if (!intType.isa<UnderlyingT>())
-    return mlir::emitError(loc) << "Invalid underlying type: " << intType;
   return mlir::success();
 }
 

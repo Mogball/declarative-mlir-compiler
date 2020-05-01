@@ -4,6 +4,11 @@
 
 namespace dmc {
 
+namespace detail {
+struct WidthStorage;
+struct WidthListStorage;
+} // end namespace detail
+
 /// This dialect defines an DSL/IR that describes
 /// - Dialects and their properties
 /// - Operations, their types, operands, results, properties, and traits
@@ -31,6 +36,18 @@ public:
   mlir::Type parseType(mlir::DialectAsmParser &parser) const override;
   void printType(mlir::Type type,
                  mlir::DialectAsmPrinter &printer) const override;
+
+  /// Custom parser and printer for attributes.
+  mlir::Attribute 
+  parseAttribute(mlir::DialectAsmParser &parser, 
+                 mlir::Type type) const override;
+  void printAttribute(mlir::Attribute attribute,
+                      mlir::DialectAsmPrinter &printer) const override;
+
+private:
+  /// Type printing helper re-used in Attribute printing.
+  void printSingleWidth(detail::WidthStorage *impl, 
+                        mlir::DialectAsmPrinter &printer) const;
 };
 
 } // end namespace dmc
