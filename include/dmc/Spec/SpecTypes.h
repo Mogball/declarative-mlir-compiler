@@ -12,21 +12,10 @@ namespace dmc {
 /// !dmc.AnyOf<$Types...> will assert that the concrete type matches one of
 /// the specified allowed types.
 ///
-/// Variadic operands or results are specified with !dmc.Variadic<$Type>.
-/// The following restrictions apply:
-/// - Non-variadic values must preceed all variadic values
-/// - If there are any variadic compound types, then the Op must have a
-///   variadic size specifier OpTrait:
+/// Variadic operands or results are specified with !dmc.Variadic<$Type>. More
+/// than one variadic operand requires a size specifier trait.
 ///
-///     !dmc.Variadic<i32>, !dmc.Variadic<f32> is OK as the types
-///     are mutually exclusive, but
-///
-///     !dmc.Variadic<!dmc.Float>, !dmc.Variadic<f32> requires a variadic
-///     size specifier (SameVariadicSize) as the types may not be
-///     mutually exclusive.
-///
-/// Optional values are specified with !dmc.Optional<$Type>. Optional values
-/// must follow non-optional values and cannot be mixed with variadic values.
+/// Optional values are specified with !dmc.Optional<$Type>.
 ///
 /// Custom type predicates can be specified with a call to a higher-level DSL,
 /// e.g. a Python predicate.
@@ -78,7 +67,7 @@ enum Kinds {
 
 bool is(mlir::Type base);
 mlir::LogicalResult delegateVerify(mlir::Type base, mlir::Type ty);
-  
+
 } // end namespace SpecTypes
 
 /// Match any type.
@@ -143,7 +132,7 @@ public:
 };
 
 /// Match any IntegerType of the specified widths.
-class AnyIntOfWidthsType 
+class AnyIntOfWidthsType
     : public SpecType<AnyIntOfWidthsType, SpecTypes::AnyIntOfWidths,
                       detail::WidthListStorage> {
 public:
@@ -184,7 +173,7 @@ public:
 };
 
 /// Match a signless integer of one of the specified widths.
-class SignlessIntOfWidthsType 
+class SignlessIntOfWidthsType
     : public SpecType<SignlessIntOfWidthsType, SpecTypes::SignlessIntOfWidths,
                       detail::WidthListStorage> {
 public:
@@ -223,7 +212,7 @@ public:
 };
 
 /// Match any signed integer of the specified widths.
-class SignedIntOfWidthsType 
+class SignedIntOfWidthsType
     : public SpecType<SignedIntOfWidthsType, SpecTypes::SignedIntOfWidths,
                       detail::WidthListStorage> {
 public:
@@ -310,7 +299,7 @@ public:
 
 /// Match a float of the specified widths.
 class FloatOfWidthsType
-    : public SpecType<FloatOfWidthsType, SpecTypes::FloatOfWidths, 
+    : public SpecType<FloatOfWidthsType, SpecTypes::FloatOfWidths,
                       detail::WidthListStorage> {
 public:
   using Base::Base;
@@ -334,7 +323,7 @@ public:
 };
 
 /// Match any ComplexType.
-class AnyComplexType : public SimpleType<AnyComplexType, 
+class AnyComplexType : public SimpleType<AnyComplexType,
                                          SpecTypes::AnyComplex> {
 public:
   using Base::Base;
@@ -368,7 +357,7 @@ public:
   static OpaqueType getChecked(mlir::Location loc,
                         llvm::StringRef dialectName, llvm::StringRef typeName);
   static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, 
+      mlir::Location loc,
       llvm::StringRef dialectName, llvm::StringRef typeName);
   mlir::LogicalResult verify(Type ty);
 
