@@ -22,6 +22,10 @@ enum Kinds {
   I,
   SI,
   UI,
+  F,
+
+  String,
+  Type,
 
   NUM_ATTRS
 };
@@ -85,6 +89,28 @@ class UIAttr : public TypedAttrBase<UIAttr,
                SpecTypes::UI, mlir::IntegerAttr, UIType> {
 public:
   using Base::Base;
+};
+
+class FAttr : public TypedAttrBase<FAttr,
+              SpecTypes::F, mlir::FloatAttr, FType> {
+public:
+  using Base::Base;
+};
+
+class StringAttr : public SimpleAttr<StringAttr, SpecAttrs::String> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::StringAttr>());
+  }
+};
+
+class TypeAttr : public SimpleAttr<TypeAttr, SpecAttrs::Type> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::TypeAttr>());
+  }
 };
 
 /// TODO Default-valued and optional attributes.

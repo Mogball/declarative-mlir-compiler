@@ -37,8 +37,8 @@ void DialectOp::build(OpBuilder &builder, OperationState &result,
 }
 
 /// dialect-op ::= `Dialect` `@`symbolName `attributes` attr-list region
-  StringAttr nameAttr;
 ParseResult DialectOp::parse(OpAsmParser &parser, OperationState &result) {
+  mlir::StringAttr nameAttr;
   auto *body = result.addRegion();
   if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), 
                              result.attributes) ||
@@ -81,7 +81,7 @@ Region &DialectOp::getBodyRegion() { return getOperation()->getRegion(0); }
 Block *DialectOp::getBody() { return &getBodyRegion().front(); }
 
 StringRef DialectOp::getName() {
-  return getAttrOfType<StringAttr>(mlir::SymbolTable::getSymbolAttrName())
+  return getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName())
       .getValue();
 }
 
@@ -151,7 +151,7 @@ static void printTypeList(OpAsmPrinter &printer, ArrayRef<Type> types) {
 
 // op ::= `dmc.Op` `@`opName type-list `->` type-list `attributes` attr-list 
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
-  StringAttr nameAttr;
+  mlir::StringAttr nameAttr;
   SmallVector<Type, 4> argTys;
   SmallVector<Type, 2> retTys;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(), 
@@ -180,7 +180,7 @@ void OperationOp::print(OpAsmPrinter &printer) {
 }
 
 StringRef OperationOp::getName() {
-  return getAttrOfType<StringAttr>(SymbolTable::getSymbolAttrName())
+  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
       .getValue();
 }
 

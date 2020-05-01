@@ -146,7 +146,7 @@ Type ComplexType::parse(DialectAsmParser &parser) {
 Type OpaqueType::parse(DialectAsmParser &parser) {
   // `Opaque` `<` string `,` string `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  StringAttr dialectNameAttr, typeNameAttr;
+  mlir::StringAttr dialectNameAttr, typeNameAttr;
   if (parser.parseLess() || parser.parseAttribute(dialectNameAttr) ||
       parser.parseComma() || parser.parseAttribute(typeNameAttr) ||
       parser.parseGreater())
