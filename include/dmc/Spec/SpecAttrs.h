@@ -8,7 +8,8 @@
 namespace dmc {
 
 namespace detail {
-struct TypedAttrStorage;
+struct ConstantAttrStorage;
+struct AttrListStorage;
 } // end namespace detail
 
 namespace SpecAttrs {
@@ -26,6 +27,17 @@ enum Kinds {
 
   String,
   Type,
+  Unit,
+  Dictionary,
+  Elements,
+  Array,
+
+  SymbolRef,
+  FlatSymbolRef,
+
+  Constant,
+  AnyOf,
+  AllOf,
 
   NUM_ATTRS
 };
@@ -113,6 +125,99 @@ public:
   }
 };
 
+class UnitAttr : public SimpleAttr<UnitAttr, SpecAttrs::Unit> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::UnitAttr>());
+  }
+};
+
+class DictionaryAttr : public SimpleAttr<DictionaryAttr, 
+                                         SpecAttrs::Dictionary> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::DictionaryAttr>());
+  }
+};
+
+class ElementsAttr : public SimpleAttr<ElementsAttr,
+                                       SpecAttrs::Elements> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::ElementsAttr>());
+  }
+};
+
+class ArrayAttr : public SimpleAttr<ArrayAttr, SpecAttrs::Array> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::ArrayAttr>());
+  }
+};
+
+class SymbolRefAttr : public SimpleAttr<SymbolRefAttr, SpecAttrs::SymbolRef> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::SymbolRefAttr>());
+  }
+};
+
+class FlatSymbolRefAttr : public SimpleAttr<FlatSymbolRefAttr,  
+                                            SpecAttrs::FlatSymbolRef> {
+public:
+  using Base::Base;
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::FlatSymbolRefAttr>());
+  }
+};
+
+class ConstantAttr : public SpecAttr<ConstantAttr, SpecAttrs::Constant,
+                                     detail::ConstantAttrStorage> {
+public:
+  using Base::Base;
+  
+  static ConstantAttr get(Attribute attr);
+  static ConstantAttr getChecked(mlir::Location loc, Attribute attr);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, Attribute attr);
+  mlir::LogicalResult verify(Attribute attr);
+};
+
+class AnyOfAttr : public SpecAttr<AnyOfAttr, SpecAttrs::AnyOf,
+                                  detail::AttrListStorage> {
+public:
+  using Base::Base;
+
+  static AnyOfAttr get(llvm::ArrayRef<Attribute> attrs);
+  static AnyOfAttr getChecked(mlir::Location loc, 
+                                 llvm::ArrayRef<Attribute> attrs);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
+  mlir::LogicalResult verify(Attribute attr);
+};
+
+class AllOfAttr : public SpecAttr<AllOfAttr, SpecAttrs::AllOf,
+                                  detail::AttrListStorage> {
+public:
+  using Base::Base;
+
+  static AllOfAttr get(llvm::ArrayRef<Attribute> attrs);
+  static AllOfAttr getChecked(mlir::Location loc, 
+                                 llvm::ArrayRef<Attribute> attrs);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
+  mlir::LogicalResult verify(Attribute attr);
+};
+
 /// TODO Default-valued and optional attributes.
+/// TODO typed elements attributes: int, float, ranked, string
+/// TODO typed array attributes: int, float, string, type, symbolRef
+/// TODO struct attribute
+/// TODO enum attributes?
 
 } // end namespace dmc

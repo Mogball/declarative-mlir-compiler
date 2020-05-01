@@ -19,6 +19,8 @@ LogicalResult delegateVerify(Type base, Type ty) {
     return base.cast<NoneType>().verify(ty);
   case AnyOf:
     return base.cast<AnyOfType>().verify(ty);
+  case AllOf:
+    return base.cast<AllOfType>().verify(ty);
   case AnyInteger:
     return base.cast<AnyIntegerType>().verify(ty);
   case AnyI:

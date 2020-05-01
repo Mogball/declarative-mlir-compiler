@@ -16,7 +16,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       DialectOp, DialectTerminatorOp, OperationOp
   >();
   addTypes<
-      AnyType, NoneType, AnyOfType, 
+      AnyType, NoneType, AnyOfType, AllOfType,
       AnyIntegerType, AnyIType, AnyIntOfWidthsType,
       AnySignlessIntegerType, IType, SignlessIntOfWidthsType,
       AnySignedIntegerType, SIType, SignedIntOfWidthsType,
@@ -70,6 +70,8 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     return NoneType::get(getContext());
   if (!parser.parseOptionalKeyword("AnyOf")) 
     return AnyOfType::parse(parser);
+  if (!parser.parseOptionalKeyword("AllOf"))
+    return AllOfType::parse(parser);
   if (!parser.parseOptionalKeyword("AnyInteger")) 
     return AnyIntegerType::get(getContext());
   if (!parser.parseOptionalKeyword("AnyI")) 
@@ -116,8 +118,8 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
   return Type{};
 }
 
-Type AnyOfType::parse(DialectAsmParser &parser) {
-  // any-of-type ::= `AnyOf` `<` type(`,` type)* `>`
+template <typename BaseT>
+Type parseTypeList(DialectAsmParser &parser) {
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess()) 
     return Type{};
@@ -130,7 +132,16 @@ Type AnyOfType::parse(DialectAsmParser &parser) {
   } while (!parser.parseOptionalComma());
   if (parser.parseGreater()) 
     return Type{};
-  return AnyOfType::getChecked(loc, baseTypes);
+  return BaseT::getChecked(loc, baseTypes);
+}
+
+Type AnyOfType::parse(DialectAsmParser &parser) {
+  // any-of-type ::= `AnyOf` `<` type(`,` type)* `>`
+  return parseTypeList<AnyOfType>(parser);
+}
+
+Type AllOfType::parse(DialectAsmParser &parser) {
+  return parseTypeList<AllOfType>(parser);
 }
 
 Type ComplexType::parse(DialectAsmParser &parser) {

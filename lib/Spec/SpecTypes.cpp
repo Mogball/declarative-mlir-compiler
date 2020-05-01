@@ -1,5 +1,6 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/Support.h"
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
@@ -14,30 +15,6 @@ using namespace mlir;
 namespace dmc {
 
 namespace detail {
-
-/// An immutable list that self-sorts on creation.
-template <typename T>
-struct ImmutableSortedList : public llvm::SmallVector<T, 4> {
-  /// Sort on creation with comparator.
-  template <typename Container, typename ComparatorT>
-  ImmutableSortedList(const Container &c,
-                      ComparatorT comparator = ComparatorT{})
-      : llvm::SmallVector<T, 4>{std::begin(c), std::end(c)} {
-    llvm::sort(this->begin(), this->end(), comparator);
-  }
-
-  /// Compare list sizes and contents.
-  bool operator==(const ImmutableSortedList<T> &other) const {
-    if (this->size() != other.size())
-      return false;
-    return std::equal(this->begin(), this->end(), other.begin());
-  }
-
-  /// Hash list values.
-  llvm::hash_code hash() const {
-    return llvm::hash_combine_range(this->begin(), this->end());
-  }
-};
 
 /// Comparing types by their opaque pointers will ensure consitent
 /// ordering throughout a single program lifetime.
@@ -63,10 +40,9 @@ struct TypeListStorage : public TypeStorage {
   }
 
   /// Create the TypeListStorage.
-  static TypeListStorage *construct(TypeStorageAllocator &alloc,
-                                    const KeyTy &key) {
+  static TypeListStorage *construct(TypeStorageAllocator &alloc, KeyTy key) {
     return new (alloc.allocate<TypeListStorage>())
-        TypeListStorage{key};
+        TypeListStorage{std::move(key)};
   }
 
   KeyTy types;
@@ -113,10 +89,9 @@ struct WidthListStorage : public TypeStorage {
   }
 
   /// Create the WidthListStorage.
-  static WidthListStorage *construct(TypeStorageAllocator &alloc,
-                                     const KeyTy &key) {
+  static WidthListStorage *construct(TypeStorageAllocator &alloc, KeyTy key) {
     return new (alloc.allocate<WidthListStorage>())
-        WidthListStorage{key};
+        WidthListStorage{std::move(key)};
   }
 
   KeyTy widths;
@@ -176,6 +151,8 @@ struct OpaqueTypeStorage : public TypeStorage {
 /// Helper functions.
 namespace {
 
+namespace impl {
+
 template <typename BaseT>
 LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
                               const char *typeName) {
@@ -193,8 +170,23 @@ LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
   return success();
 }
 
+LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
+  if (tys.empty())
+    return emitError(loc) << "empty Type list passed";
+  llvm::SmallPtrSet<Type, 4> typeSet{std::begin(tys), std::end(tys)};
+  if (std::size(typeSet) != std::size(tys))
+    return emitError(loc) << "duplicate Types passed";
+  return success();
+}
+
+} // end namespace impl
+
 auto getSortedWidths(ArrayRef<unsigned> widths) {
-  return detail::ImmutableSortedList<unsigned>{widths, std::less<unsigned>{}};
+  return getSortedListOf<std::less<unsigned>>(widths);
+}
+
+auto getSortedTypes(ArrayRef<Type> tys) {
+  return getSortedListOf<detail::TypeComparator>(tys);
 }
 
 } // end anonymous namespace
@@ -202,29 +194,21 @@ auto getSortedWidths(ArrayRef<unsigned> widths) {
 /// AnyOfType implementation.
 AnyOfType AnyOfType::get(ArrayRef<Type> tys) {
   auto *ctx = tys.front().getContext();
-  detail::ImmutableSortedList<Type> types{tys, detail::TypeComparator{}};
-  return Base::get(ctx, SpecTypes::AnyOf, std::move(types));
+  return Base::get(ctx, SpecTypes::AnyOf, getSortedTypes(tys));
 }
 
 AnyOfType AnyOfType::getChecked(Location loc, ArrayRef<Type> tys) {
-  detail::ImmutableSortedList<Type> types{tys, detail::TypeComparator{}};
-  return Base::getChecked(loc, SpecTypes::AnyOf, std::move(types));
+  return Base::getChecked(loc, SpecTypes::AnyOf, getSortedTypes(tys));
 }
 
 LogicalResult AnyOfType::verifyConstructionInvariants(
     Location loc, ArrayRef<Type> tys) {
-  if (tys.empty())
-    return emitError(loc) << "empty Type list passed to 'AnyOf'";
-  llvm::SmallPtrSet<Type, 4> types{std::begin(tys), std::end(tys)};
-  if (std::size(types) != std::size(tys))
-    return emitError(loc) << "duplicate Types in list passed to 'AnyOf'";
-  return success();
+  return impl::verifyTypeList(loc, tys);
 }
 
 LogicalResult AnyOfType::verify(Type ty) {
   // Success if the Type is found
-  auto &types = getImpl()->types;
-  for (auto baseTy : types) {
+  for (auto baseTy : getImpl()->types) {
     if (SpecTypes::is(baseTy) && 
         succeeded(SpecTypes::delegateVerify(baseTy, ty)))
       return success();
@@ -232,6 +216,32 @@ LogicalResult AnyOfType::verify(Type ty) {
       return success();
   }
   return failure();
+}
+
+/// AllOfType implementation.
+AllOfType AllOfType::get(ArrayRef<Type> tys) {
+  auto *ctx = tys.front().getContext();
+  return Base::get(ctx, SpecTypes::AllOf, getSortedTypes(tys));
+}
+
+AllOfType AllOfType::getChecked(Location loc, ArrayRef<Type> tys) {
+  return Base::getChecked(loc, SpecTypes::AllOf, getSortedTypes(tys));
+}
+
+LogicalResult AllOfType::verifyConstructionInvariants(
+    Location loc, ArrayRef<Type> tys) {
+  return impl::verifyTypeList(loc, tys);
+}
+
+LogicalResult AllOfType::verify(Type ty) {
+  for (auto baseTy : getImpl()->types) {
+    if (SpecTypes::is(baseTy) && 
+        failed(SpecTypes::delegateVerify(baseTy, ty)))
+      return failure();
+    else if (baseTy != ty)
+      return failure();
+  }
+  return success();
 }
 
 /// AnyIType implementation.
@@ -277,7 +287,7 @@ AnyIntOfWidthsType AnyIntOfWidthsType::getChecked(Location loc,
 
 LogicalResult AnyIntOfWidthsType::verifyConstructionInvariants(
     Location loc, ArrayRef<unsigned> widths) {
-  return verifyWidthList<AnyIType>(loc, widths, "integer");
+  return impl::verifyWidthList<AnyIType>(loc, widths, "integer");
 }
 
 LogicalResult AnyIntOfWidthsType::verify(Type ty) {
@@ -477,7 +487,7 @@ FloatOfWidthsType FloatOfWidthsType::getChecked(
 
 LogicalResult FloatOfWidthsType::verifyConstructionInvariants(
     Location loc, ArrayRef<unsigned> widths) {
-  return verifyWidthList<FType>(loc, widths, "float");
+  return impl::verifyWidthList<FType>(loc, widths, "float");
 }
 
 LogicalResult FloatOfWidthsType::verify(Type ty) {
@@ -565,6 +575,8 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
   case AnyOf:
     type.cast<AnyOfType>().print(printer);
     break;
+  case AllOf:
+    type.cast<AllOfType>().print(printer);
   case AnyInteger:
     printer << "AnyInteger";
     break;
@@ -636,14 +648,24 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
   }
 }
 
-void AnyOfType::print(DialectAsmPrinter &printer) {
-  printer << "AnyOf<";
-  auto it = std::begin(getImpl()->types);
+void printTypeList(ArrayRef<Type> tys, DialectAsmPrinter &printer) {
+  auto it = std::begin(tys);
   printer.printType(*it++);
-  for (auto e = std::end(getImpl()->types); it != e; ++it) {
+  for (auto e = std::end(tys); it != e; ++it) {
     printer << ',';
     printer.printType(*it);
   }
+}
+
+void AnyOfType::print(DialectAsmPrinter &printer) {
+  printer << "AnyOf<";
+  printTypeList(getImpl()->types, printer);
+  printer << '>';
+}
+
+void AllOfType::print(DialectAsmPrinter &printer) {
+  printer << "AllOf<";
+  printTypeList(getImpl()->types, printer);
   printer << '>';
 }
 

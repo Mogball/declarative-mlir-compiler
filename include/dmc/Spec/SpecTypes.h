@@ -32,6 +32,7 @@ enum Kinds {
   Any = mlir::Type::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_TYPE,
   None,
   AnyOf,
+  AllOf,
 
   AnyInteger,
   AnyI,
@@ -99,6 +100,22 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Type> tys);
   /// Check Type is in the list.
+  mlir::LogicalResult verify(Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+/// Match all the TypeConstrants in the list.
+class AllOfType : public SpecType<AllOfType, SpecTypes::AllOf,
+                                  detail::TypeListStorage> {
+public:
+  using Base::Base;
+
+  static AllOfType get(llvm::ArrayRef<Type> tys);
+  static AllOfType getChecked(mlir::Location loc, llvm::ArrayRef<Type> tys);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, llvm::ArrayRef<Type> tys);
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
