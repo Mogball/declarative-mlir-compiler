@@ -375,5 +375,6 @@ public:
 };
 
 /// TODO Container types (vectors, tensors, etc.), memref types, tuples.
+/// TODO variadic and optional types
 
 } // end namespace dmc

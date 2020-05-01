@@ -36,12 +36,24 @@ public:
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
 
-  /// Get the Dialect name.
+  /// Getters
   llvm::StringRef getName();
-
-  /// Body
+  bool allowsUnknownOps();
+  bool allowsUnknownTypes();
   mlir::Region &getBodyRegion();
   mlir::Block *getBody();
+
+private:
+  /// Attributes.
+  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder, 
+                                      mlir::OperationState &result);
+
+  static inline llvm::StringRef getAllowUnknownOpsAttrName() {
+    return "allow_unknown_ops";
+  }
+  static inline llvm::StringRef getAllowUnknownTypesAttrName() {
+    return "allow_unknown_types";
+  }
 };
 
 /// Special terminator Op for DialectOp.
@@ -96,6 +108,20 @@ private:
   unsigned getNumFuncArguments() { return getType().getInputs().size(); }
   unsigned getNumFuncResults() { return getType().getResults().size(); }
   mlir::LogicalResult verifyType();
+
+  /// Attributes.
+  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder, 
+                                      mlir::OperationState &result);
+
+  static inline llvm::StringRef getIsTerminatorAttrName() {
+    return "is_terminator";
+  }
+  static inline llvm::StringRef getIsCommutativeAttrName() {
+    return "is_commutative";
+  }
+  static inline llvm::StringRef getIsIsolatedFromAboveAttrName() {
+    return "is_isolated_from_above";
+  }
 };
 
 } // end namespace dmc

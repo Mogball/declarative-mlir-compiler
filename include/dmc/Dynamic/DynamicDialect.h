@@ -21,6 +21,13 @@ public:
   /// added directly to the returned DynamicOperation before it is finalized.
   DynamicOperation *createDynamicOp(llvm::StringRef name);
 
+  /// Expose configuration methods.
+  inline void allowUnknownOperations(bool allow) {
+    Dialect::allowUnknownOperations(allow);
+  }
+  inline void allowUnknownTypes(bool allow) {
+    Dialect::allowUnknownTypes(allow); }
+
 private:
   friend class DynamicOperation;
 };

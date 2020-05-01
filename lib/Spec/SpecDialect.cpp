@@ -49,7 +49,7 @@ Type parseWidthListType(DialectAsmParser &parser) {
     if (parser.parseInteger(width))
       return Type{};
     widths.push_back(width);
-  } while (parser.parseOptionalComma());
+  } while (!parser.parseOptionalComma());
   if (parser.parseGreater())
     return Type{};
   return BaseT::getChecked(loc, widths);
@@ -122,7 +122,7 @@ Type AnyOfType::parse(DialectAsmParser &parser) {
     if (parser.parseType(baseType)) 
       return Type{};
     baseTypes.push_back(baseType);
-  } while (parser.parseOptionalComma());
+  } while (!parser.parseOptionalComma());
   if (parser.parseGreater()) 
     return Type{};
   return AnyOfType::getChecked(loc, baseTypes);

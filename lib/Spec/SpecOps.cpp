@@ -7,23 +7,46 @@ using namespace mlir;
 
 namespace dmc {
 
+void addAttributesIfNotPresent(ArrayRef<NamedAttribute> attrs,
+                               OperationState &result) {
+  llvm::DenseSet<StringRef> present;
+  present.reserve(result.attributes.size());
+  for (auto &namedAttr : result.attributes) 
+    present.insert(namedAttr.first);
+  for (auto &namedAttr : attrs) 
+    if (present.find(namedAttr.first) == std::end(present))
+      result.attributes.push_back(namedAttr);
+}
+
 /// DialectOp.
+void DialectOp::buildDefaultValuedAttrs(OpBuilder &builder, 
+                                        OperationState &result) {
+  auto falseAttr = builder.getBoolAttr(false);
+  addAttributesIfNotPresent({
+      builder.getNamedAttr(getAllowUnknownOpsAttrName(), falseAttr),
+      builder.getNamedAttr(getAllowUnknownTypesAttrName(), falseAttr)},
+      result);
+}
+
 void DialectOp::build(OpBuilder &builder, OperationState &result, 
                       StringRef name) {
   ensureTerminator(*result.addRegion(), builder, result.location);
-  result.attributes.push_back(builder.getNamedAttr(
-        mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name)));
+  result.addAttribute(mlir::SymbolTable::getSymbolAttrName(), 
+      builder.getStringAttr(name));
+  buildDefaultValuedAttrs(builder, result);
 }
 
 /// dialect-op ::= `Dialect` `@`symbolName `attributes` attr-list region
-ParseResult DialectOp::parse(OpAsmParser &parser, OperationState &result) {
   StringAttr nameAttr;
+ParseResult DialectOp::parse(OpAsmParser &parser, OperationState &result) {
   auto *body = result.addRegion();
   if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), 
                              result.attributes) ||
       parser.parseOptionalAttrDictWithKeyword(result.attributes) || 
       parser.parseRegion(*body, llvm::None, llvm::None))
     return failure();
+  OpBuilder builder{result.getContext()};
+  buildDefaultValuedAttrs(builder, result);
   ensureTerminator(*body, parser.getBuilder(), result.location);
   return success();
 }
@@ -44,7 +67,13 @@ LogicalResult DialectOp::verify() {
   auto *body = getBody();
   if (body->getNumArguments() != 0)
     return emitOpError("expected Dialect body to have zero arguments");
-  // TODO verify dialect attributes once they are added to DynamicDialect
+  /// Verify attributes
+  if (!getAttrOfType<BoolAttr>(getAllowUnknownOpsAttrName()))
+    return emitOpError("expected BoolAttr named: ") 
+        << getAllowUnknownOpsAttrName();
+  if (!getAttrOfType<BoolAttr>(getAllowUnknownTypesAttrName()))
+    return emitOpError("expected BoolAttr named: ")
+        << getAllowUnknownTypesAttrName();
   return success();
 }
 
@@ -56,7 +85,25 @@ StringRef DialectOp::getName() {
       .getValue();
 }
 
+bool DialectOp::allowsUnknownOps() {
+  return getAttrOfType<BoolAttr>(getAllowUnknownOpsAttrName()).getValue();
+}
+
+bool DialectOp::allowsUnknownTypes() {
+  return getAttrOfType<BoolAttr>(getAllowUnknownTypesAttrName()).getValue();
+}
+
 /// OperationOp
+void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
+                                          OperationState &result) {
+  auto falseAttr = builder.getBoolAttr(false);
+  addAttributesIfNotPresent({
+      builder.getNamedAttr(getIsTerminatorAttrName(), falseAttr),
+      builder.getNamedAttr(getIsCommutativeAttrName(), falseAttr),
+      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr)},
+      result);
+}
+
 void OperationOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, FunctionType type,
                         ArrayRef<NamedAttribute> attrs) {
@@ -65,6 +112,7 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
   result.addAttribute(getTypeAttrName(), TypeAttr::get(type));
   result.attributes.append(std::begin(attrs), std::end(attrs));
   result.addRegion();
+  buildDefaultValuedAttrs(builder, result);
 }
 
 template <typename ContainerT>
@@ -115,6 +163,8 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   auto funcType = FunctionType::get(argTys, retTys, result.getContext()); 
   result.addAttribute(getTypeAttrName(), TypeAttr::get(funcType));
   result.addRegion();
+  OpBuilder builder{result.getContext()};
+  buildDefaultValuedAttrs(builder, result);
   return success();
 }
 
@@ -136,7 +186,15 @@ StringRef OperationOp::getName() {
 
 LogicalResult OperationOp::verify() {
   // TODO verify variadic and optional arg conformance
-  // TODO verify configs
+  if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
+    return emitOpError("expected BoolAttr named: ") 
+        << getIsTerminatorAttrName();
+  if (!getAttrOfType<BoolAttr>(getIsCommutativeAttrName()))
+    return emitOpError("expected BoolAttr named: ")
+        << getIsCommutativeAttrName();
+  if (!getAttrOfType<BoolAttr>(getIsIsolatedFromAboveAttrName()))
+    return emitOpError("expected BoolAttr named: ")
+        << getIsIsolatedFromAboveAttrName();
   return success();
 }
 
