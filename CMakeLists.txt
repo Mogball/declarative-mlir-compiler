@@ -28,7 +28,8 @@ message(STATUS "LLVM directory: ${LLVM_DIR}")
 message(STATUS "MLIR directory: ${MLIR_DIR}")
 
 # Include project-specific configs
-list(APPEND CMAKE_MODULE_PATH cmake/module)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
+include(AddDMC)
 
 # Global options
 add_compile_options(-fno-rtti -fno-exceptions)
