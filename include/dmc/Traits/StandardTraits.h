@@ -97,9 +97,7 @@ struct AtLeastNSuccessors : public BindArgTrait<unsigned> {
 };
 
 /// TODO Some standard traits not rebound (complexity/API restrictions):
-/// - AttrSizedResultSegments
-/// - AttrSizedOperandSegments
-/// - HasParent
+/// - HasParent<>
 /// - SingleBlockImplicitTerminator
 /// - AutomaticAllocationScope
 /// - ConstantLike

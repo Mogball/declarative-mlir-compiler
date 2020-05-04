@@ -3,6 +3,7 @@
 using namespace mlir;
 
 namespace dmc {
+
 namespace SpecAttrs {
 
 bool is(Attribute base) {
@@ -52,6 +53,8 @@ LogicalResult delegateVerify(Attribute base, Attribute attr) {
     return base.cast<AnyOfAttr>().verify(attr);
   case AllOf:
     return base.cast<AllOfAttr>().verify(attr);
+  case OfType:
+    return base.cast<OfTypeAttr>().verify(attr);
   default:
     llvm_unreachable("Unknown SpecAttr");
     return failure();
@@ -59,4 +62,34 @@ LogicalResult delegateVerify(Attribute base, Attribute attr) {
 }
 
 } // end namespace SpecAttrs
+
+namespace impl {
+
+LogicalResult verifyAttribute(Operation *op, NamedAttribute attr) {
+  auto opAttr = op->getAttr(attr.first);  
+  if (!opAttr) // TODO optional attributes
+    return op->emitOpError("missing attribute '") << attr.first << '\'';
+  auto baseAttr = attr.second;
+  if (SpecAttrs::is(baseAttr)) {
+    if (failed(SpecAttrs::delegateVerify(baseAttr, opAttr)))
+      return op->emitOpError("attribute '") << attr.first << '\''
+          << ", which is '" << opAttr << "', failed to satisfy '" 
+          << baseAttr << '\'';
+  } else if (baseAttr != opAttr) 
+    return op->emitOpError("expected attribute '") << attr.first << '\''
+        << " to be '" << baseAttr << "' but got '" << opAttr << '\'';
+  return success();
+}
+
+LogicalResult verifyAttrConstraints(
+    Operation *op, mlir::DictionaryAttr opAttrs) {
+  for (auto &attr : opAttrs.getValue()) {
+    if (failed(verifyAttribute(op, attr)))
+      return failure();
+  }
+  return success();
+}
+
+} // end namespace impl
+
 } // end namespace dmc

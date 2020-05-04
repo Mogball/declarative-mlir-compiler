@@ -5,4 +5,7 @@ add_library(DMCDynamic
   DynamicOperation.cpp
   TypeIDAllocator.cpp
   )
-target_link_libraries(DMCDynamic MLIRIR)
+target_link_libraries(DMCDynamic
+  DMCSpec
+  MLIRIR
+  )

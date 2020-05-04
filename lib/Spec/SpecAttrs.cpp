@@ -2,6 +2,7 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/Support.h"
 #include "dmc/Spec/SpecTypeDetail.h"
+#include "dmc/Spec/SpecTypeImplementation.h"
 
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/DialectImplementation.h>
@@ -65,6 +66,22 @@ struct AttrListStorage : public AttributeStorage {
   KeyTy attrs;
 };
 
+struct OneTypeAttrStorage : public AttributeStorage {
+  using KeyTy = Type;
+
+  explicit OneTypeAttrStorage(KeyTy key) : type{key} {}
+  bool operator==(const KeyTy &key) const { return key == type; }
+  static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }
+
+  static OneTypeAttrStorage *construct(
+      AttributeStorageAllocator &alloc, KeyTy key) {
+    return new (alloc.allocate<OneTypeAttrStorage>())
+        OneTypeAttrStorage{key};
+  }
+
+  KeyTy type;
+};
+
 struct AttrComparator {
   bool operator()(Attribute lhs, Attribute rhs) const {
     return lhs.getAsOpaquePointer() < rhs.getAsOpaquePointer();
@@ -94,11 +111,8 @@ LogicalResult ConstantAttr::verify(Attribute attr) {
 }
 
 /// Helper functions.
-namespace {
-
 namespace impl {
-
-LogicalResult verifyAttrList(Location loc, ArrayRef<Attribute> attrs) {
+static LogicalResult verifyAttrList(Location loc, ArrayRef<Attribute> attrs) {
   if (attrs.empty())
     return emitError(loc) << "attribute list cannot be empty";
   llvm::SmallPtrSet<Attribute, 4> attrSet{std::begin(attrs), 
@@ -107,14 +121,11 @@ LogicalResult verifyAttrList(Location loc, ArrayRef<Attribute> attrs) {
     return emitError(loc) << "duplicate attributes passed";
   return success();
 }
-  
 } // end namespace impl
 
-auto getSortedAttrs(ArrayRef<Attribute> attrs) {
+static auto getSortedAttrs(ArrayRef<Attribute> attrs) {
   return getSortedListOf<detail::AttrComparator>(attrs);
 }
-
-} // end anonymous namespace
 
 /// AnyOfAttr implementation
 AnyOfAttr AnyOfAttr::get(ArrayRef<Attribute> attrs) {
@@ -166,6 +177,30 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
       return failure();
   }
   return success();
+}
+
+/// OfTypeAttr implementation.
+OfTypeAttr OfTypeAttr::get(Type ty, MLIRContext *ctx) {
+  return Base::get(ctx, SpecAttrs::OfType, ty);
+}
+
+OfTypeAttr OfTypeAttr::get(Location loc, Type ty) {
+  return Base::getChecked(loc, SpecAttrs::OfType, ty);
+}
+
+LogicalResult OfTypeAttr::verifyConstructionInvariants(Location loc, Type ty) {
+  if (!ty)
+    return emitError(loc) << "type cannot be null";
+  return success();
+}
+
+LogicalResult OfTypeAttr::verify(Attribute attr) {
+  if (!attr)
+    return failure();
+  auto baseTy = getImpl()->type;
+  if (SpecTypes::is(baseTy))
+    return SpecTypes::delegateVerify(baseTy, attr.getType());
+  return success(baseTy == attr.getType());
 }
 
 /// Attribute printing.
@@ -264,6 +299,9 @@ void SpecDialect::printAttribute(Attribute attr,
     printer << "AllOf";
     printAttrList(attr.cast<AllOfAttr>().getImpl(), printer);
     break;
+  case OfType:
+    attr.cast<OfTypeAttr>().print(printer);
+    break;
   default:
     llvm_unreachable("Unknown SpecAttr");
     break;
@@ -273,6 +311,12 @@ void SpecDialect::printAttribute(Attribute attr,
 void ConstantAttr::print(DialectAsmPrinter &printer) {
   printer << "Constant<";
   printer.printAttribute(getImpl()->attr);
+  printer << '>';
+}
+
+void OfTypeAttr::print(DialectAsmPrinter &printer) {
+  printer << "OfType<";
+  printer.printType(getImpl()->type);
   printer << '>';
 }
 

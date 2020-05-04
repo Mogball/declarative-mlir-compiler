@@ -10,6 +10,7 @@ namespace dmc {
 namespace detail {
 struct ConstantAttrStorage;
 struct AttrListStorage;
+struct OneTypeAttrStorage;
 } // end namespace detail
 
 class AnyAttr : public SimpleAttr<AnyAttr, SpecAttrs::Any> {
@@ -179,6 +180,21 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
   mlir::LogicalResult verify(Attribute attr);
+};
+
+class OfTypeAttr : public SpecAttr<OfTypeAttr, SpecAttrs::OfType,
+                                  detail::OneTypeAttrStorage> {
+public:
+  using Base::Base;
+
+  static OfTypeAttr get(mlir::Type ty, mlir::MLIRContext *ctx);
+  static OfTypeAttr getChecked(mlir::Location loc, mlir::Type ty);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, mlir::Type ty);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 /// TODO Default-valued and optional attributes.

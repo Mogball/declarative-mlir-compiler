@@ -42,6 +42,8 @@ enum Kinds {
   Opaque,
   Function,
 
+  Variadic, // Optional is a subset of Variadic
+
   NUM_TYPES
 };
 
@@ -95,15 +97,10 @@ public:
   }
 };
 
-/// Dynamic trait used to apply type constraints.
-class TypeTrait : public DynamicTrait {
-public:
-  explicit TypeTrait(mlir::FunctionType opTy);
-  mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
-
-private:
-  /// Capture the expected operation argument and return types.
-  mlir::FunctionType opTy;
-};
+/// Verify Type constraints.
+namespace impl {
+mlir::LogicalResult verifyTypeConstraints(
+    mlir::Operation *op, mlir::FunctionType opTy);
+} // end namespace impl
 
 } // end namespace dmc

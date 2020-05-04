@@ -16,11 +16,8 @@ class DynamicOpTrait :
     public OpTrait::TraitBase<ConcreteType, DynamicOpTrait> {
 public:
   static LogicalResult verifyTrait(Operation *op) {
-    // Lookup the backing DynamicOperation
-    auto *dialect = static_cast<DynamicDialect *>(op->getDialect());
-    auto *dynOp = dialect->getDynContext()->lookupOp(op);
     // Hook into the DynamicTraits
-    return dynOp->verifyOpTraits(op);
+    return DynamicOperation::of(op)->verifyOpTraits(op);
   }
 };
 
@@ -47,19 +44,14 @@ public:
   }
 };
 
-AbstractOperation getBaseOpInfo(StringRef name, DynamicDialect *dialect,
-                                TypeID typeId) {
-  // TODO Custom functions, operand/result type/count checking
-  // Add the dialect name
-  return AbstractOperation(
-      name, *dialect, BaseOp::getOperationProperties(),
-      typeId, BaseOp::parseAssembly, BaseOp::printAssembly,
-      BaseOp::verifyInvariants, BaseOp::foldHook,
-      BaseOp::getCanonicalizationPatterns,
-      BaseOp::getRawInterface, BaseOp::hasTrait);
-}
-
 } // end anonymous namespace
+
+DynamicOperation *DynamicOperation::of(Operation *op) {
+  /// All DynamicOperations must belong to a DynamicDialect.
+  /// TODO mlir::Dialect should indicate if it is dynamic.
+  auto *dialect = static_cast<DynamicDialect *>(op->getDialect());
+  return dialect->getDynContext()->lookupOp(op);
+}
 
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
     : DynamicObject{dialect->getDynContext()},

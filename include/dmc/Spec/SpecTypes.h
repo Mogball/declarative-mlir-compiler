@@ -15,8 +15,6 @@ namespace dmc {
 /// Variadic operands or results are specified with !dmc.Variadic<$Type>.
 /// More than one variadic operand requires a size specifier trait.
 ///
-/// Optional values are specified with !dmc.Optional<$Type>.
-///
 /// Custom type predicates can be specified with a call to a higher-level DSL,
 /// e.g. a Python predicate.
 namespace detail {
@@ -92,7 +90,7 @@ class AnyIType : public SpecType<AnyIType, SpecTypes::AnyI,
 public:
   using Base::Base;
 
-  static AnyIType get(mlir::MLIRContext *ctx, unsigned width);
+  static AnyIType get(unsigned width, mlir::MLIRContext *ctx);
   static AnyIType getChecked(mlir::Location loc, unsigned width);
 
   /// Width must be one of [1, 8, 16, 32, 64].
@@ -109,8 +107,8 @@ class AnyIntOfWidthsType
 public:
   using Base::Base;
 
-  static AnyIntOfWidthsType get(mlir::MLIRContext *ctx,
-                                llvm::ArrayRef<unsigned> widths);
+  static AnyIntOfWidthsType get(
+      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
   static AnyIntOfWidthsType getChecked(mlir::Location loc,
                                        llvm::ArrayRef<unsigned> widths);
 
@@ -136,7 +134,7 @@ class IType : public SpecType<IType, SpecTypes::I, detail::WidthStorage> {
 public:
   using Base::Base;
 
-  static IType get(mlir::MLIRContext *ctx, unsigned width);
+  static IType get(unsigned width, mlir::MLIRContext *ctx);
   static IType getChecked(mlir::Location loc, unsigned width);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
@@ -151,7 +149,7 @@ public:
   using Base::Base;
 
   static SignlessIntOfWidthsType get(
-      mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
+      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
   static SignlessIntOfWidthsType getChecked(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -175,7 +173,7 @@ class SIType : public SpecType<SIType, SpecTypes::SI, detail::WidthStorage> {
 public:
   using Base::Base;
 
-  static SIType get(mlir::MLIRContext *ctx, unsigned width);
+  static SIType get(unsigned width, mlir::MLIRContext *ctx);
   static SIType getChecked(mlir::Location loc, unsigned width);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
@@ -190,7 +188,7 @@ public:
   using Base::Base;
 
   static SignedIntOfWidthsType get(
-      mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
+      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
   static SignedIntOfWidthsType getChecked(
       mlir::Location, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -214,7 +212,7 @@ class UIType : public SpecType<UIType, SpecTypes::UI, detail::WidthStorage> {
 public:
   using Base::Base;
 
-  static UIType get(mlir::MLIRContext *ctx, unsigned width);
+  static UIType get(unsigned width, mlir::MLIRContext *ctx);
   static UIType getChecked(mlir::Location loc, unsigned width);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
@@ -229,7 +227,7 @@ public:
   using Base::Base;
 
   static UnsignedIntOfWidthsType get(
-      mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
+      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
   static UnsignedIntOfWidthsType getChecked(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -261,7 +259,7 @@ class FType : public SpecType<FType, SpecTypes::F, detail::WidthStorage> {
 public:
   using Base::Base;
 
-  static FType get(mlir::MLIRContext *ctx, unsigned width);
+  static FType get(unsigned width, mlir::MLIRContext *ctx);
   static FType getChecked(mlir::Location loc, unsigned width);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
@@ -276,7 +274,7 @@ public:
   using Base::Base;
 
   static FloatOfWidthsType get(
-      mlir::MLIRContext *ctx, llvm::ArrayRef<unsigned> widths);
+      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
   static FloatOfWidthsType getChecked(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -323,10 +321,10 @@ class OpaqueType : public SpecType<OpaqueType, SpecTypes::Opaque,
 public:
   using Base::Base;
 
-  static OpaqueType get(mlir::MLIRContext *ctx,
-                        llvm::StringRef dialectName, llvm::StringRef typeName);
-  static OpaqueType getChecked(mlir::Location loc,
-                        llvm::StringRef dialectName, llvm::StringRef typeName);
+  static OpaqueType get(llvm::StringRef dialectName, llvm::StringRef typeName,
+                        mlir::MLIRContext *ctx);
+  static OpaqueType getChecked(mlir::Location loc, llvm::StringRef dialectName, 
+                               llvm::StringRef typeName);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc,
       llvm::StringRef dialectName, llvm::StringRef typeName);
@@ -344,6 +342,24 @@ public:
     return mlir::success(ty.isa<mlir::FunctionType>());
   }
 };
+
+/// Variadic values.
+class VariadicType : public SpecType<VariadicType, SpecTypes::Variadic,
+                                     detail::OneTypeStorage> {
+public:
+  using Base::Base:
+
+  static VariadicType get(mlir::Type ty);
+  static VariadicType getChecked(mlir::Location loc, mlir::Type ty);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, mlir::Type ty);
+  mlir::LogicalResult verify(mlir::Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+/// Optional values.
 
 /// TODO Container types (vectors, tensors, etc.), memref types, tuples.
 /// TODO variadic and optional types.

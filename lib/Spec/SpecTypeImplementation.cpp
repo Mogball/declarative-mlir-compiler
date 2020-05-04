@@ -63,6 +63,8 @@ LogicalResult delegateVerify(Type base, Type ty) {
     return base.cast<ComplexType>().verify(ty);
   case Opaque:
     return base.cast<OpaqueType>().verify(ty);
+  case Variadic:
+    return base.cast<VariadicType>().verify(ty);
   default:
     llvm_unreachable("Unknown SpecType");
     return failure();
@@ -71,12 +73,12 @@ LogicalResult delegateVerify(Type base, Type ty) {
 
 } // end namespace SpecTypes
 
-// TypeTrait implementation.
-TypeTrait::TypeTrait(mlir::FunctionType opTy) : opTy{opTy} {}
+/// Type verification.
+namespace impl {
 
 template <typename TypeRange>
-static LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
-                                     TypeRange tys, StringRef name) {
+LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
+                              TypeRange tys, StringRef name) {
   auto firstTy = std::begin(tys), lastTy = std::end(tys);
   auto tyIt = firstTy;
   for (auto baseIt = std::begin(baseTys), baseEnd = std::end(baseTys);
@@ -96,11 +98,13 @@ static LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
   return success();
 }
 
-LogicalResult TypeTrait::verifyOp(Operation *op) const {
+LogicalResult verifyTypeConstraints(Operation *op, mlir::FunctionType opTy) {
   return failure(failed(verifyTypeRange(op, opTy.getInputs(),
                                         op->getOperandTypes(), "operand"))  ||
                  failed(verifyTypeRange(op, opTy.getResults(),
                                         op->getResultTypes(), "result")));
 }
+
+} // end namespace impl
 
 } // end namespace dmc

@@ -146,8 +146,6 @@ struct OpaqueTypeStorage : public TypeStorage {
 } // end namespace detail
 
 /// Helper functions.
-namespace {
-
 namespace impl {
 
 template <typename BaseT>
@@ -167,7 +165,7 @@ LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
   return success();
 }
 
-LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
+static LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
   if (tys.empty())
     return emitError(loc) << "empty Type list passed";
   llvm::SmallPtrSet<Type, 4> typeSet{std::begin(tys), std::end(tys)};
@@ -178,15 +176,13 @@ LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
 
 } // end namespace impl
 
-auto getSortedWidths(ArrayRef<unsigned> widths) {
+static auto getSortedWidths(ArrayRef<unsigned> widths) {
   return getSortedListOf<std::less<unsigned>>(widths);
 }
 
-auto getSortedTypes(ArrayRef<Type> tys) {
+static auto getSortedTypes(ArrayRef<Type> tys) {
   return getSortedListOf<detail::TypeComparator>(tys);
 }
-
-} // end anonymous namespace
 
 /// AnyOfType implementation.
 AnyOfType AnyOfType::get(ArrayRef<Type> tys) {
@@ -242,7 +238,7 @@ LogicalResult AllOfType::verify(Type ty) {
 }
 
 /// AnyIType implementation.
-AnyIType AnyIType::get(mlir::MLIRContext *ctx, unsigned width) {
+AnyIType AnyIType::get(unsigned width, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::AnyI, width);
 }
 
@@ -269,8 +265,8 @@ LogicalResult AnyIType::verify(Type ty) {
 }
 
 /// AnyIntOfWidthsType implementation.
-AnyIntOfWidthsType AnyIntOfWidthsType::get(MLIRContext *ctx,
-                                          ArrayRef<unsigned> widths) {
+AnyIntOfWidthsType AnyIntOfWidthsType::get(
+    ArrayRef<unsigned> widths, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::AnyIntOfWidths,
                    getSortedWidths(widths));
 }
@@ -296,7 +292,7 @@ LogicalResult AnyIntOfWidthsType::verify(Type ty) {
 }
 
 /// IType implementation.
-IType IType::get(MLIRContext *ctx, unsigned width) {
+IType IType::get(unsigned width, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::I, width);
 }
 
@@ -315,7 +311,7 @@ LogicalResult IType::verify(Type ty) {
 
 /// SignlessIntOfWidthsType implementation.
 SignlessIntOfWidthsType SignlessIntOfWidthsType::get(
-    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+    ArrayRef<unsigned> widths, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::SignlessIntOfWidths,
                    getSortedWidths(widths));
 }
@@ -340,7 +336,7 @@ LogicalResult SignlessIntOfWidthsType::verify(Type ty) {
 }
 
 /// SIType implementation.
-SIType SIType::get(MLIRContext *ctx, unsigned width) {
+SIType SIType::get(unsigned width, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::SI, width);
 }
 
@@ -359,7 +355,7 @@ LogicalResult SIType::verify(Type ty) {
 
 /// SignedIntOfWidthsType implementation.
 SignedIntOfWidthsType SignedIntOfWidthsType::get(
-    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+    ArrayRef<unsigned> widths, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::SignedIntOfWidths,
                    getSortedWidths(widths));
 }
@@ -384,7 +380,7 @@ LogicalResult SignedIntOfWidthsType::verify(Type ty) {
 }
 
 /// UIType implementation.
-UIType UIType::get(MLIRContext *ctx, unsigned width) {
+UIType UIType::get(unsigned width, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::UI, width);
 }
 
@@ -403,7 +399,7 @@ LogicalResult UIType::verify(Type ty) {
 
 /// UnsignedIntOfWidthsType implementation.
 UnsignedIntOfWidthsType UnsignedIntOfWidthsType::get(
-    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+    ArrayRef<unsigned> widths, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::UnsignedIntOfWidths,
                    getSortedWidths(widths));
 }
@@ -444,7 +440,7 @@ inline LogicalResult verifyFloatWidth(unsigned width, Type ty) {
 }
 } // end anonymous namespace
 
-FType FType::get(MLIRContext *ctx, unsigned width) {
+FType FType::get(unsigned width, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::F, width);
 }
 
@@ -471,7 +467,7 @@ LogicalResult FType::verify(Type ty) {
 
 /// FLoatOfWidthsType implementation
 FloatOfWidthsType FloatOfWidthsType::get(
-    MLIRContext *ctx, ArrayRef<unsigned> widths) {
+    ArrayRef<unsigned> widths, MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::FloatOfWidths,
                    getSortedWidths(widths));
 }
@@ -518,8 +514,8 @@ LogicalResult ComplexType::verify(Type ty) {
 }
 
 /// OpaqueType implementation.
-OpaqueType OpaqueType::get(MLIRContext *ctx, StringRef dialectName,
-                           StringRef typeName) {
+OpaqueType OpaqueType::get(StringRef dialectName, StringRef typeName,
+                           MLIRContext *ctx) {
   return Base::get(ctx, SpecTypes::Opaque, dialectName, typeName);
 }
 
@@ -540,6 +536,39 @@ LogicalResult OpaqueType::verifyConstructionInvariants(
 LogicalResult OpaqueType::verify(Type ty) {
   return success(mlir::isOpaqueTypeWithName(
         ty, getImpl()->dialectName, getImpl()->typeName));
+}
+
+/// VariadicType implementation.
+VariadicType VariadicType::get(Type ty) {
+  return Base::get(ty.getContext(), SpecTypes::Variadic, ty);
+}
+
+VariadicType VariadicType::getChecked(Location loc, Type ty) {
+  return Base::getChecked(loc, SpecTypes::Variadic, ty);
+}
+
+LogicalResult VariadicType::verifyConstructionInvariants(
+    Location loc, Type ty) {
+  /// TODO Need to assert that Variadic is used only as a top-level Type
+  /// constraint, since it is more of a marker than a constraint. This is how
+  /// TableGen does it. Nesting Variadic is illegal but a no-op anyway.
+  ///
+  /// Might be worth looking into argument attributes:
+  ///
+  /// dmc.Op @MyOp(%0 : !dmc.AnyInteger {variadic = true}) 
+  ///
+  if (!ty)
+    return emitError(loc) << "type cannot be null";
+  return success();
+}
+
+LogicalResult VariadicType::verify(Type ty) {
+  auto baseTy = getImpl()->type;
+  if (SpecTypes::is(baseTy)) 
+    return SpecTypes::delegateVerify(baseTy, ty);
+  else if (baseTy != ty)
+    return failure();
+  return success();
 }
 
 /// Type printing.
@@ -644,6 +673,8 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
   case Opaque:
     type.cast<OpaqueType>().print(printer);
     break;
+  case Variadic:
+    type.cast<VariadicType>().print(printer);
   default:
     llvm_unreachable("Unknown SpecType");
     break;
@@ -680,6 +711,12 @@ void ComplexType::print(DialectAsmPrinter &printer) {
 void OpaqueType::print(DialectAsmPrinter &printer) {
   printer << "Opaque<" << getImpl()->dialectName << ','
           << getImpl()->typeName << '>';
+}
+
+void VariadicType::print(DialectAsmPrinter &printer) {
+  printer << "Variadic<";
+  printer.printType(getImpl()->type);
+  printer << '>';
 }
 
 } // end namespace dmc

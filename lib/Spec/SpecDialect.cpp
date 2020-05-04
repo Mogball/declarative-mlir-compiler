@@ -3,6 +3,7 @@
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
 
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
 
 using namespace mlir;
@@ -30,7 +31,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       StringAttr, TypeAttr, UnitAttr, 
       DictionaryAttr, ElementsAttr, ArrayAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
-      ConstantAttr, AnyOfAttr, AllOfAttr
+      ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr
   >();
 }
 
@@ -137,6 +138,8 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     return OpaqueType::parse(parser);
   if (!parser.parseOptionalKeyword("Function"))
     return FunctionType::get(getContext());
+  if (!parser.parseOptionalKeyword("Variadic"))
+    return VariadicType::parse(parser);
   parser.emitError(parser.getCurrentLocation(), "Unknown TypeConstraint");
   return Type{};
 }
@@ -161,6 +164,16 @@ Type OpaqueType::parse(DialectAsmParser &parser) {
     return Type{};
   return OpaqueType::getChecked(loc, dialectNameAttr.getValue(),
                                 typeNameAttr.getValue());
+}
+
+Type VariadicType::parse(DialectAsmParser &parser) {
+  // `Variadic` `<`type `>`
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  Type baseTy;
+  if (parser.parseLess() || parser.parseType(baseTy) ||
+      parser.parseGreater())
+    return Type{};
+  return VariadicType::getChecked(baseTy);
 }
 
 /// Attribute parsing.
@@ -237,6 +250,8 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     return parseAttrList<AnyOfAttr>(parser);
   if (!parser.parseOptionalKeyword("AllOf"))
     return parseAttrList<AllOfAttr>(parser);
+  if (!parser.parseOptionalKeyword("OfType"))
+    return OfTypeAttr::parse(parser);
   parser.emitError(parser.getCurrentLocation(), "Unknown AttrConstraint");
   return Attribute{};
 }
@@ -246,9 +261,18 @@ Attribute ConstantAttr::parse(DialectAsmParser &parser) {
   if (parser.parseLess() || parser.parseAttribute(constAttr) ||
       parser.parseGreater())
     return Attribute{};
-  return getChecked(
+  return ConstantAttr::getChecked(
       parser.getEncodedSourceLoc(parser.getCurrentLocation()),
       constAttr);
+}
+
+Attribute OfTypeAttr::parse(DialectAsmParser &parser) {
+  Type attrTy;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || parser.parseType(attrTy) ||
+      parser.parseGreater())
+    return Attribute{};
+  return OfTypeAttr::getChecked(loc, attrTy);
 }
 
 } // end namespace dmc

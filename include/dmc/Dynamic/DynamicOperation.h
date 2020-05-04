@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mlir/IR/OperationSupport.h>
+#include <mlir/IR/Types.h>
 
 #include "DynamicObject.h"
 
@@ -23,6 +24,9 @@ public:
 /// This class dynamically captures properties of an Operation.
 class DynamicOperation : public DynamicObject {
 public:
+  /// Lookup the DynamicOperation backing an Operation.
+  static DynamicOperation *of(mlir::Operation *op);
+
   DynamicOperation(llvm::StringRef name, DynamicDialect *dialect);
 
   /// Get the Op representation.
@@ -45,17 +49,26 @@ public:
   /// Get amalgamated Operation properties from traits.
   mlir::AbstractOperation::OperationProperties getOpProperties() const;
 
+  /// Structural info getters.
+  inline mlir::FunctionType getOpType() const { return opTy; }
+  inline mlir::DictionaryAttr getOpAttrs() const { return opAttrs; }
+
 private:
-  // Full operation name: `dialect`.`opName`
+  /// Full operation name: `dialect`.`opName`.
   const std::string name;
-  /// Associated Dialect
+  /// Associated Dialect.
   DynamicDialect * const dialect;
 
-  /// A list of OpTraits.
+  /// A list of dynamic OpTraits.
   std::vector<std::unique_ptr<DynamicTrait>> traits;
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
+  
+  /// Higher-level DynamicOperation specification info is made
+  /// available to traits and other verifiers.
+  mlir::FunctionType opTy;
+  mlir::DictionaryAttr opAttrs;
 };
 
 } // end namespace dmc

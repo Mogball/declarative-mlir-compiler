@@ -75,7 +75,7 @@ int main() {
   }
 
   {
-    auto anyWidth = AnyIntOfWidthsType::get(&mlirContext, {8, 16, 32});
+    auto anyWidth = AnyIntOfWidthsType::get({8, 16, 32}, &mlirContext);
     assert(failed(anyWidth.verify(b.getIntegerType(64))));
     assert(succeeded(anyWidth.verify(b.getIntegerType(32))));
   }
@@ -108,13 +108,13 @@ int main() {
   }
 
   {
-    auto anyI = AnyIAttr::get(AnyIType::get(&mlirContext, 32));
+    auto anyI = AnyIAttr::get(AnyIType::get(32, &mlirContext));
     assert(succeeded(anyI.verify(b.getI32IntegerAttr(1))));
     assert(succeeded(anyI.verify(b.getI32IntegerAttr(2))));
     assert(failed(anyI.verify(b.getI64IntegerAttr(1))));
     assert(failed(anyI.verify(b.getIndexAttr(1))));
     assert(failed(anyI.verify(b.getStringAttr("hello"))));
-    auto anyI0 = AnyIAttr::get(AnyIType::get(&mlirContext, 64));
+    auto anyI0 = AnyIAttr::get(AnyIType::get(64, &mlirContext));
     assert(succeeded(anyI0.verify(b.getI64IntegerAttr(1))));
     assert(failed(anyI0.verify(b.getI32IntegerAttr(2))));
     assert(failed(anyI0.verify(b.getStringAttr("hello"))));
@@ -126,7 +126,7 @@ int main() {
         AnyOfType::get({AnyFloatType::get(&mlirContext), b.getIntegerType(64)})
     };
     std::vector<Type> outputs = {
-        AnyIType::get(&mlirContext, 16)
+        AnyIType::get(16, &mlirContext)
     };
     auto opTy = mlir::FunctionType::get(inputs, outputs, &mlirContext);
     opTy.print(llvm::outs());
@@ -151,17 +151,16 @@ int main() {
         {"std.addi", &mlirContext}};
     state.addTypes({b.getIntegerType(16)});
     state.addOperands(entry->getArguments());
+    state.addAttribute("myAttr", b.getI32IntegerAttr(42));
     auto *op = builder.createOperation(state);
 
-    std::vector<Value> args{
-        entry->getArgument(0),
-        entry->getArgument(1),
-        entry->getArgument(0),
-    };
-    auto ret = builder.create<ReturnOp>(UnknownLoc::get(&mlirContext), args);
+    auto ret = builder.create<ReturnOp>(UnknownLoc::get(&mlirContext));
 
-    TypeTrait tyTrait{opTy};
-    tyTrait.verifyOp(ret);
+    auto myAttr = AnyIAttr::get(AnyIType::get(32, &mlirContext));
+    std::vector<NamedAttribute> opAttrs{b.getNamedAttr("myAttr", myAttr)};
+
+    dmc::impl::verifyTypeConstraints(op, opTy);
+    dmc::impl::verifyAttrConstraints(op, b.getDictionaryAttr(opAttrs));
 
     module.print(llvm::outs());
     llvm::outs() << "\n";

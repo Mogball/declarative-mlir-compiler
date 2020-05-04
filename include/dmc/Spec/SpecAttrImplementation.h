@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mlir/IR/Attributes.h>
+#include <mlir/IR/Operation.h>
 
 namespace dmc {
 
@@ -30,6 +31,7 @@ enum Kinds {
   Constant,
   AnyOf,
   AllOf,
+  OfType,
 
   NUM_ATTRS
 };
@@ -69,5 +71,11 @@ public:
     return Parent::get(ctx, Kind);
   }
 };
+
+/// Verify Attribute constraints.
+namespace impl {
+mlir::LogicalResult verifyAttrConstraints(
+    mlir::Operation *op, mlir::DictionaryAttr opAttrs);
+} // end namespace impl
 
 } // end namespace dmc
