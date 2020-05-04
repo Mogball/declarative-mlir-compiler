@@ -1,15 +1,61 @@
 #pragma once
 
+#include "dmc/Dynamic/DynamicOperation.h"
+
 #include <mlir/IR/Types.h>
 
 namespace dmc {
 
-/// A SpecType is used to define a TypeConstraint. Each SpecType 
+namespace SpecTypes {
+enum Kinds {
+  Any = mlir::Type::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_TYPE,
+  None,
+  AnyOf,
+  AllOf,
+
+  AnyInteger,
+  AnyI,
+  AnyIntOfWidths,
+
+  AnySignlessInteger,
+  I,
+  SignlessIntOfWidths,
+
+  AnySignedInteger,
+  SI,
+  SignedIntOfWidths,
+
+  AnyUnsignedInteger,
+  UI,
+  UnsignedIntOfWidths,
+
+  Index,
+
+  AnyFloat,
+  F,
+  FloatOfWidths,
+  BF16,
+
+  AnyComplex,
+  Complex,
+
+  Opaque,
+  Function,
+
+  NUM_TYPES
+};
+
+bool is(mlir::Type base);
+mlir::LogicalResult delegateVerify(mlir::Type base, mlir::Type ty);
+
+} // end namespace SpecTypes
+
+/// A SpecType is used to define a TypeConstraint. Each SpecType
 /// implements a TypeConstraint called on DynamicOperations during
 /// trait and Op verification.
-template <typename ConcreteType, unsigned Kind, 
+template <typename ConcreteType, unsigned Kind,
           typename StorageType = mlir::DefaultTypeStorage>
-class SpecType 
+class SpecType
     : public mlir::Type::TypeBase<ConcreteType, mlir::Type, StorageType> {
   friend class SpecDialect;
 
@@ -24,7 +70,7 @@ public:
   /// All SpecType subclasses implement a function of the signature
   ///
   /// LogicalResult verify(Type ty)
-  /// 
+  ///
   /// Which executes the TypeConstraint. Because mlir::Type is a CRTP
   /// class, we have manually create a virtual table using the kind.
 
@@ -47,6 +93,17 @@ public:
   static ConcreteType get(mlir::MLIRContext *ctx) {
     return Parent::get(ctx, Kind);
   }
+};
+
+/// Dynamic trait used to apply type constraints.
+class TypeTrait : public DynamicTrait {
+public:
+  explicit TypeTrait(mlir::FunctionType opTy);
+  mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
+
+private:
+  /// Capture the expected operation argument and return types.
+  mlir::FunctionType opTy;
 };
 
 } // end namespace dmc

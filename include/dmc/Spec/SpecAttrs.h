@@ -12,42 +12,6 @@ struct ConstantAttrStorage;
 struct AttrListStorage;
 } // end namespace detail
 
-namespace SpecAttrs {
-enum Kinds {
-  Any = mlir::Attribute::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_ATTR,
-  Bool,
-  Index,
-  APInt,
-
-  AnyI,
-  I,
-  SI,
-  UI,
-  F,
-
-  String,
-  Type,
-  Unit,
-  Dictionary,
-  Elements,
-  Array,
-
-  SymbolRef,
-  FlatSymbolRef,
-
-  Constant,
-  AnyOf,
-  AllOf,
-
-  NUM_ATTRS
-};
-
-bool is(mlir::Attribute base);
-mlir::LogicalResult delegateVerify(mlir::Attribute base, 
-                                   mlir::Attribute attr);
-
-} // end namespace SpecAttrs
-
 class AnyAttr : public SimpleAttr<AnyAttr, SpecAttrs::Any> {
 public:
   using Base::Base;
@@ -133,7 +97,7 @@ public:
   }
 };
 
-class DictionaryAttr : public SimpleAttr<DictionaryAttr, 
+class DictionaryAttr : public SimpleAttr<DictionaryAttr,
                                          SpecAttrs::Dictionary> {
 public:
   using Base::Base;
@@ -167,7 +131,7 @@ public:
   }
 };
 
-class FlatSymbolRefAttr : public SimpleAttr<FlatSymbolRefAttr,  
+class FlatSymbolRefAttr : public SimpleAttr<FlatSymbolRefAttr,
                                             SpecAttrs::FlatSymbolRef> {
 public:
   using Base::Base;
@@ -180,7 +144,7 @@ class ConstantAttr : public SpecAttr<ConstantAttr, SpecAttrs::Constant,
                                      detail::ConstantAttrStorage> {
 public:
   using Base::Base;
-  
+
   static ConstantAttr get(Attribute attr);
   static ConstantAttr getChecked(mlir::Location loc, Attribute attr);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -197,7 +161,7 @@ public:
   using Base::Base;
 
   static AnyOfAttr get(llvm::ArrayRef<Attribute> attrs);
-  static AnyOfAttr getChecked(mlir::Location loc, 
+  static AnyOfAttr getChecked(mlir::Location loc,
                                  llvm::ArrayRef<Attribute> attrs);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
@@ -210,7 +174,7 @@ public:
   using Base::Base;
 
   static AllOfAttr get(llvm::ArrayRef<Attribute> attrs);
-  static AllOfAttr getChecked(mlir::Location loc, 
+  static AllOfAttr getChecked(mlir::Location loc,
                                  llvm::ArrayRef<Attribute> attrs);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Attribute> attrs);

@@ -1,5 +1,7 @@
 #include "dmc/Spec/SpecTypes.h"
 
+#include <mlir/IR/Operation.h>
+
 using namespace mlir;
 
 namespace dmc {
@@ -68,4 +70,37 @@ LogicalResult delegateVerify(Type base, Type ty) {
 }
 
 } // end namespace SpecTypes
+
+// TypeTrait implementation.
+TypeTrait::TypeTrait(mlir::FunctionType opTy) : opTy{opTy} {}
+
+template <typename TypeRange>
+static LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
+                                     TypeRange tys, StringRef name) {
+  auto firstTy = std::begin(tys), lastTy = std::end(tys);
+  auto tyIt = firstTy;
+  for (auto baseIt = std::begin(baseTys), baseEnd = std::end(baseTys);
+       baseIt != baseEnd || tyIt != lastTy; ++tyIt, ++baseIt) {
+    if (baseIt == baseEnd)
+      return op->emitOpError("too many ") << name << "s";
+    if (tyIt == lastTy)
+      return op->emitOpError("not enough ") << name << "s";
+    // TODO optional/variaidic
+    // TODO custom type descriptions with dynamic types
+    if ((SpecTypes::is(*baseIt) &&
+         failed(SpecTypes::delegateVerify(*baseIt, *tyIt))) ||
+        (!SpecTypes::is(*baseIt) && *baseIt != *tyIt))
+      return op->emitOpError() << name << " #" << std::distance(firstTy, tyIt)
+          << " must be " << *baseIt << " but got " << *tyIt;
+  }
+  return success();
+}
+
+LogicalResult TypeTrait::verifyOp(Operation *op) const {
+  return failure(failed(verifyTypeRange(op, opTy.getInputs(),
+                                        op->getOperandTypes(), "operand"))  ||
+                 failed(verifyTypeRange(op, opTy.getResults(),
+                                        op->getResultTypes(), "result")));
+}
+
 } // end namespace dmc

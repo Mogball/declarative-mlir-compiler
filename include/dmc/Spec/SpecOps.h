@@ -99,8 +99,8 @@ public:
   mlir::LogicalResult verify();
 
   /// Getters.
-  llvm::StringRef getName();
-  llvm::ArrayRef<mlir::NamedAttribute> getOpAttrs();
+  mlir::StringAttr getName();
+  mlir::DictionaryAttr getOpAttrs();
 
 private:
   /// Hooks for FunctionLike

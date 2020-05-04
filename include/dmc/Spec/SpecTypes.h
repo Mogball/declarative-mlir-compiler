@@ -12,7 +12,7 @@ namespace dmc {
 /// !dmc.AnyOf<$Types...> will assert that the concrete type matches one of
 /// the specified allowed types.
 ///
-/// Variadic operands or results are specified with !dmc.Variadic<$Type>. 
+/// Variadic operands or results are specified with !dmc.Variadic<$Type>.
 /// More than one variadic operand requires a size specifier trait.
 ///
 /// Optional values are specified with !dmc.Optional<$Type>.
@@ -26,50 +26,6 @@ struct WidthListStorage;
 struct OneTypeStorage;
 struct OpaqueTypeStorage;
 } // end namespace detail
-
-namespace SpecTypes {
-enum Kinds {
-  Any = mlir::Type::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_TYPE,
-  None,
-  AnyOf,
-  AllOf,
-
-  AnyInteger,
-  AnyI,
-  AnyIntOfWidths,
-
-  AnySignlessInteger,
-  I,
-  SignlessIntOfWidths,
-
-  AnySignedInteger,
-  SI,
-  SignedIntOfWidths,
-
-  AnyUnsignedInteger,
-  UI,
-  UnsignedIntOfWidths,
-
-  Index,
-
-  AnyFloat,
-  F,
-  FloatOfWidths,
-  BF16,
-
-  AnyComplex,
-  Complex,
-
-  Opaque,
-  Function,
-
-  NUM_TYPES
-};
-
-bool is(mlir::Type base);
-mlir::LogicalResult delegateVerify(mlir::Type base, mlir::Type ty);
-
-} // end namespace SpecTypes
 
 /// Match any type.
 class AnyType : public SimpleType<AnyType, SpecTypes::Any> {

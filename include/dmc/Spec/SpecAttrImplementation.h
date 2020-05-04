@@ -4,10 +4,46 @@
 
 namespace dmc {
 
+namespace SpecAttrs {
+enum Kinds {
+  Any = mlir::Attribute::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_ATTR,
+  Bool,
+  Index,
+  APInt,
+
+  AnyI,
+  I,
+  SI,
+  UI,
+  F,
+
+  String,
+  Type,
+  Unit,
+  Dictionary,
+  Elements,
+  Array,
+
+  SymbolRef,
+  FlatSymbolRef,
+
+  Constant,
+  AnyOf,
+  AllOf,
+
+  NUM_ATTRS
+};
+
+bool is(mlir::Attribute base);
+mlir::LogicalResult delegateVerify(mlir::Attribute base,
+                                   mlir::Attribute attr);
+
+} // end namespace SpecAttrs
+
 template <typename ConcreteType, unsigned Kind,
           typename StorageType = mlir::AttributeStorage>
 class SpecAttr
-    : public mlir::Attribute::AttrBase<ConcreteType, mlir::Attribute, 
+    : public mlir::Attribute::AttrBase<ConcreteType, mlir::Attribute,
                                                      StorageType> {
   friend class SpecDialect;
 

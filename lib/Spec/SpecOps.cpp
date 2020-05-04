@@ -115,61 +115,22 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
   buildDefaultValuedAttrs(builder, result);
 }
 
-template <typename ContainerT>
-static ParseResult parseTypeList(OpAsmParser &parser, ContainerT &types) {
-  if (parser.parseLParen())
-    return failure();
-  Type ty;
-  auto ret = parser.parseOptionalType(ty);
-  /// Handle tri-state parsing.
-  if (ret.hasValue()) {
-    if (ret.getValue())
-      return failure();
-    types.push_back(ty);
-    while (!parser.parseOptionalComma()) {
-      if (parser.parseType(ty))
-        return failure();
-      types.push_back(ty);
-    }
-  }
-  if (parser.parseRParen())
-    return failure();
-  return success();
-}
-
-static void printTypeList(OpAsmPrinter &printer, ArrayRef<Type> types) {
-  printer << '(';
-  auto it = std::begin(types), e = std::end(types);
-  if (it != e) {
-    printer.printType(*it);
-    for (; ++it != e;) {
-      printer << ',';
-      printer.printType(*it);
-    }
-  }
-  printer << ')';
-}
-
 // op ::= `dmc.Op` `@`opName type-list `->` type-list `attributes` attr-list
 //        `config` attr-list
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
-  SmallVector<Type, 4> argTys;
-  SmallVector<Type, 2> retTys;
-  SmallVector<NamedAttribute, 4> opAttrs;
+  mlir::TypeAttr funcTypeAttr;
+  mlir::DictionaryAttr opAttrs;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      parseTypeList(parser, argTys) || parser.parseArrow() ||
-      parseTypeList(parser, retTys) ||
-      parser.parseOptionalAttrDictWithKeyword(opAttrs))
+      parser.parseAttribute(funcTypeAttr, getTypeAttrName(),
+                            result.attributes) ||
+      parser.parseAttribute(opAttrs, getOpAttrDictAttrName(),
+                            result.attributes))
     return failure();
   if (!parser.parseOptionalKeyword("config") &&
       parser.parseOptionalAttrDict(result.attributes))
     return failure();
-  auto funcType = FunctionType::get(argTys, retTys, result.getContext());
-  result.addAttribute(getTypeAttrName(), TypeAttr::get(funcType));
-  result.addAttribute(getOpAttrDictAttrName(), mlir::DictionaryAttr::get(
-      opAttrs, result.getContext()));
   result.addRegion();
   OpBuilder builder{result.getContext()};
   buildDefaultValuedAttrs(builder, result);
@@ -178,26 +139,22 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
 
 void OperationOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
-  printer.printSymbolName(getName());
-  auto funcType = getType();
-  printTypeList(printer, funcType.getInputs());
-  printer << " -> ";
-  printTypeList(printer, funcType.getResults());
-  printer.printOptionalAttrDictWithKeyword(getOpAttrs());
+  printer.printSymbolName(getName().getValue());
+  printer.printType(getType());
+  printer << ' ';
+  printer.printAttribute(getOpAttrs());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
       SymbolTable::getSymbolAttrName(), getTypeAttrName(),
       getOpAttrDictAttrName()});
 }
 
-StringRef OperationOp::getName() {
-  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
-      .getValue();
+mlir::StringAttr OperationOp::getName() {
+  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName());
 }
 
-ArrayRef<NamedAttribute> OperationOp::getOpAttrs() {
-  return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName())
-      .getValue();
+mlir::DictionaryAttr OperationOp::getOpAttrs() {
+  return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
 }
 
 LogicalResult OperationOp::verify() {

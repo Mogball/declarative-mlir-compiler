@@ -119,4 +119,51 @@ int main() {
     assert(failed(anyI0.verify(b.getI32IntegerAttr(2))));
     assert(failed(anyI0.verify(b.getStringAttr("hello"))));
   }
+
+  {
+    std::vector<Type> inputs = {
+        AnyOfType::get({AnyIntegerType::get(&mlirContext), b.getF32Type()}),
+        AnyOfType::get({AnyFloatType::get(&mlirContext), b.getIntegerType(64)})
+    };
+    std::vector<Type> outputs = {
+        AnyIType::get(&mlirContext, 16)
+    };
+    auto opTy = mlir::FunctionType::get(inputs, outputs, &mlirContext);
+    opTy.print(llvm::outs());
+    llvm::outs() << "\n";
+
+    auto module = ModuleOp::create(UnknownLoc::get(&mlirContext));
+    std::vector<Type> inTys = {
+      b.getF32Type(),
+      b.getIntegerType(64),
+    };
+    std::vector<Type> outTys = {
+      b.getIntegerType(32),
+    };
+    auto funcTy = mlir::FunctionType::get(inTys, outTys, &mlirContext);
+    auto func = FuncOp::create(UnknownLoc::get(&mlirContext), "test", funcTy);
+    module.push_back(func);
+    auto *entry = func.addEntryBlock();
+    OpBuilder builder{&mlirContext};
+    builder.setInsertionPointToStart(entry);
+
+    OperationState state{UnknownLoc::get(&mlirContext),
+        {"std.addi", &mlirContext}};
+    state.addTypes({b.getIntegerType(16)});
+    state.addOperands(entry->getArguments());
+    auto *op = builder.createOperation(state);
+
+    std::vector<Value> args{
+        entry->getArgument(0),
+        entry->getArgument(1),
+        entry->getArgument(0),
+    };
+    auto ret = builder.create<ReturnOp>(UnknownLoc::get(&mlirContext), args);
+
+    TypeTrait tyTrait{opTy};
+    tyTrait.verifyOp(ret);
+
+    module.print(llvm::outs());
+    llvm::outs() << "\n";
+  }
 }
