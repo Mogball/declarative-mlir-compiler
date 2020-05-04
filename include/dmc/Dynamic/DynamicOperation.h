@@ -1,7 +1,6 @@
 #pragma once
 
 #include <mlir/IR/OperationSupport.h>
-#include <mlir/IR/Types.h>
 
 #include "DynamicObject.h"
 
@@ -58,9 +57,9 @@ public:
   /// Get amalgamated Operation properties from traits.
   mlir::AbstractOperation::OperationProperties getOpProperties() const;
 
-  /// Structural info getters.
-  inline mlir::FunctionType getOpType() const { return opTy; }
-  inline mlir::DictionaryAttr getOpAttrs() const { return opAttrs; }
+  /// Higher-level DynamicOperation specification info is made
+  /// available to traits and other verifiers through traits.
+  template <typename TraitT> TraitT *getTrait();
 
 private:
   /// Full operation name: `dialect`.`opName`.
@@ -73,11 +72,17 @@ private:
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
-  
-  /// Higher-level DynamicOperation specification info is made
-  /// available to traits and other verifiers.
-  mlir::FunctionType opTy;
-  mlir::DictionaryAttr opAttrs;
 };
+
+/// Out-of-line definitions
+template <typename TraitT>
+TraitT *DynamicOperation::getTrait() {
+  /// TODO for "hard" traits, use standard MLIR OpTraits?
+  for (auto &trait : traits) {
+    if (TraitT::kind == trait->getKind())
+      return trait.get();
+  }
+  return nullptr;
+}
 
 } // end namespace dmc

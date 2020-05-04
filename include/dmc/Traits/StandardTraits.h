@@ -8,11 +8,15 @@ namespace dmc {
 
 template <template <typename ConcreteType> class BaseTrait, unsigned Kind>
 struct BindTrait : public DynamicTrait {
+  static constexpr auto kind = Kind;
+
   explicit BindTrait() : DynamicTrait{Kind} {}
+
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override {
     // Provide dummy template arg
     return BaseTrait<int>::verifyTrait(op);
   }
+
   mlir::AbstractOperation::OperationProperties
   getTraitProperties() const override {
     return BaseTrait<int>::getTraitProperties();

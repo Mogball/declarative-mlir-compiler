@@ -158,7 +158,7 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
 }
 
 LogicalResult OperationOp::verify() {
-  // TODO verify variadic and optional arg conformance
+  // TODO verify variadic arg conformance
   if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsTerminatorAttrName();
