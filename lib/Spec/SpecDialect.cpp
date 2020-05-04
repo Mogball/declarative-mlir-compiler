@@ -28,7 +28,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
       AnyIAttr, IAttr, SIAttr, UIAttr, FAttr,
-      StringAttr, TypeAttr, UnitAttr, 
+      StringAttr, TypeAttr, UnitAttr,
       DictionaryAttr, ElementsAttr, ArrayAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
       ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr
@@ -42,7 +42,7 @@ Type parseSingleWidthType(DialectAsmParser &parser) {
   // *i-type ::= `*I` `<` width `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   unsigned width;
-  if (parser.parseLess() || parser.parseInteger(width) || 
+  if (parser.parseLess() || parser.parseInteger(width) ||
       parser.parseGreater())
     return Type{};
   return BaseT::getChecked(loc, width);
@@ -70,16 +70,16 @@ template <typename BaseT>
 Type parseTypeList(DialectAsmParser &parser) {
   // *-of-type ::= `AnyOf` `<` type(`,` type)* `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  if (parser.parseLess()) 
+  if (parser.parseLess())
     return Type{};
   SmallVector<Type, 4> baseTypes;
   do {
     Type baseType;
-    if (parser.parseType(baseType)) 
+    if (parser.parseType(baseType))
       return Type{};
     baseTypes.push_back(baseType);
   } while (!parser.parseOptionalComma());
-  if (parser.parseGreater()) 
+  if (parser.parseGreater())
     return Type{};
   return BaseT::getChecked(loc, baseTypes);
 }
@@ -92,19 +92,19 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     return AnyType::get(getContext());
   if (!parser.parseOptionalKeyword("None"))
     return NoneType::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyOf")) 
+  if (!parser.parseOptionalKeyword("AnyOf"))
     return parseTypeList<AnyOfType>(parser);
   if (!parser.parseOptionalKeyword("AllOf"))
     return parseTypeList<AllOfType>(parser);
-  if (!parser.parseOptionalKeyword("AnyInteger")) 
+  if (!parser.parseOptionalKeyword("AnyInteger"))
     return AnyIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyI")) 
+  if (!parser.parseOptionalKeyword("AnyI"))
     return parseSingleWidthType<AnyIType>(parser);
-  if (!parser.parseOptionalKeyword("AnyIntOfWidths")) 
+  if (!parser.parseOptionalKeyword("AnyIntOfWidths"))
     return parseWidthListType<AnyIntOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("AnySignlessInteger")) 
+  if (!parser.parseOptionalKeyword("AnySignlessInteger"))
     return AnySignlessIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("I")) 
+  if (!parser.parseOptionalKeyword("I"))
     return parseSingleWidthType<IType>(parser);
   if (!parser.parseOptionalKeyword("SignlessIntOfWidths"))
     return parseWidthListType<SignlessIntOfWidthsType>(parser);
@@ -173,7 +173,7 @@ Type VariadicType::parse(DialectAsmParser &parser) {
   if (parser.parseLess() || parser.parseType(baseTy) ||
       parser.parseGreater())
     return Type{};
-  return VariadicType::getChecked(baseTy);
+  return VariadicType::getChecked(loc, baseTy);
 }
 
 /// Attribute parsing.
@@ -230,7 +230,7 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     return parseSizedAttr<FAttr>(parser);
   if (!parser.parseOptionalKeyword("String"))
     return StringAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Type")) 
+  if (!parser.parseOptionalKeyword("Type"))
     return TypeAttr::get(getContext());
   if (!parser.parseOptionalKeyword("Unit"))
     return UnitAttr::get(getContext());

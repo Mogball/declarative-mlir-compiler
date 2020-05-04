@@ -33,8 +33,8 @@ int main() {
   auto *opC = dialectTest1->createDynamicOp("opC");
   auto *opD = dialectTest1->createDynamicOp("opD");
 
-  opA->addOpTrait(std::make_unique<OneOperand>());
-  opA->addOpTrait(std::make_unique<OneResult>());
+  opA->addOpTrait(std::make_unique<NOperands>(1));
+  opA->addOpTrait(std::make_unique<NResults>(1));
   opA->addOpTrait(std::make_unique<IsCommutative>());
 
   // Finalize ops

@@ -13,12 +13,21 @@ class DynamicDialect;
 /// A DynamicTrait captures an invariant about the operation.
 class DynamicTrait {
 public:
+  /// DynamicTraits are distinguished by a kind.
+  inline explicit DynamicTrait(unsigned kind) : kind{kind} {}
+
   virtual ~DynamicTrait() = default;
   virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const = 0;
   virtual mlir::AbstractOperation::OperationProperties
   getTraitProperties() const {
     return mlir::AbstractOperation::OperationProperties{};
   }
+
+  /// Get the trait kind.
+  inline unsigned getKind() { return kind; }
+
+private:
+  unsigned kind;
 };
 
 /// This class dynamically captures properties of an Operation.

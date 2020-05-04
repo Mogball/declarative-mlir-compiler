@@ -323,7 +323,7 @@ public:
 
   static OpaqueType get(llvm::StringRef dialectName, llvm::StringRef typeName,
                         mlir::MLIRContext *ctx);
-  static OpaqueType getChecked(mlir::Location loc, llvm::StringRef dialectName, 
+  static OpaqueType getChecked(mlir::Location loc, llvm::StringRef dialectName,
                                llvm::StringRef typeName);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc,
@@ -347,7 +347,7 @@ public:
 class VariadicType : public SpecType<VariadicType, SpecTypes::Variadic,
                                      detail::OneTypeStorage> {
 public:
-  using Base::Base:
+  using Base::Base;
 
   static VariadicType get(mlir::Type ty);
   static VariadicType getChecked(mlir::Location loc, mlir::Type ty);

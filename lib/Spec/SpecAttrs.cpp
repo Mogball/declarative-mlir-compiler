@@ -16,8 +16,8 @@ namespace detail {
 /// TypedAttrStorage implementation.
 TypedAttrStorage::TypedAttrStorage(KeyTy key) : type{key} {}
 
-bool TypedAttrStorage::operator==(const KeyTy &key) const { 
-  return key == type; 
+bool TypedAttrStorage::operator==(const KeyTy &key) const {
+  return key == type;
 }
 
 llvm::hash_code TypedAttrStorage::hashKey(const KeyTy &key) {
@@ -52,7 +52,7 @@ struct ConstantAttrStorage : public AttributeStorage {
 /// AttrListStorage implementation.
 struct AttrListStorage : public AttributeStorage {
   using KeyTy = ImmutableSortedList<Attribute>;
-  
+
   explicit AttrListStorage(KeyTy key) : attrs{std::move(key)} {}
   bool operator==(const KeyTy &key) const { return key == attrs; }
   static llvm::hash_code hashKey(const KeyTy &key) { return key.hash(); }
@@ -115,7 +115,7 @@ namespace impl {
 static LogicalResult verifyAttrList(Location loc, ArrayRef<Attribute> attrs) {
   if (attrs.empty())
     return emitError(loc) << "attribute list cannot be empty";
-  llvm::SmallPtrSet<Attribute, 4> attrSet{std::begin(attrs), 
+  llvm::SmallPtrSet<Attribute, 4> attrSet{std::begin(attrs),
                                           std::end(attrs)};
   if (std::size(attrSet) != std::size(attrs))
     return emitError(loc) << "duplicate attributes passed";
@@ -165,7 +165,7 @@ AllOfAttr AllOfAttr::getChecked(Location loc, ArrayRef<Attribute> attrs) {
 
 LogicalResult AllOfAttr::verifyConstructionInvariants(
     Location loc, ArrayRef<Attribute> attrs) {
-  return impl::verifyAttrList(loc, attrs); 
+  return impl::verifyAttrList(loc, attrs);
 }
 
 LogicalResult AllOfAttr::verify(Attribute attr) {
@@ -184,7 +184,7 @@ OfTypeAttr OfTypeAttr::get(Type ty, MLIRContext *ctx) {
   return Base::get(ctx, SpecAttrs::OfType, ty);
 }
 
-OfTypeAttr OfTypeAttr::get(Location loc, Type ty) {
+OfTypeAttr OfTypeAttr::getChecked(Location loc, Type ty) {
   return Base::getChecked(loc, SpecAttrs::OfType, ty);
 }
 
@@ -212,7 +212,7 @@ auto *getTypeImpl(Attribute attr) {
       ->type.template cast<typename AttrT::Underlying>().getImpl();
 }
 
-void printAttrList(detail::AttrListStorage *impl, 
+void printAttrList(detail::AttrListStorage *impl,
                    DialectAsmPrinter &printer) {
   printer << '<';
   auto &attrs = impl->attrs;
@@ -227,7 +227,7 @@ void printAttrList(detail::AttrListStorage *impl,
 
 } // end anonymous namespace
 
-void SpecDialect::printAttribute(Attribute attr, 
+void SpecDialect::printAttribute(Attribute attr,
     DialectAsmPrinter &printer) const {
   using namespace SpecAttrs;
   assert(is(attr) && "Not a SpecAttr");
