@@ -17,7 +17,7 @@ class DialectTerminatorOp;
 ///
 /// Captured in the Op region are the Dialect Operations. The attributes are
 /// used to configure the generated DynamicDialect.
-class DialectOp 
+class DialectOp
     : public mlir::Op<
           DialectOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
           mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::SymbolTable,
@@ -27,7 +27,7 @@ public:
   using Op::Op;
 
   static llvm::StringRef getOperationName() { return "dmc.Dialect"; }
-  static void build(mlir::OpBuilder &builder, mlir::OperationState &result, 
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name);
 
   /// Operation hooks.
@@ -45,7 +45,7 @@ public:
 
 private:
   /// Attributes.
-  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder, 
+  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
                                       mlir::OperationState &result);
 
   static inline llvm::StringRef getAllowUnknownOpsAttrName() {
@@ -57,15 +57,15 @@ private:
 };
 
 /// Special terminator Op for DialectOp.
-class DialectTerminatorOp 
-    : public mlir::Op<DialectTerminatorOp, 
+class DialectTerminatorOp
+    : public mlir::Op<DialectTerminatorOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
-                      mlir::OpTrait::HasParent<DialectOp>::Impl, 
+                      mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::OpTrait::IsTerminator> {
 public:
   using Op::Op;
-  static llvm::StringRef getOperationName() { 
-    return "dmc.DialectTerminator"; 
+  static llvm::StringRef getOperationName() {
+    return "dmc.DialectTerminator";
   }
   static inline void build(mlir::OpBuilder &, mlir::OperationState &) {}
 };
@@ -73,12 +73,11 @@ public:
 /// Dialect Op definition Op. This Op captures information about an operation:
 ///
 /// dmc.Op @MyOpA(!dmc.Any, !dmc.AnyOf<!dmc.I<32>, !dmc.F<32>>) ->
-///     (!dmc.AnyFloat, !dmc.AnyInteger) 
+///     (!dmc.AnyFloat, !dmc.AnyInteger)
 ///     attributes { attr0 = !dmc.Any, attr1 = !dmc.StrAttr }
-///     config { parser = @MyOpAParser, printer = @MyOpAPrinter 
+///     config { parser = @MyOpAParser, printer = @MyOpAPrinter
 ///              traits = [@Commutative]}
 ///
-/// TODO attributes and config
 class OperationOp
     : public mlir::Op<OperationOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
@@ -89,18 +88,19 @@ public:
 
   static llvm::StringRef getOperationName() { return "dmc.Op"; }
 
-  static void build(mlir::OpBuilder &builder, mlir::OperationState &result, 
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name, mlir::FunctionType type,
                     llvm::ArrayRef<mlir::NamedAttribute> attrs);
 
   /// Operation hooks.
-  static mlir::ParseResult parse(mlir::OpAsmParser &parser, 
+  static mlir::ParseResult parse(mlir::OpAsmParser &parser,
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
 
   /// Getters.
   llvm::StringRef getName();
+  llvm::ArrayRef<mlir::NamedAttribute> getOpAttrs();
 
 private:
   /// Hooks for FunctionLike
@@ -110,9 +110,12 @@ private:
   mlir::LogicalResult verifyType();
 
   /// Attributes.
-  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder, 
+  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
                                       mlir::OperationState &result);
 
+  static inline llvm::StringRef getOpAttrDictAttrName() {
+    return "op_attrs";
+  }
   static inline llvm::StringRef getIsTerminatorAttrName() {
     return "is_terminator";
   }

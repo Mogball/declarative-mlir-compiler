@@ -11,15 +11,15 @@ void addAttributesIfNotPresent(ArrayRef<NamedAttribute> attrs,
                                OperationState &result) {
   llvm::DenseSet<StringRef> present;
   present.reserve(result.attributes.size());
-  for (auto &namedAttr : result.attributes) 
+  for (auto &namedAttr : result.attributes)
     present.insert(namedAttr.first);
-  for (auto &namedAttr : attrs) 
+  for (auto &namedAttr : attrs)
     if (present.find(namedAttr.first) == std::end(present))
       result.attributes.push_back(namedAttr);
 }
 
 /// DialectOp.
-void DialectOp::buildDefaultValuedAttrs(OpBuilder &builder, 
+void DialectOp::buildDefaultValuedAttrs(OpBuilder &builder,
                                         OperationState &result) {
   auto falseAttr = builder.getBoolAttr(false);
   addAttributesIfNotPresent({
@@ -28,10 +28,10 @@ void DialectOp::buildDefaultValuedAttrs(OpBuilder &builder,
       result);
 }
 
-void DialectOp::build(OpBuilder &builder, OperationState &result, 
+void DialectOp::build(OpBuilder &builder, OperationState &result,
                       StringRef name) {
   ensureTerminator(*result.addRegion(), builder, result.location);
-  result.addAttribute(mlir::SymbolTable::getSymbolAttrName(), 
+  result.addAttribute(mlir::SymbolTable::getSymbolAttrName(),
       builder.getStringAttr(name));
   buildDefaultValuedAttrs(builder, result);
 }
@@ -40,9 +40,9 @@ void DialectOp::build(OpBuilder &builder, OperationState &result,
 ParseResult DialectOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   auto *body = result.addRegion();
-  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), 
+  if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      parser.parseOptionalAttrDictWithKeyword(result.attributes) || 
+      parser.parseOptionalAttrDictWithKeyword(result.attributes) ||
       parser.parseRegion(*body, llvm::None, llvm::None))
     return failure();
   OpBuilder builder{result.getContext()};
@@ -56,7 +56,7 @@ void DialectOp::print(OpAsmPrinter &printer) {
   printer.printSymbolName(getName());
   printer.printOptionalAttrDictWithKeyword(getAttrs(), {
       mlir::SymbolTable::getSymbolAttrName()});
-  printer.printRegion(getBodyRegion(), /*printEntryBlockArgs=*/false, 
+  printer.printRegion(getBodyRegion(), /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/false);
 }
 
@@ -69,7 +69,7 @@ LogicalResult DialectOp::verify() {
     return emitOpError("expected Dialect body to have zero arguments");
   /// Verify attributes
   if (!getAttrOfType<BoolAttr>(getAllowUnknownOpsAttrName()))
-    return emitOpError("expected BoolAttr named: ") 
+    return emitOpError("expected BoolAttr named: ")
         << getAllowUnknownOpsAttrName();
   if (!getAttrOfType<BoolAttr>(getAllowUnknownTypesAttrName()))
     return emitOpError("expected BoolAttr named: ")
@@ -121,8 +121,9 @@ static ParseResult parseTypeList(OpAsmParser &parser, ContainerT &types) {
     return failure();
   Type ty;
   auto ret = parser.parseOptionalType(ty);
+  /// Handle tri-state parsing.
   if (ret.hasValue()) {
-    if (ret.getValue()) 
+    if (ret.getValue())
       return failure();
     types.push_back(ty);
     while (!parser.parseOptionalComma()) {
@@ -149,19 +150,26 @@ static void printTypeList(OpAsmPrinter &printer, ArrayRef<Type> types) {
   printer << ')';
 }
 
-// op ::= `dmc.Op` `@`opName type-list `->` type-list `attributes` attr-list 
+// op ::= `dmc.Op` `@`opName type-list `->` type-list `attributes` attr-list
+//        `config` attr-list
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   SmallVector<Type, 4> argTys;
   SmallVector<Type, 2> retTys;
-  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(), 
+  SmallVector<NamedAttribute, 4> opAttrs;
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       parseTypeList(parser, argTys) || parser.parseArrow() ||
-      parseTypeList(parser, retTys) || 
-      parser.parseOptionalAttrDictWithKeyword(result.attributes))
+      parseTypeList(parser, retTys) ||
+      parser.parseOptionalAttrDictWithKeyword(opAttrs))
     return failure();
-  auto funcType = FunctionType::get(argTys, retTys, result.getContext()); 
+  if (!parser.parseOptionalKeyword("config") &&
+      parser.parseOptionalAttrDict(result.attributes))
+    return failure();
+  auto funcType = FunctionType::get(argTys, retTys, result.getContext());
   result.addAttribute(getTypeAttrName(), TypeAttr::get(funcType));
+  result.addAttribute(getOpAttrDictAttrName(), mlir::DictionaryAttr::get(
+      opAttrs, result.getContext()));
   result.addRegion();
   OpBuilder builder{result.getContext()};
   buildDefaultValuedAttrs(builder, result);
@@ -175,8 +183,11 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printTypeList(printer, funcType.getInputs());
   printer << " -> ";
   printTypeList(printer, funcType.getResults());
-  printer.printOptionalAttrDictWithKeyword(getAttrs(), {
-      SymbolTable::getSymbolAttrName(), getTypeAttrName()});
+  printer.printOptionalAttrDictWithKeyword(getOpAttrs());
+  printer << " config";
+  printer.printOptionalAttrDict(getAttrs(), {
+      SymbolTable::getSymbolAttrName(), getTypeAttrName(),
+      getOpAttrDictAttrName()});
 }
 
 StringRef OperationOp::getName() {
@@ -184,10 +195,15 @@ StringRef OperationOp::getName() {
       .getValue();
 }
 
+ArrayRef<NamedAttribute> OperationOp::getOpAttrs() {
+  return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName())
+      .getValue();
+}
+
 LogicalResult OperationOp::verify() {
   // TODO verify variadic and optional arg conformance
   if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
-    return emitOpError("expected BoolAttr named: ") 
+    return emitOpError("expected BoolAttr named: ")
         << getIsTerminatorAttrName();
   if (!getAttrOfType<BoolAttr>(getIsCommutativeAttrName()))
     return emitOpError("expected BoolAttr named: ")
@@ -201,7 +217,7 @@ LogicalResult OperationOp::verify() {
 LogicalResult OperationOp::verifyType() {
   auto type = getTypeAttr().getValue();
   if (!type.isa<FunctionType>())
-    return emitOpError("requires '" + getTypeAttrName() + 
+    return emitOpError("requires '" + getTypeAttrName() +
                        "' atttribute of function type");
   return success();
 }
