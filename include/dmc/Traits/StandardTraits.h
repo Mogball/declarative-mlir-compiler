@@ -7,31 +7,26 @@
 namespace dmc {
 
 template <template <typename ConcreteType> class BaseTrait, unsigned Kind>
-struct BindTrait : public DynamicTrait {
-  static constexpr auto kind = Kind;
-
-  explicit BindTrait() : DynamicTrait{Kind} {}
-
+struct BindTrait : public DynamicTrait<Kind> {
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override {
     // Provide dummy template arg
-    return BaseTrait<int>::verifyTrait(op);
+    return BaseTrait<DynamicTrait>::verifyTrait(op);
   }
 
   mlir::AbstractOperation::OperationProperties
   getTraitProperties() const override {
-    return BaseTrait<int>::getTraitProperties();
+    return BaseTrait<DynamicTrait>::getTraitProperties();
   }
 };
 template <typename Arg, unsigned Kind>
-class BindArgTrait : public DynamicTrait {
+class BindArgTrait : public DynamicTrait<Kind> {
 protected:
   using ArgTy = Arg;
   using TraitImpl = typename
     std::add_pointer<mlir::LogicalResult(mlir::Operation *, ArgTy)>::type;
 
 public:
-  BindArgTrait(TraitImpl impl, Arg arg)
-      : DynamicTrait{Kind}, impl{impl}, arg{arg} {};
+  BindArgTrait(TraitImpl impl, Arg arg) : impl{impl}, arg{arg} {};
 
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override {
     return impl(op, arg);

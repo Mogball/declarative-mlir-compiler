@@ -10,12 +10,12 @@ namespace dmc {
 class DynamicDialect;
 
 /// A DynamicTrait captures an invariant about the operation.
-class DynamicTrait {
+class DynamicTraitBase {
 public:
   /// DynamicTraits are distinguished by a kind.
-  inline explicit DynamicTrait(unsigned kind) : kind{kind} {}
+  inline explicit DynamicTraitBase(unsigned kind) : kind{kind} {}
 
-  virtual ~DynamicTrait() = default;
+  virtual ~DynamicTraitBase() = default;
   virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const = 0;
   virtual mlir::AbstractOperation::OperationProperties
   getTraitProperties() const {
@@ -27,6 +27,14 @@ public:
 
 private:
   unsigned kind;
+};
+
+template <unsigned Kind>
+class DynamicTrait : public DynamicTraitBase {
+public:
+  static constexpr auto kind = Kind;
+
+  inline DynamicTrait() : DynamicTraitBase{Kind} {}
 };
 
 /// This class dynamically captures properties of an Operation.
@@ -46,7 +54,7 @@ public:
   /// Add a DynamicTrait to this Op. Traits specify invariants on an
   /// Operation checked under verifyInvariants(). OpTraits should be
   /// added only during Op creation.
-  void addOpTrait(std::unique_ptr<DynamicTrait> trait);
+  void addOpTrait(std::unique_ptr<DynamicTraitBase> trait);
 
   /// DynamicOperation creation: define the Base Operation, add properties,
   /// traits, custom functions, hooks, etc, then register with Dialect.
@@ -68,7 +76,7 @@ private:
   DynamicDialect * const dialect;
 
   /// A list of dynamic OpTraits.
-  std::vector<std::unique_ptr<DynamicTrait>> traits;
+  std::vector<std::unique_ptr<DynamicTraitBase>> traits;
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
@@ -80,7 +88,7 @@ TraitT *DynamicOperation::getTrait() {
   /// TODO for "hard" traits, use standard MLIR OpTraits?
   for (auto &trait : traits) {
     if (TraitT::kind == trait->getKind())
-      return trait.get();
+      return static_cast<TraitT *>(trait.get());
   }
   return nullptr;
 }

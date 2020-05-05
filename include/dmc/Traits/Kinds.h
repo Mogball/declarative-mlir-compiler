@@ -29,6 +29,13 @@ enum Kind {
   NSuccessors,
   AtLeastNSuccessors,
 
+  SameVariadicOperandSizes,
+  SameVariadicResultSizes,
+  SizedOperandSegments,
+  SizedResultSegments,
+  TypeConstraintTrait,
+  AttrConstraintTrait,
+
   NUM_TRAITS
 };
 } // end namespace Traits
