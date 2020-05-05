@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/ADT/StringMap.h>
 #include <mlir/IR/OperationSupport.h>
 
 #include "DynamicObject.h"
@@ -10,31 +11,14 @@ namespace dmc {
 class DynamicDialect;
 
 /// A DynamicTrait captures an invariant about the operation.
-class DynamicTraitBase {
+class DynamicTrait {
 public:
-  /// DynamicTraits are distinguished by a kind.
-  inline explicit DynamicTraitBase(unsigned kind) : kind{kind} {}
-
-  virtual ~DynamicTraitBase() = default;
+  virtual ~DynamicTrait() = default;
   virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const = 0;
   virtual mlir::AbstractOperation::OperationProperties
   getTraitProperties() const {
     return mlir::AbstractOperation::OperationProperties{};
   }
-
-  /// Get the trait kind.
-  inline unsigned getKind() { return kind; }
-
-private:
-  unsigned kind;
-};
-
-template <unsigned Kind>
-class DynamicTrait : public DynamicTraitBase {
-public:
-  static constexpr auto kind = Kind;
-
-  inline DynamicTrait() : DynamicTraitBase{Kind} {}
 };
 
 /// This class dynamically captures properties of an Operation.
@@ -54,7 +38,10 @@ public:
   /// Add a DynamicTrait to this Op. Traits specify invariants on an
   /// Operation checked under verifyInvariants(). OpTraits should be
   /// added only during Op creation.
-  void addOpTrait(std::unique_ptr<DynamicTraitBase> trait);
+  void addOpTrait(llvm::StringRef name,
+                  std::unique_ptr<DynamicTrait> trait);
+  template <typename TraitT, typename... Args>
+  void addOpTrait(Args &&... args);
 
   /// DynamicOperation creation: define the Base Operation, add properties,
   /// traits, custom functions, hooks, etc, then register with Dialect.
@@ -76,21 +63,26 @@ private:
   DynamicDialect * const dialect;
 
   /// A list of dynamic OpTraits.
-  std::vector<std::unique_ptr<DynamicTraitBase>> traits;
+  llvm::StringMap<std::unique_ptr<DynamicTrait>> traits;
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
 };
 
 /// Out-of-line definitions
+template <typename TraitT, typename... Args>
+void DynamicOperation::addOpTrait(Args &&... args) {
+  addOpTrait(TraitT::getName(), std::make_unique<TraitT>(
+        std::forward<Args>(args)...));
+}
+
 template <typename TraitT>
 TraitT *DynamicOperation::getTrait() {
-  /// TODO for "hard" traits, use standard MLIR OpTraits?
-  for (auto &trait : traits) {
-    if (TraitT::kind == trait->getKind())
-      return static_cast<TraitT *>(trait.get());
-  }
-  return nullptr;
+  /// TODO for "hard" traits, use standard MLIR OpTraits with DynamicOperation?
+  auto it = traits.find(TraitT::getName());
+  if (it == std::end(traits))
+    return nullptr;
+  return static_cast<TraitT *>(it->second.get());
 }
 
 } // end namespace dmc

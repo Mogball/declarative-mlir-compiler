@@ -58,8 +58,10 @@ DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
       name{(dialect->getNamespace() + "." + name).str()},
       dialect{dialect} {}
 
-void DynamicOperation::addOpTrait(std::unique_ptr<DynamicTraitBase> trait) {
-  traits.emplace_back(std::move(trait));
+void DynamicOperation::addOpTrait(
+    StringRef name, std::unique_ptr<DynamicTrait> trait) {
+  auto it = traits.try_emplace(name, std::move(trait)); (void) it;
+  assert(it.second && "Trait already exists");
 }
 
 void DynamicOperation::finalize() {
@@ -81,7 +83,7 @@ void DynamicOperation::finalize() {
 
 LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {
   for (const auto &trait : traits) {
-    if (failed(trait->verifyOp(op))) {
+    if (failed(trait.second->verifyOp(op))) {
       return failure();
     }
   }
@@ -91,7 +93,7 @@ LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {
 AbstractOperation::OperationProperties DynamicOperation::getOpProperties() const {
   AbstractOperation::OperationProperties props{};
   for (const auto &trait : traits) {
-    props |= trait->getTraitProperties();
+    props |= trait.second->getTraitProperties();
   }
   return props;
 }

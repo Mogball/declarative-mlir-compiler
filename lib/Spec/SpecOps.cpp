@@ -160,6 +160,19 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
   return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
 }
 
+/// Trait array manipulation helpers.
+namespace impl {
+
+template <typename TraitT>
+bool hasTrait(ArrayAttr opTraits) {
+  return llvm::count_if(opTraits.getAsRange<FlatSymbolRefAttr>(),
+      [](FlatSymbolRefAttr sym) {
+          return sym.getValue() == TraitT::getName();
+      });
+}
+
+} // end namespace impl
+
 LogicalResult OperationOp::verify() {
   if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
     return emitOpError("expected BoolAttr named: ")
@@ -170,23 +183,23 @@ LogicalResult OperationOp::verify() {
   if (!getAttrOfType<BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
-  auto opTraitsAttr = getAttrOfType<ArrayAttr>(getOpTraitsAttrName());
-  if (!opTraitsAttr)
+  auto opTraits = getAttrOfType<ArrayAttr>(getOpTraitsAttrName());
+  if (!opTraits)
     return emitOpError("expected ArrayAttr named: ")
         << getOpTraitsAttrName();
-  else if (llvm::count_if(opTraitsAttr,
-        [](Attribute attr) { return !attr.isa<SymbolRefAttr>(); }))
+  /// TODO support full SymbolRefAttr to refer to dynamic traits, e.g.
+  /// `@Python.MyOpTrait`
+  else if (llvm::count_if(opTraits,
+        [](Attribute attr) { return !attr.isa<FlatSymbolRefAttr>(); }))
     return emitOpError("expected ArrayAttr '") << getOpTraitsAttrName()
-        << "' of only SymbolRefAttr";
+        << "' of only FlatSymbolRefAttr";
   /// If there is are variadic values, there must be a size specifier.
   /// More than size specifier is prohobited. Having a size specifier without
   /// variadic values is okay.
   bool hasVariadicArgs = llvm::count_if(getType().getInputs(),
       [](Type ty) { return ty.isa<VariadicType>(); });
-  bool hasSameSizedArgs = llvm::count(
-      opTraitsAttr, SameVariadicOperandSizes::getSymbol(getContext()));
-  bool hasArgSegments = llvm::count(
-      opTraitsAttr, SizedOperandSegments::getSymbol(getContext()));
+  bool hasSameSizedArgs = impl::hasTrait<SameVariadicOperandSizes>(opTraits);
+  bool hasArgSegments = impl::hasTrait<SizedOperandSegments>(opTraits);
   if (hasSameSizedArgs && hasArgSegments)
     return emitOpError("cannot have both SameVariadicOperandSizes and ")
         << "SizedOperandSegments traits";
@@ -196,10 +209,8 @@ LogicalResult OperationOp::verify() {
   /// Check results.
   bool hasVariadicRets = llvm::count_if(getType().getResults(),
       [](Type ty) { return ty.isa<VariadicType>(); });
-  bool hasSameSizedRets = llvm::count(
-      opTraitsAttr, SameVariadicResultSizes::getSymbol(getContext()));
-  bool hasRetSegments = llvm::count(
-      opTraitsAttr, SizedResultSegments::getSymbol(getContext()));
+  bool hasSameSizedRets = impl::hasTrait<SameVariadicResultSizes>(opTraits);
+  bool hasRetSegments = impl::hasTrait<SizedResultSegments>(opTraits);
   if (hasSameSizedRets && hasRetSegments)
     return emitOpError("cannot have both SameVariadicResultSizes and ")
         << "SizedResultSegments traits";
@@ -210,9 +221,10 @@ LogicalResult OperationOp::verify() {
 }
 
 LogicalResult OperationOp::verifyType() {
-  if (!getType().isa<FunctionType>())
+  getType().print(llvm::errs());
+  if (!getType().isa<mlir::FunctionType>())
     return emitOpError("requires '" + getTypeAttrName() +
-                       "' atttribute of function type");
+                       "' attribute of function type");
   return success();
 }
 

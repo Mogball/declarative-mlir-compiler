@@ -38,15 +38,15 @@ public:
                  mlir::DialectAsmPrinter &printer) const override;
 
   /// Custom parser and printer for attributes.
-  mlir::Attribute 
-  parseAttribute(mlir::DialectAsmParser &parser, 
+  mlir::Attribute
+  parseAttribute(mlir::DialectAsmParser &parser,
                  mlir::Type type) const override;
   void printAttribute(mlir::Attribute attribute,
                       mlir::DialectAsmPrinter &printer) const override;
 
 private:
   /// Type printing helper re-used in Attribute printing.
-  void printSingleWidth(detail::WidthStorage *impl, 
+  void printSingleWidth(detail::WidthStorage *impl,
                         mlir::DialectAsmPrinter &printer) const;
 };
 

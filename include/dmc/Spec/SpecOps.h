@@ -40,8 +40,13 @@ public:
   llvm::StringRef getName();
   bool allowsUnknownOps();
   bool allowsUnknownTypes();
+
   mlir::Region &getBodyRegion();
   mlir::Block *getBody();
+
+  template <typename T> auto getOps() {
+    return getBody()->getOps<T>();
+  }
 
 private:
   /// Attributes.
@@ -102,6 +107,10 @@ public:
   mlir::StringAttr getName();
   mlir::DictionaryAttr getOpAttrs();
   mlir::ArrayAttr getOpTraits();
+
+  bool isTerminator();
+  bool isCommutative();
+  bool isIsolatedFromAbove();
 
 private:
   /// Hooks for FunctionLike
