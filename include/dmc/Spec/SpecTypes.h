@@ -357,9 +357,15 @@ public:
 
   static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
+
 };
 
-/// Optional values.
+/// Check if a type range contains a variadic type.
+template <typename TypeRange>
+inline static bool hasVariadicValues(const TypeRange &tys) {
+  return llvm::count_if(tys,
+      [](mlir::Type ty) { return ty.isa<VariadicType>(); });
+}
 
 /// TODO Container types (vectors, tensors, etc.), memref types, tuples.
 /// TODO variadic and optional types.

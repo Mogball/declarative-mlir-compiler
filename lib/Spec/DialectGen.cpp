@@ -1,5 +1,7 @@
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
+#include "dmc/Spec/SpecTypes.h"
+#include "dmc/Traits/Registry.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
 
@@ -7,35 +9,42 @@ using namespace mlir;
 
 namespace dmc {
 
-void registerTrait(SymbolRefAttr traitSym, DynamicOperation *op) {
-  /// TODO trait registry and lookup, which will also be used to register
-  /// new dynamic traits.
-
-}
-
 void registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
-  auto *op = dialect->createDynamicOp(op.getName());
+  auto *op = dialect->createDynamicOp(opOp.getName().getValue());
 
   /// Add traits for fundamental properties.
-  using std::make_unique; // TODO addOpTrait<TraitT>(args...)
   if (opOp.isTerminator())
-    op->addOpTrait(make_unique<IsTerminator>());
+    op->addOpTrait<IsTerminator>();
   if (opOp.isCommutative())
-    op->addOpTrait(make_unique<IsCommutative>());
+    op->addOpTrait<IsCommutative>();
   if (opOp.isIsolatedFromAbove())
-    op->addOpTrait(make_unique<IsIsolatedFromAbove>());
+    op->addOpTrait<IsIsolatedFromAbove>();
 
   /// Add type and attribute constraint traits.
-  op->addOpTrait(make_unique<TypeConstraintTrait>(opOp.getType()));
-  op->addOpTrait(make_unique<AttrConstraintTrait>(opOp.getOpAttrs()));
+  op->addOpTrait<TypeConstraintTrait>(opOp.getType());
+  op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
+
+  /// Add number of operands, results, successors, and regions traits.
+  /// TODO support for successors and regions.
+  op->addOpTrait<NRegions>(0);
+  op->addOpTrait<NSuccessors>(0);
+  // Add operand/result counts if none are variadic.
+  if (!hasVariadicValues(opOp.getType().getInputs()))
+    op->addOpTrait<NOperands>(llvm::size(opOp.getType().getInputs()));
+  if (!hasVariadicValues(opOp.getType().getResults()))
+    op->addOpTrait<NResults>(llvm::size(opOp.getType().getResults()));
 
   /// Process the remaining traits.
-  for (auto traitSym : opOp.getOpTraits().getAsRange<SymbolRefAttr>())
-    registerTrait(traitSym, op);
+  auto *registry = dialect->getContext()
+      ->getRegisteredDialect<TraitRegistry>();
+  for (auto traitSym : opOp.getOpTraits().getAsRange<FlatSymbolRefAttr>()) {
+    auto traitName = traitSym.getValue();
+    op->addOpTrait(traitName, registry->lookupTrait(traitName));
+  }
 }
 
-void registerDialect(DiaectOp dialectOp, DynamicContext *ctx) {
+void registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
   dialect->allowUnknownOperations(dialectOp.allowsUnknownOps());

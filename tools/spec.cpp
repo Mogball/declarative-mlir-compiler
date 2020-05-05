@@ -1,4 +1,5 @@
 #include "dmc/Spec/SpecDialect.h"
+#include "dmc/Traits/Registry.h"
 
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/ErrorOr.h>
@@ -12,6 +13,7 @@ using namespace mlir;
 using namespace dmc;
 
 static DialectRegistration<SpecDialect> specDialectRegistration;
+static DialectRegistration<TraitRegistry> registerTraits;
 
 int loadModule(StringRef inFile, MLIRContext *ctx, OwningModuleRef &module) {
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =

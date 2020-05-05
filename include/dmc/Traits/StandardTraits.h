@@ -3,6 +3,8 @@
 #include "Kinds.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
+#include <mlir/IR/OpDefinition.h>
+
 /// Bind common OpTraits into DynamicTraits
 namespace dmc {
 

@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Traits/SpecTraits.h"
+#include "dmc/Traits/Registry.h"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
@@ -193,11 +194,11 @@ LogicalResult OperationOp::verify() {
         [](Attribute attr) { return !attr.isa<FlatSymbolRefAttr>(); }))
     return emitOpError("expected ArrayAttr '") << getOpTraitsAttrName()
         << "' of only FlatSymbolRefAttr";
+
   /// If there is are variadic values, there must be a size specifier.
   /// More than size specifier is prohobited. Having a size specifier without
   /// variadic values is okay.
-  bool hasVariadicArgs = llvm::count_if(getType().getInputs(),
-      [](Type ty) { return ty.isa<VariadicType>(); });
+  bool hasVariadicArgs = hasVariadicValues(getType().getInputs());
   bool hasSameSizedArgs = impl::hasTrait<SameVariadicOperandSizes>(opTraits);
   bool hasArgSegments = impl::hasTrait<SizedOperandSegments>(opTraits);
   if (hasSameSizedArgs && hasArgSegments)
@@ -207,8 +208,7 @@ LogicalResult OperationOp::verify() {
     return emitOpError("more than one variadic operands requires a ")
         << "variadic size specifier";
   /// Check results.
-  bool hasVariadicRets = llvm::count_if(getType().getResults(),
-      [](Type ty) { return ty.isa<VariadicType>(); });
+  bool hasVariadicRets = hasVariadicValues(getType().getResults());
   bool hasSameSizedRets = impl::hasTrait<SameVariadicResultSizes>(opTraits);
   bool hasRetSegments = impl::hasTrait<SizedResultSegments>(opTraits);
   if (hasSameSizedRets && hasRetSegments)
@@ -217,6 +217,14 @@ LogicalResult OperationOp::verify() {
   if (hasVariadicRets && !hasSameSizedRets && !hasRetSegments)
     return emitOpError("more than one variadic result requires a ")
         << "variadic size specifier";
+
+  /// Verify that the remaining traits exist
+  auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
+  assert(registry != nullptr && "TraitRegistry dialect was not registered");
+  for (auto trait : opTraits.getAsRange<FlatSymbolRefAttr>()) {
+    if (!registry->lookupTrait(trait.getValue()))
+      return emitOpError("trait '") << trait.getValue() << "' not found";
+  }
   return success();
 }
 

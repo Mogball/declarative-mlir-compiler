@@ -5,5 +5,6 @@ add_library(DMCSpec
   SpecOps.cpp
   SpecAttrs.cpp
   SpecAttrImplementation.cpp
+  DialectGen.cpp
   )
 target_link_libraries(DMCSpec MLIRIR)

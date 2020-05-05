@@ -1,6 +1,7 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/IO/ModuleWriter.h"
 #include "dmc/Traits/StandardTraits.h"
+#include "dmc/Traits/Registry.h"
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
@@ -19,6 +20,7 @@ using namespace dmc;
 
 static DialectRegistration<StandardOpsDialect> registerStandardOps;
 static DialectRegistration<SpecDialect> registerSpecOps;
+static DialectRegistration<TraitRegistry> registerTraits;
 
 int main() {
   MLIRContext mlirContext;
