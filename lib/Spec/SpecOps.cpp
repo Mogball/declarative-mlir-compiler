@@ -100,7 +100,8 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
   addAttributesIfNotPresent({
       builder.getNamedAttr(getIsTerminatorAttrName(), falseAttr),
       builder.getNamedAttr(getIsCommutativeAttrName(), falseAttr),
-      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr)},
+      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr),
+      builder.getNamedAttr(getOpTraitsAttrName(), builder.getArrayAttr({}))},
       result);
 }
 
@@ -158,7 +159,6 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
 }
 
 LogicalResult OperationOp::verify() {
-  // TODO verify variadic arg conformance
   if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsTerminatorAttrName();
@@ -168,12 +168,47 @@ LogicalResult OperationOp::verify() {
   if (!getAttrOfType<BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
+  auto opTraitsAttr = getAttrOfType<ArrayAttr>(getOpTraitsAttrName());
+  if (!opTraitsAttr)
+    return emitOpError("expected ArrayAttr named: ")
+        << getOpTraitsAttrName();
+  else if (llvm::count_if(opTraitsAttr,
+        [](Attribute attr) { return !attr.isa<SymbolRefAttr>(); }))
+    return emitOpError("expected ArrayAttr '") << getOpTraitsAttrName()
+        << "' of only SymbolRefAttr";
+  /// If there is are variadic values, there must be a size specifier.
+  /// More than size specifier is prohobited. Having a size specifier without
+  /// variadic values is okay.
+  bool hasVariadicArgs = llvm::count_if(getType().getInputs(),
+      [](Type ty) { return ty.isa<VariadicType>(); });
+  bool hasSameSizedArgs = llvm::count(
+      opTraitsAttr, SameVariadicOperandSizes::getSymbol(getContext()));
+  bool hasArgSegments = llvm::count(
+      opTraitsAttr, SizedOperandSegments::getSymbol(getContext()));
+  if (hasSameSizedArgs && hasArgSegments)
+    return emitOpError("cannot have both SameVariadicOperandSizes and ")
+        << "SizedOperandSegments traits";
+  if (hasVariadicArgs && !hasSameSizedArgs && !hasArgSegments)
+    return emitOpError("more than one variadic operands requires a ")
+        << "variadic size specifier";
+  /// Check results.
+  bool hasVariadicRets = llvm::count_if(getType().getResults(),
+      [](Type ty) { return ty.isa<VariadicType>(); });
+  bool hasSameSizedRets = llvm::count(
+      opTraitsAttr, SameVariadicResultSizes::getSymbol(getContext()));
+  bool hasRetSegments = llvm::count(
+      opTraitsAttr, SizedResultSegments::getSymbol(getContext()));
+  if (hasSameSizedRets && hasRetSegments)
+    return emitOpError("cannot have both SameVariadicResultSizes and ")
+        << "SizedResultSegments traits";
+  if (hasVariadicRets && !hasSameSizedRets && !hasRetSegments)
+    return emitOpError("more than one variadic result requires a ")
+        << "variadic size specifier";
   return success();
 }
 
 LogicalResult OperationOp::verifyType() {
-  auto type = getTypeAttr().getValue();
-  if (!type.isa<FunctionType>())
+  if (!getType.isa<FunctionType>())
     return emitOpError("requires '" + getTypeAttrName() +
                        "' atttribute of function type");
   return success();

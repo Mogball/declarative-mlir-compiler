@@ -74,9 +74,9 @@ public:
 ///
 /// dmc.Op @MyOpA(!dmc.Any, !dmc.AnyOf<!dmc.I<32>, !dmc.F<32>>) ->
 ///     (!dmc.AnyFloat, !dmc.AnyInteger)
-///     attributes { attr0 = !dmc.Any, attr1 = !dmc.StrAttr }
+///     { attr0 = !dmc.Any, attr1 = !dmc.StrAttr }
 ///     config { parser = @MyOpAParser, printer = @MyOpAPrinter
-///              traits = [@Commutative]}
+///              traits = [@IsCommutative]}
 ///
 class OperationOp
     : public mlir::Op<OperationOp,
@@ -101,6 +101,7 @@ public:
   /// Getters.
   mlir::StringAttr getName();
   mlir::DictionaryAttr getOpAttrs();
+  mlir::ArrayAttr getOpTraits();
 
 private:
   /// Hooks for FunctionLike
@@ -115,6 +116,9 @@ private:
 
   static inline llvm::StringRef getOpAttrDictAttrName() {
     return "op_attrs";
+  }
+  static inline llvm::StringRef getOpTraitsAttrName() {
+    return "traits";
   }
   static inline llvm::StringRef getIsTerminatorAttrName() {
     return "is_terminator";
