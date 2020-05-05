@@ -58,7 +58,7 @@ DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
       name{(dialect->getNamespace() + "." + name).str()},
       dialect{dialect} {}
 
-void DynamicOperation::addOpTrait(std::unique_ptr<DynamicTrait> trait) {
+void DynamicOperation::addOpTrait(std::unique_ptr<DynamicTraitBase> trait) {
   traits.emplace_back(std::move(trait));
 }
 
