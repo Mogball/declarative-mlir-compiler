@@ -1,4 +1,6 @@
 #include "dmc/Spec/SpecOps.h"
+#include "dmc/Spec/SpecTypes.h"
+#include "dmc/Traits/SpecTraits.h"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
@@ -106,7 +108,7 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
 }
 
 void OperationOp::build(OpBuilder &builder, OperationState &result,
-                        StringRef name, FunctionType type,
+                        StringRef name, mlir::FunctionType type,
                         ArrayRef<NamedAttribute> attrs) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
@@ -208,7 +210,7 @@ LogicalResult OperationOp::verify() {
 }
 
 LogicalResult OperationOp::verifyType() {
-  if (!getType.isa<FunctionType>())
+  if (!getType().isa<FunctionType>())
     return emitOpError("requires '" + getTypeAttrName() +
                        "' atttribute of function type");
   return success();

@@ -11,6 +11,7 @@ namespace detail {
 struct ConstantAttrStorage;
 struct AttrListStorage;
 struct OneTypeAttrStorage;
+struct DefaultAttrStorage;
 } // end namespace detail
 
 class AnyAttr : public SimpleAttr<AnyAttr, SpecAttrs::Any> {
@@ -197,10 +198,46 @@ public:
   void print(mlir::DialectAsmPrinter &printer);
 };
 
-/// TODO Default-valued and optional attributes.
+/// An optional attribute. The generated Attribute constraint will not check
+/// for the Attribute's presence, but will apply the constraint if present.
+class OptionalAttr : public SpecAttr<OptionalAttr, SpecAttrs::Optional,
+                                     detail::ConstantAttrStorage> {
+public:
+  using Base::Base;
+
+  static OptionalAttr get(Attribute baseAttr);
+  static OptionalAttr getChecked(mlir::Location loc, Attribute baseAttr);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, Attribute baseAttr);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+/// A default-valued attribute. During Op post-construction, if this attribute
+/// was not provided, the default value will be used.
+class DefaultAttr : public SpecAttr<DefaultAttr, SpecAttrs::Default,
+                                    detail::DefaultAttrStorage> {
+public:
+  using Base::Base;
+
+  static DefaultAttr get(Attribute baseAttr, Attribute defaultAttr);
+  static DefaultAttr getChecked(mlir::Location loc,
+      Attribute baseAttr, Attribute defaultAttr);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, Attribute baseAttr, Attribute defaultAttr);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+
+  /// Get the default value.
+  Attribute getDefaultValue();
+};
+
 /// TODO typed elements attributes: int, float, ranked, string
 /// TODO typed array attributes: int, float, string, type, symbolRef
-/// TODO struct attribute
-/// TODO enum attributes?
+/// TODO struct attributes, enum attributes?
 
 } // end namespace dmc

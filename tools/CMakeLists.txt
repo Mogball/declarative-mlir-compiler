@@ -3,6 +3,7 @@ target_link_libraries(test
   DMCDynamic
   DMCIO
   DMCSpec
+  DMCTraits
   MLIRAnalysis
   MLIRStandardOps
   )
@@ -12,6 +13,7 @@ target_link_libraries(spec
   DMCDynamic
   DMCIO
   DMCSpec
+  DMCTraits
   LLVMSupport
   MLIRParser
   )

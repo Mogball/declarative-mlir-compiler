@@ -82,6 +82,30 @@ struct OneTypeAttrStorage : public AttributeStorage {
   KeyTy type;
 };
 
+struct DefaultAttrStorage : public AttributeStorage {
+  /// Store the base Attribute constraint and the default value.
+  using KeyTy = std::pair<Attribute, Attribute>;
+
+  explicit DefaultAttrStorage(Attribute baseAttr, Attribute defaultAttr)
+      : baseAttr{baseAttr},
+        defaultAttr{defaultAttr} {}
+  bool operator==(const KeyTy &key) const {
+    return key.first == baseAttr && key.second == defaultAttr;
+  }
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return llvm::hash_combine(key.first, key.second);
+  }
+
+  static DefaultAttrStorage *construct(
+      AttributeStorageAllocator &alloc, const KeyTy &key) {
+    return new (alloc.allocate<DefaultAttrStorage>())
+        DefaultAttrStorage{key.first, key.second};
+  }
+
+  Attribute baseAttr;
+  Attribute defaultAttr;
+};
+
 struct AttrComparator {
   bool operator()(Attribute lhs, Attribute rhs) const {
     return lhs.getAsOpaquePointer() < rhs.getAsOpaquePointer();
@@ -203,6 +227,60 @@ LogicalResult OfTypeAttr::verify(Attribute attr) {
   return success(baseTy == attr.getType());
 }
 
+/// OptionalAttr implementation.
+OptionalAttr OptionalAttr::get(Attribute baseAttr) {
+  return Base::get(baseAttr.getContext(), SpecAttrs::Optional, baseAttr);
+}
+
+OptionalAttr OptionalAttr::getChecked(Location loc, Attribute baseAttr) {
+  return Base::getChecked(loc, SpecAttrs::Optional, baseAttr);
+}
+
+LogicalResult OptionalAttr::verifyConstructionInvariants(
+    Location loc, Attribute baseAttr) {
+  /// TODO assert that this constraint is top-level
+  if (!baseAttr)
+    return emitError(loc) << "base attribute cannot be null";
+  return success();
+}
+
+LogicalResult OptionalAttr::verify(Attribute attr) {
+  if (!attr) // null attribute is acceptable
+    return success();
+  auto baseAttr = getImpl()->attr;
+  if (SpecAttrs::is(baseAttr))
+    return SpecAttrs::delegateVerify(baseAttr, attr);
+  return success(baseAttr == attr);
+}
+
+/// DefaultAttr implementation.
+DefaultAttr DefaultAttr::get(Attribute baseAttr, Attribute defaultAttr) {
+  return Base::get(baseAttr.getContext(), SpecAttrs::Default,
+                   baseAttr, defaultAttr);
+}
+
+DefaultAttr DefaultAttr::getChecked(Location loc, Attribute baseAttr,
+                                    Attribute defaultAttr) {
+  return Base::getChecked(loc, SpecAttrs::Default, baseAttr, defaultAttr);
+}
+
+LogicalResult DefaultAttr::verifyConstructionInvariants(
+    Location loc, Attribute baseAttr, Attribute defaultAttr) {
+  /// TODO assert that this constraint is top-level
+  if (!baseAttr)
+    return emitError(loc) << "attribute constraint cannot be null";
+  if (!defaultAttr)
+    return emitError(loc) << "attribute default value cannot be null";
+  return success();
+}
+
+LogicalResult DefaultAttr::verify(Attribute attr) {
+  auto baseAttr = getImpl()->baseAttr;
+  if (SpecAttrs::is(baseAttr))
+    return SpecAttrs::delegateVerify(baseAttr, attr);
+  return success(baseAttr == attr);
+}
+
 /// Attribute printing.
 namespace {
 
@@ -302,6 +380,12 @@ void SpecDialect::printAttribute(Attribute attr,
   case OfType:
     attr.cast<OfTypeAttr>().print(printer);
     break;
+  case Optional:
+    attr.cast<OptionalAttr>().print(printer);
+    break;
+  case Default:
+    attr.cast<DefaultAttr>().print(printer);
+    break;
   default:
     llvm_unreachable("Unknown SpecAttr");
     break;
@@ -317,6 +401,20 @@ void ConstantAttr::print(DialectAsmPrinter &printer) {
 void OfTypeAttr::print(DialectAsmPrinter &printer) {
   printer << "OfType<";
   printer.printType(getImpl()->type);
+  printer << '>';
+}
+
+void OptionalAttr::print(DialectAsmPrinter &printer) {
+  printer << "Optional<";
+  printer.printAttribute(getImpl()->attr);
+  printer << '>';
+}
+
+void DefaultAttr::print(DialectAsmPrinter &printer) {
+  printer << "Default<";
+  printer.printAttribute(getImpl()->baseAttr);
+  printer << ',';
+  printer.printAttribute(getImpl()->defaultAttr);
   printer << '>';
 }
 

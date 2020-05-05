@@ -5,6 +5,7 @@
 #include "dmc/Spec/SpecTypeImplementation.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
 
+#include <mlir/IR/Attributes.h>
 #include <mlir/IR/OpDefinition.h>
 
 namespace dmc {
@@ -20,8 +21,8 @@ struct SameVariadicOperandSizes
   /// Verify variadic operand formation.
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
 
-  inline static SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
-    return SymbolRefAttr::get("SameVariadicOperandSizes", ctx);
+  inline static mlir::SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
+    return mlir::SymbolRefAttr::get("SameVariadicOperandSizes", ctx);
   }
 };
 struct SameVariadicResultSizes
@@ -29,8 +30,8 @@ struct SameVariadicResultSizes
   /// Verify variadic result formation.
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
 
-  inline static SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
-    return SymbolRefAttr::get("SameVariadicResultSizes", ctx);
+  inline static mlir::SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
+    return mlir::SymbolRefAttr::get("SameVariadicResultSizes", ctx);
   }
 };
 
@@ -47,8 +48,8 @@ struct SizedOperandSegments
   /// Get the operand segment size attribute.
   mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op) const;
 
-  inline static SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
-    return SymbolRefAttr::get("SizedOperandSegments", ctx);
+  inline static mlir::SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
+    return mlir::SymbolRefAttr::get("SizedOperandSegments", ctx);
   }
 };
 struct SizedResultSegments
@@ -62,8 +63,8 @@ struct SizedResultSegments
   /// Get the result segment size attribute.
   mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op) const;
 
-  inline static SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
-    return SymbolRefAttr::get("SizedResultSegments", ctx);
+  inline static mlir::SymbolRefAttr getSymbol(mlir::MLIRContext *ctx) {
+    return mlir::SymbolRefAttr::get("SizedResultSegments", ctx);
   }
 };
 

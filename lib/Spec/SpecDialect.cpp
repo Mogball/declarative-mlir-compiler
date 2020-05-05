@@ -88,6 +88,7 @@ Type parseTypeList(DialectAsmParser &parser) {
 
 /// Type parsing.
 Type SpecDialect::parseType(DialectAsmParser &parser) const {
+  // TODO string switch
   if (!parser.parseOptionalKeyword("Any"))
     return AnyType::get(getContext());
   if (!parser.parseOptionalKeyword("None"))
@@ -210,6 +211,7 @@ Attribute parseAttrList(DialectAsmParser &parser) {
 Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
                                       Type type) const {
   assert(!type && "SpecAttr has no Type");
+  /// TODO string switch
   if (!parser.parseOptionalKeyword("Any"))
     return AnyAttr::get(getContext());
   if (!parser.parseOptionalKeyword("Bool"))
@@ -252,18 +254,21 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     return parseAttrList<AllOfAttr>(parser);
   if (!parser.parseOptionalKeyword("OfType"))
     return OfTypeAttr::parse(parser);
+  if (!parser.parseOptionalKeyword("Optional"))
+    return OptionalAttr::parse(parser);
+  if (!parser.parseOptionalKeyword("Default"))
+    return DefaultAttr::parse(parser);
   parser.emitError(parser.getCurrentLocation(), "Unknown AttrConstraint");
   return Attribute{};
 }
 
 Attribute ConstantAttr::parse(DialectAsmParser &parser) {
   Attribute constAttr;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseAttribute(constAttr) ||
       parser.parseGreater())
     return Attribute{};
-  return ConstantAttr::getChecked(
-      parser.getEncodedSourceLoc(parser.getCurrentLocation()),
-      constAttr);
+  return ConstantAttr::getChecked(loc, constAttr);
 }
 
 Attribute OfTypeAttr::parse(DialectAsmParser &parser) {
@@ -273,6 +278,25 @@ Attribute OfTypeAttr::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Attribute{};
   return OfTypeAttr::getChecked(loc, attrTy);
+}
+
+Attribute OptionalAttr::parse(DialectAsmParser &parser) {
+  Attribute baseAttr;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || parser.parseAttribute(baseAttr) ||
+      parser.parseGreater())
+    return Attribute{};
+  return OptionalAttr::getChecked(loc, baseAttr);
+}
+
+Attribute DefaultAttr::parse(DialectAsmParser &parser) {
+  Attribute baseAttr, defaultAttr;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || parser.parseAttribute(baseAttr) ||
+      parser.parseComma() || parser.parseAttribute(defaultAttr) ||
+      parser.parseGreater())
+    return Attribute{};
+  return DefaultAttr::getChecked(loc, baseAttr, defaultAttr);
 }
 
 } // end namespace dmc

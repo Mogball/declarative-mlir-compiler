@@ -33,6 +33,9 @@ enum Kinds {
   AllOf,
   OfType,
 
+  Optional,
+  Default,
+
   NUM_ATTRS
 };
 

@@ -55,6 +55,10 @@ LogicalResult delegateVerify(Attribute base, Attribute attr) {
     return base.cast<AllOfAttr>().verify(attr);
   case OfType:
     return base.cast<OfTypeAttr>().verify(attr);
+  case Optional:
+    return base.cast<OptionalAttr>().verify(attr);
+  case Default:
+    return base.cast<DefaultAttr>().verify(attr);
   default:
     llvm_unreachable("Unknown SpecAttr");
     return failure();
@@ -66,16 +70,20 @@ LogicalResult delegateVerify(Attribute base, Attribute attr) {
 namespace impl {
 
 LogicalResult verifyAttribute(Operation *op, NamedAttribute attr) {
-  auto opAttr = op->getAttr(attr.first);  
-  if (!opAttr) // TODO optional attributes
+  auto opAttr = op->getAttr(attr.first);
+  if (!opAttr) {
+    /// A missing optional attribute is okay.
+    if (attr.second.isa<OptionalAttr>())
+      return success();
     return op->emitOpError("missing attribute '") << attr.first << '\'';
+  }
   auto baseAttr = attr.second;
   if (SpecAttrs::is(baseAttr)) {
     if (failed(SpecAttrs::delegateVerify(baseAttr, opAttr)))
       return op->emitOpError("attribute '") << attr.first << '\''
-          << ", which is '" << opAttr << "', failed to satisfy '" 
+          << ", which is '" << opAttr << "', failed to satisfy '"
           << baseAttr << '\'';
-  } else if (baseAttr != opAttr) 
+  } else if (baseAttr != opAttr)
     return op->emitOpError("expected attribute '") << attr.first << '\''
         << " to be '" << baseAttr << "' but got '" << opAttr << '\'';
   return success();
