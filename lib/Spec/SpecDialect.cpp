@@ -23,7 +23,8 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnySignedIntegerType, SIType, SignedIntOfWidthsType,
       AnyUnsignedIntegerType, UIType, UnsignedIntOfWidthsType,
       IndexType, AnyFloatType, FType, FloatOfWidthsType, BF16Type,
-      AnyComplexType, ComplexType, OpaqueType
+      AnyComplexType, ComplexType, OpaqueType,
+      FunctionType, VariadicType
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
@@ -31,7 +32,8 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       StringAttr, TypeAttr, UnitAttr,
       DictionaryAttr, ElementsAttr, ArrayAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
-      ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr
+      ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr,
+      OptionalAttr, DefaultAttr
   >();
 }
 

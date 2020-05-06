@@ -229,7 +229,6 @@ LogicalResult OperationOp::verify() {
 }
 
 LogicalResult OperationOp::verifyType() {
-  getType().print(llvm::errs());
   if (!getType().isa<mlir::FunctionType>())
     return emitOpError("requires '" + getTypeAttrName() +
                        "' attribute of function type");

@@ -53,8 +53,8 @@ struct TypeListStorage : public TypeStorage {
 WidthStorage::WidthStorage(KeyTy key) : width{key} {}
 
 /// Compare the width.
-bool WidthStorage::operator==(const KeyTy &key) const { 
-  return key == width; 
+bool WidthStorage::operator==(const KeyTy &key) const {
+  return key == width;
 }
 
 /// Hash the width.
@@ -133,7 +133,7 @@ struct OpaqueTypeStorage : public TypeStorage {
     return llvm::hash_combine(key.first, key.second);
   }
 
-  static OpaqueTypeStorage *construct(TypeStorageAllocator &alloc, 
+  static OpaqueTypeStorage *construct(TypeStorageAllocator &alloc,
       const KeyTy &key) {
     return new (alloc.allocate<OpaqueTypeStorage>())
         OpaqueTypeStorage{key.first, key.second};
@@ -202,7 +202,7 @@ LogicalResult AnyOfType::verifyConstructionInvariants(
 LogicalResult AnyOfType::verify(Type ty) {
   // Success if the Type is found
   for (auto baseTy : getImpl()->types) {
-    if (SpecTypes::is(baseTy) && 
+    if (SpecTypes::is(baseTy) &&
         succeeded(SpecTypes::delegateVerify(baseTy, ty)))
       return success();
     else if (baseTy == ty)
@@ -228,7 +228,7 @@ LogicalResult AllOfType::verifyConstructionInvariants(
 
 LogicalResult AllOfType::verify(Type ty) {
   for (auto baseTy : getImpl()->types) {
-    if (SpecTypes::is(baseTy) && 
+    if (SpecTypes::is(baseTy) &&
         failed(SpecTypes::delegateVerify(baseTy, ty)))
       return failure();
     else if (baseTy != ty)
@@ -507,7 +507,7 @@ LogicalResult ComplexType::verify(Type ty) {
     auto elTy = complexTy.getElementType();
     if (SpecTypes::is(elTyBase))
       return SpecTypes::delegateVerify(elTyBase, elTy);
-    else 
+    else
       return success(elTyBase == elTy);
   }
   return failure();
@@ -555,7 +555,7 @@ LogicalResult VariadicType::verifyConstructionInvariants(
   ///
   /// Might be worth looking into argument attributes:
   ///
-  /// dmc.Op @MyOp(%0 : !dmc.AnyInteger {variadic = true}) 
+  /// dmc.Op @MyOp(%0 : !dmc.AnyInteger {variadic = true})
   ///
   if (!ty)
     return emitError(loc) << "type cannot be null";
@@ -564,7 +564,7 @@ LogicalResult VariadicType::verifyConstructionInvariants(
 
 LogicalResult VariadicType::verify(Type ty) {
   auto baseTy = getImpl()->type;
-  if (SpecTypes::is(baseTy)) 
+  if (SpecTypes::is(baseTy))
     return SpecTypes::delegateVerify(baseTy, ty);
   else if (baseTy != ty)
     return failure();
@@ -578,11 +578,11 @@ void SpecDialect::printSingleWidth(detail::WidthStorage *impl,
 }
 
 namespace {
-void printWidthList(detail::WidthListStorage *impl, 
+void printWidthList(detail::WidthListStorage *impl,
                     DialectAsmPrinter &printer) {
   auto it = std::begin(impl->widths);
   printer << '<' << (*it++);
-  for (auto e = std::end(impl->widths); it != e; ++it) 
+  for (auto e = std::end(impl->widths); it != e; ++it)
     printer << ',' << (*it);
   printer << '>';
 }
@@ -675,6 +675,7 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
     break;
   case Variadic:
     type.cast<VariadicType>().print(printer);
+    break;
   default:
     llvm_unreachable("Unknown SpecType");
     break;
