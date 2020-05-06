@@ -17,3 +17,12 @@ target_link_libraries(spec
   LLVMSupport
   MLIRParser
   )
+
+add_executable(gen dialectgen.cpp)
+target_link_libraries(gen
+  DMCSpec
+  DMCDynamic
+  DMCTraits
+  LLVMSupport
+  MLIRParser
+  )
