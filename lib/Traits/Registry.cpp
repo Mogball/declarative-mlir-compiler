@@ -23,8 +23,8 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
 }
 
 void TraitRegistry::registerTrait(StringRef name, TraitConstructor getter) {
-  auto it = traitRegistry.try_emplace(name, getter); (void) it;
-  assert(it.second && "Trait has already been registered");
+  auto [it, inserted] = traitRegistry.try_emplace(name, getter);
+  assert(inserted && "Trait has already been registered");
 }
 
 TraitRegistry::Trait TraitRegistry::lookupTrait(StringRef name) {

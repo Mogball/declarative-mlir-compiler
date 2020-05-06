@@ -21,12 +21,18 @@ struct SameVariadicOperandSizes : public DynamicTrait {
 
   /// Verify variadic operand formation.
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
+
+  /// Variadic operand group getter. Analogous to getODSOperands().
+  static mlir::ValueRange getOperandGroup(mlir::Operation *op, unsigned idx);
 };
 struct SameVariadicResultSizes : public DynamicTrait {
   static llvm::StringRef getName() { return "SameVariadicResultSizes"; }
 
   /// Verify variadic result formation.
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
+
+  /// Variadic result group getter. Analogous to getODSResults().
+  static mlir::ValueRange getResultGroup(mlir::Operation *op, unsigned idx);
 };
 
 /// These traits indicate that the Operation has variadic operands or result
@@ -41,7 +47,10 @@ struct SizedOperandSegments : public DynamicTrait {
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
 
   /// Get the operand segment size attribute.
-  mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op) const;
+  static mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op);
+
+  /// Variadic operand group getter. Analogous to getODSOperands().
+  static mlir::ValueRange getOperandGroup(mlir::Operation *op, unsigned idx);
 };
 struct SizedResultSegments : public DynamicTrait {
   static llvm::StringRef getName() { return "SizedResultSegments"; }
@@ -53,7 +62,10 @@ struct SizedResultSegments : public DynamicTrait {
   mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
 
   /// Get the result segment size attribute.
-  mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op) const;
+  static mlir::DenseIntElementsAttr getSegmentSizesAttr(mlir::Operation *op);
+
+  /// Variadic result group getter. Analogous to getODSResults().
+  static mlir::ValueRange getResultGroup(mlir::Operation *op, unsigned idx);
 };
 
 /// Top-level Type and Attribute verifiers apply the specified constraints

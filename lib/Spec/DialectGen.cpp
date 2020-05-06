@@ -21,10 +21,6 @@ void registerOp(OperationOp opOp, DynamicDialect *dialect) {
   if (opOp.isIsolatedFromAbove())
     op->addOpTrait<IsIsolatedFromAbove>();
 
-  /// Add type and attribute constraint traits.
-  op->addOpTrait<TypeConstraintTrait>(opOp.getType());
-  op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
-
   /// Add number of operands, results, successors, and regions traits.
   /// TODO support for successors and regions.
   op->addOpTrait<NRegions>(0);
@@ -42,6 +38,13 @@ void registerOp(OperationOp opOp, DynamicDialect *dialect) {
     auto traitName = traitSym.getValue();
     op->addOpTrait(traitName, registry->lookupTrait(traitName));
   }
+
+  /// Add type and attribute constraint traits last.
+  op->addOpTrait<TypeConstraintTrait>(opOp.getType());
+  op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
+
+  /// Finally, register the Op.
+  op->finalize();
 }
 
 void registerDialect(DialectOp dialectOp, DynamicContext *ctx) {

@@ -60,8 +60,8 @@ DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
 
 void DynamicOperation::addOpTrait(
     StringRef name, std::unique_ptr<DynamicTrait> trait) {
-  auto it = traits.try_emplace(name, std::move(trait)); (void) it;
-  assert(it.second && "Trait already exists");
+  auto [it, inserted] = traits.try_emplace(name, std::move(trait));
+  assert(inserted && "Trait already exists");
 }
 
 void DynamicOperation::finalize() {

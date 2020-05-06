@@ -7,6 +7,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Parser.h>
+#include <mlir/Analysis/Verifier.h>
 
 using namespace mlir;
 using namespace dmc;
@@ -44,12 +45,26 @@ int main(int argc, char *argv[]) {
   StringRef dialectInFile{argv[1]};
   if (auto err = loadModule(dialectInFile, &ctx, dialectModule))
     return err;
+  if (failed(verify(*dialectModule))) {
+    llvm::errs() << "Failed to verify dialect module: "
+        << dialectInFile << "\n";
+    return -1;
+  }
+
+  registerAllDialects(*dialectModule, &dynCtx);
 
   OwningModuleRef mlirModule;
   StringRef mlirInFile{argv[2]};
   if (auto err = loadModule(mlirInFile, &ctx, mlirModule))
     return err;
+  if (failed(verify(*mlirModule))) {
+    llvm::errs() << "Failed to verify MLIR module: "
+        << mlirInFile << "\n";
+    return -1;
+  }
 
+  mlirModule->print(llvm::outs());
+  llvm::outs() << "\n";
 
   return 0;
 }

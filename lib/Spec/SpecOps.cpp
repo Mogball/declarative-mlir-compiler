@@ -161,6 +161,23 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
   return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
 }
 
+mlir::ArrayAttr OperationOp::getOpTraits() {
+  return getAttrOfType<mlir::ArrayAttr>(getOpTraitsAttrName());
+}
+
+bool OperationOp::isTerminator() {
+  return getAttrOfType<mlir::BoolAttr>(getIsTerminatorAttrName()).getValue();
+}
+
+bool OperationOp::isCommutative() {
+  return getAttrOfType<mlir::BoolAttr>(getIsCommutativeAttrName()).getValue();
+}
+
+bool OperationOp::isIsolatedFromAbove() {
+  return getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName())
+      .getValue();
+}
+
 /// Trait array manipulation helpers.
 namespace impl {
 
