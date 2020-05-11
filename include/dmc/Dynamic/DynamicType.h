@@ -14,7 +14,18 @@ struct DynamicTypeStorage;
 /// reference to an instance of this class.
 class DynamicTypeImpl : public DynamicObject {
 public:
-  explicit DynamicTypeImpl(DynamicContext *ctx);
+  /// Create a dynamic type with the provided name and parameter spec.
+  explicit DynamicTypeImpl(DynamicContext *ctx, llvm::StringRef name,
+                           llvm::ArrayRef<mlir::Attribute> paramSpec);
+
+private:
+  /// The name of the Type.
+  llvm::StringRef name;
+  /// The parameters are defined by Attribute constraints. The Attribute
+  /// instances must be Spec attributes.
+  llvm::ArrayRef<mlir::Attribute> paramSpec;
+
+  friend class DynamicType;
 };
 
 /// DynamicType class. Stores parameters according to DynamicTypeImpl.

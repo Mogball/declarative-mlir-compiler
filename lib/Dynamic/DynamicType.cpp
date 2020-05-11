@@ -1,5 +1,6 @@
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Spec/SpecAttrImplementation.h"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Diagnostics.h>
@@ -61,6 +62,14 @@ LogicalResult DynamicType::verifyConstructionInvariants(
     Location loc, DynamicTypeImpl *impl, ArrayRef<Attribute> params) {
   if (impl == nullptr)
     return emitError(loc) << "Null DynamicTypeImpl";
+  /// Verify that the provided parameters satisfy the dynamic type spec.
+  unsigned idx = 0;
+  for (auto [spec, param] : llvm::zip(impl->paramSpec, params)) {
+    if (failed(SpecAttrs::delegateVerify(spec, param)))
+      return emitError(loc) << "Dynamic type construction failed: parameter #"
+          << idx << " expected " << spec << " but got " << param;
+    ++idx;
+  }
   return success();
 }
 
