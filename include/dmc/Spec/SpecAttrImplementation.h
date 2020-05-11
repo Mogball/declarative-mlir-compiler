@@ -1,13 +1,14 @@
 #pragma once
 
-#include <mlir/IR/Attributes.h>
+#include "dmc/Kind.h"
+
 #include <mlir/IR/Operation.h>
 
 namespace dmc {
 
 namespace SpecAttrs {
 enum Kinds {
-  Any = mlir::Attribute::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_ATTR,
+  Any = Kind::FIRST_SPEC_ATTR,
   Bool,
   Index,
   APInt,

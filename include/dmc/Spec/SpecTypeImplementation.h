@@ -1,14 +1,13 @@
 #pragma once
 
+#include "dmc/Kind.h"
 #include "dmc/Dynamic/DynamicOperation.h"
-
-#include <mlir/IR/Types.h>
 
 namespace dmc {
 
 namespace SpecTypes {
 enum Kinds {
-  Any = mlir::Type::Kind::FIRST_PRIVATE_EXPERIMENTAL_0_TYPE,
+  Any = Kind::FIRST_SPEC_TYPE,
   None,
   AnyOf,
   AllOf,

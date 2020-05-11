@@ -1,8 +1,8 @@
 #pragma once
 
-#include <mlir/IR/Dialect.h>
-
 #include "DynamicObject.h"
+
+#include <mlir/IR/Dialect.h>
 
 namespace dmc {
 
@@ -26,7 +26,8 @@ public:
     Dialect::allowUnknownOperations(allow);
   }
   inline void allowUnknownTypes(bool allow) {
-    Dialect::allowUnknownTypes(allow); }
+    Dialect::allowUnknownTypes(allow);
+  }
 
 private:
   friend class DynamicOperation;

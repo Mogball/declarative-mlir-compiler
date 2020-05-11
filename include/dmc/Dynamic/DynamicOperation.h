@@ -1,9 +1,9 @@
 #pragma once
 
+#include "DynamicObject.h"
+
 #include <llvm/ADT/StringMap.h>
 #include <mlir/IR/OperationSupport.h>
-
-#include "DynamicObject.h"
 
 namespace dmc {
 

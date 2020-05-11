@@ -140,4 +140,33 @@ private:
   }
 };
 
+/// The TypeOp allows dialects to define custom types by composing Attributes.
+///
+/// dmc.Type @My2DArray<#dmc.Type, #dmc.UI32, #dmc.UI32>
+///
+/// This will generate a type: u.My2DArray<i32, 4, 5>. Type parameters can be
+/// left as `?`.
+///
+/// TODO support for type constraints, named parameters, type conversion.
+class TypeOp
+    : public mlir::Op<TypeOp,
+                      mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
+                      mlir::OpTrait::IsIsolatedFromAbove,
+                      mlir::SymbolOpInterface::Trait> {
+public:
+  using Op::Op;
+
+  static llvm::StringRef getOperationName() { return "dmc.Type"; }
+
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
+                    llvm::StringRef name,
+                    llvm::ArrayRef<mlir::Attribute> parameters);
+
+  /// Operation hooks.
+  static mlir::ParseResult parse(mlir::OpAsmParser &parser,
+                                 mlir::OperationState &result);
+  void print(mlir::OpAsmPrinter &printer);
+  mlir::LogicalResult verify();
+};
+
 } // end namespace dmc

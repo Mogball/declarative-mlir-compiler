@@ -3,6 +3,7 @@ add_library(DMCDynamic
   DynamicDialect.cpp
   DynamicObject.cpp
   DynamicOperation.cpp
+  DynamicType.cpp
   TypeIDAllocator.cpp
   )
 target_link_libraries(DMCDynamic

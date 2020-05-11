@@ -11,7 +11,7 @@ class DynamicContext;
 /// of a dynamic object that mocks an otherwise statically known class.
 class DynamicObject {
 public:
-  DynamicObject(DynamicContext *ctx);
+  explicit DynamicObject(DynamicContext *ctx);
 
   inline DynamicContext *getDynContext() { return ctx; }
   inline mlir::TypeID getTypeID() { return typeId; }
