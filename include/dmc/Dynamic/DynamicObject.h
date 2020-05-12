@@ -13,7 +13,7 @@ class DynamicObject {
 public:
   explicit DynamicObject(DynamicContext *ctx);
 
-  inline DynamicContext *getDynContext() { return ctx; }
+  inline DynamicContext *getDynContext() const { return ctx; }
   inline mlir::TypeID getTypeID() { return typeId; }
 
 private:

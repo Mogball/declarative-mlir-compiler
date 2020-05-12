@@ -44,8 +44,7 @@ void DynamicContext::registerDynamicType(DynamicTypeImpl *type) {
 
 DynamicTypeImpl *DynamicContext::lookupType(StringRef name) {
   auto it = impl->dynTys.find(name);
-  assert(it != impl->dynTys.end() && "DynamicType not found");
-  return it->second.get();
+  return it == std::end(impl->dynTys) ? nullptr : it->second.get();
 }
 
 } // end namespace dmc

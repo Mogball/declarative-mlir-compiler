@@ -36,7 +36,7 @@ public:
   inline auto getArguments() { return func.getArguments(); }
 
   mlir::Operation *createOp(
-      DynamicOperation *op, mlir::ValueRange args, 
+      DynamicOperation *op, mlir::ValueRange args,
       llvm::ArrayRef<mlir::Type> retTys);
 
   mlir::Operation *createOp(

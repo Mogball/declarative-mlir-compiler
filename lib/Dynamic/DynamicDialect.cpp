@@ -23,4 +23,22 @@ DynamicTypeImpl *DynamicDialect::createDynamicType(
   return type;
 }
 
+Type DynamicDialect::parseType(DialectAsmParser &parser) const {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  StringRef name;
+  if (parser.parseKeyword(&name))
+    return Type{};
+  auto *typeImpl = getDynContext()->lookupType(name);
+  if (!typeImpl) {
+    emitError(loc) << "Unknown type name: " << name;
+    return Type{};
+  }
+  return typeImpl->parseType(loc, parser);
+}
+
+void DynamicDialect::printType(Type type, DialectAsmPrinter &printer) const {
+  auto dynTy = type.cast<DynamicType>();
+  dynTy.getTypeImpl()->printType(type, printer);
+}
+
 } // end namespace dmc
