@@ -8,11 +8,7 @@ namespace dmc {
 
 DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
     : Dialect{name, ctx->getContext()},
-      DynamicObject{ctx} {
-  addTypes<
-    DynamicType
-    >();
-}
+      DynamicObject{ctx} {}
 
 DynamicOperation *DynamicDialect::createDynamicOp(StringRef name) {
   /// Allocate on heap so AbstractOperation references stay valid.
@@ -22,7 +18,7 @@ DynamicOperation *DynamicDialect::createDynamicOp(StringRef name) {
 
 DynamicTypeImpl *DynamicDialect::createDynamicType(
     StringRef name, ArrayRef<Attribute> paramSpec) {
-  auto *type = new DynamicTypeImpl(getDynContext(), name, paramSpec);
+  auto *type = new DynamicTypeImpl(this, name, paramSpec);
   getDynContext()->registerDynamicType(type);
   return type;
 }

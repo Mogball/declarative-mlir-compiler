@@ -6,6 +6,7 @@
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
 
+#include <mlir/Parser.h>
 #include <mlir/IR/Module.h>
 #include <mlir/IR/Function.h>
 #include <mlir/IR/Builders.h>
@@ -167,4 +168,6 @@ int main() {
     module.print(llvm::outs());
     llvm::outs() << "\n";
   }
+
+  llvm::errs() << mlir::parseType("!dmc.Any", &mlirContext) << "\n";
 }

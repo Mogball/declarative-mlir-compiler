@@ -5,6 +5,7 @@ target_link_libraries(test
   DMCSpec
   DMCTraits
   MLIRStandardOps
+  MLIRParser
   )
 
 add_executable(spec spec.cpp)

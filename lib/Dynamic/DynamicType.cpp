@@ -47,9 +47,10 @@ struct DynamicTypeStorage : public TypeStorage {
 };
 } // end namespace detail
 
-DynamicTypeImpl::DynamicTypeImpl(DynamicContext *ctx, StringRef name,
+DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
                                  ArrayRef<Attribute> paramSpec)
-    : DynamicObject{ctx},
+    : DynamicObject{dialect->getDynContext()},
+      dialect{dialect},
       name{name},
       paramSpec{paramSpec} {}
 
@@ -84,13 +85,19 @@ void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
 
 DynamicType DynamicType::get(DynamicTypeImpl *impl,
                              ArrayRef<Attribute> params) {
-  return Base::get(
-      impl->getDynContext()->getContext(), DynamicTypeKind, impl, params);
+  auto *ctx = impl->getDynContext()->getContext();
+  return ctx->getTypeUniquer().get<Base::ImplType>(
+      [&](TypeStorage *storage) {
+        storage->initializeDialect(*impl->getDialect());
+      },
+      DynamicTypeKind, impl, params);
 }
 
 DynamicType DynamicType::getChecked(Location loc, DynamicTypeImpl *impl,
                                     ArrayRef<Attribute> params) {
-  return Base::getChecked(loc, DynamicTypeKind, impl, params);
+  if (failed(verifyConstructionInvariants(loc, impl, params)))
+    return DynamicType{};
+  return get(impl, params);
 }
 
 LogicalResult DynamicType::verifyConstructionInvariants(
@@ -98,14 +105,14 @@ LogicalResult DynamicType::verifyConstructionInvariants(
   if (impl == nullptr)
     return emitError(loc) << "Null DynamicTypeImpl";
   if (llvm::size(impl->paramSpec) != llvm::size(params))
-    return emitError(loc) << "Dynamic type construction failed: expected "
+    return emitError(loc) << "type construction failed: expected "
          << llvm::size(impl->paramSpec) << " parameters but got "
          << llvm::size(params);
   /// Verify that the provided parameters satisfy the dynamic type spec.
   unsigned idx = 0;
   for (auto [spec, param] : llvm::zip(impl->paramSpec, params)) {
     if (failed(SpecAttrs::delegateVerify(spec, param)))
-      return emitError(loc) << "Dynamic type construction failed: parameter #"
+      return emitError(loc) << "type construction failed: parameter #"
           << idx << " expected " << spec << " but got " << param;
     ++idx;
   }

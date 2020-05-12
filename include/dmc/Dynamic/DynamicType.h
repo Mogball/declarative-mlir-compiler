@@ -7,6 +7,9 @@
 
 namespace dmc {
 
+/// Forward declarations.
+class DynamicDialect;
+
 namespace detail{
 struct DynamicTypeStorage;
 }
@@ -17,10 +20,11 @@ struct DynamicTypeStorage;
 class DynamicTypeImpl : public DynamicObject {
 public:
   /// Create a dynamic type with the provided name and parameter spec.
-  explicit DynamicTypeImpl(DynamicContext *ctx, llvm::StringRef name,
+  explicit DynamicTypeImpl(DynamicDialect *dialect, llvm::StringRef name,
                            llvm::ArrayRef<mlir::Attribute> paramSpec);
 
   /// Getters.
+  inline DynamicDialect *getDialect() { return dialect; }
   inline auto getName() { return name; }
   inline auto getParamSpec()  { return paramSpec; }
 
@@ -29,6 +33,8 @@ public:
   void printType(mlir::Type type, mlir::DialectAsmPrinter &printer);
 
 private:
+  /// The dialect to which this type belongs.
+  DynamicDialect *dialect;
   /// The name of the Type.
   llvm::StringRef name;
   /// The parameters are defined by Attribute constraints. The Attribute
