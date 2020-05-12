@@ -2,6 +2,7 @@
 
 #include "DynamicDialect.h"
 #include "DynamicOperation.h"
+#include "DynamicType.h"
 #include "TypeIDAllocator.h"
 
 namespace dmc {
@@ -26,6 +27,11 @@ public:
   void registerDynamicOp(DynamicOperation *op);
   /// Lookup the DynamicOperation belonging to an Operation.
   DynamicOperation *lookupOp(mlir::Operation *op);
+
+  /// Register a DynamicType with the context. The context takes ownership.
+  void registerDynamicType(DynamicTypeImpl *type);
+  /// Lookup a DynamicType with the given name.
+  DynamicTypeImpl *lookupType(llvm::StringRef name);
 
 private:
   class Impl;

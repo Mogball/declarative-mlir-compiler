@@ -47,6 +47,40 @@ struct DynamicTypeStorage : public TypeStorage {
 };
 } // end namespace detail
 
+DynamicTypeImpl::DynamicTypeImpl(DynamicContext *ctx, StringRef name,
+                                 ArrayRef<Attribute> paramSpec)
+    : DynamicObject{ctx},
+      name{name},
+      paramSpec{paramSpec} {}
+
+Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
+  std::vector<Attribute> params;
+  params.reserve(paramSpec.size());
+  if (!parser.parseLess()) {
+    do {
+      Attribute attr;
+      if (parser.parseAttribute(attr))
+        return Type{};
+      params.push_back(attr);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseGreater())
+      return Type{};
+  }
+  return DynamicType::getChecked(loc, this, params);
+}
+
+void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
+  auto dynTy = type.cast<DynamicType>();
+  printer << name;
+  if (!paramSpec.empty()) {
+    auto it = std::begin(paramSpec);
+    printer << '<' << (*it++);
+    for (auto e = std::end(paramSpec); it != e; ++it)
+      printer << ',' << (*it);
+    printer << '>';
+  }
+}
+
 DynamicType DynamicType::get(DynamicTypeImpl *impl,
                              ArrayRef<Attribute> params) {
   return Base::get(
@@ -62,6 +96,10 @@ LogicalResult DynamicType::verifyConstructionInvariants(
     Location loc, DynamicTypeImpl *impl, ArrayRef<Attribute> params) {
   if (impl == nullptr)
     return emitError(loc) << "Null DynamicTypeImpl";
+  if (llvm::size(impl->paramSpec) != llvm::size(params))
+    return emitError(loc) << "Dynamic type construction failed: expected "
+         << llvm::size(impl->paramSpec) << " parameters but got "
+         << llvm::size(params);
   /// Verify that the provided parameters satisfy the dynamic type spec.
   unsigned idx = 0;
   for (auto [spec, param] : llvm::zip(impl->paramSpec, params)) {

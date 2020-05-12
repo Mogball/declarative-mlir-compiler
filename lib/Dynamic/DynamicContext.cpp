@@ -12,6 +12,7 @@ class DynamicContext::Impl {
   friend class DynamicContext;
 
   StringMap<std::unique_ptr<DynamicOperation>> dynOps;
+  StringMap<std::unique_ptr<DynamicTypeImpl>> dynTys;
 };
 
 DynamicContext::~DynamicContext() = default;
@@ -33,6 +34,17 @@ void DynamicContext::registerDynamicOp(DynamicOperation *op) {
 DynamicOperation *DynamicContext::lookupOp(Operation *op) {
   auto it = impl->dynOps.find(op->getName().getStringRef());
   assert(it != impl->dynOps.end() && "DynamicOperation not found");
+  return it->second.get();
+}
+
+void DynamicContext::registerDynamicType(DynamicTypeImpl *type) {
+  // TODO return an error if Type already exists
+  impl->dynTys.try_emplace(type->getName(), type);
+}
+
+DynamicTypeImpl *DynamicContext::lookupType(StringRef name) {
+  auto it = impl->dynTys.find(name);
+  assert(it != impl->dynTys.end() && "DynamicType not found");
   return it->second.get();
 }
 

@@ -3,6 +3,8 @@
 #include "DynamicObject.h"
 #include "dmc/Kind.h"
 
+#include <mlir/IR/DialectImplementation.h>
+
 namespace dmc {
 
 namespace detail{
@@ -17,6 +19,14 @@ public:
   /// Create a dynamic type with the provided name and parameter spec.
   explicit DynamicTypeImpl(DynamicContext *ctx, llvm::StringRef name,
                            llvm::ArrayRef<mlir::Attribute> paramSpec);
+
+  /// Getters.
+  inline auto getName() { return name; }
+  inline auto getParamSpec()  { return paramSpec; }
+
+  /// Delegate parser and printer.
+  mlir::Type parseType(mlir::Location loc, mlir::DialectAsmParser &parser);
+  void printType(mlir::Type type, mlir::DialectAsmPrinter &printer);
 
 private:
   /// The name of the Type.

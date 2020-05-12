@@ -35,6 +35,11 @@ public:
     Dialect::allowUnknownTypes(allow);
   }
 
+  /// Printing and parsing for dynamic types.
+  mlir::Type parseType(mlir::DialectAsmParser &parser) const override;
+  void printType(mlir::Type type,
+                 mlir::DialectAsmPrinter &printer) const override;
+
 private:
   friend class DynamicOperation;
 };
