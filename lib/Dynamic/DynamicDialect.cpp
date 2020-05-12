@@ -8,7 +8,11 @@ namespace dmc {
 
 DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
     : Dialect{name, ctx->getContext()},
-      DynamicObject{ctx} {}
+      DynamicObject{ctx} {
+  addTypes<
+    DynamicType
+    >();
+}
 
 DynamicOperation *DynamicDialect::createDynamicOp(StringRef name) {
   /// Allocate on heap so AbstractOperation references stay valid.

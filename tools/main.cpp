@@ -10,7 +10,7 @@
 #include <mlir/IR/Function.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/StandardTypes.h>
-#include <mlir/Analysis/Verifier.h>
+#include <mlir/IR/Verifier.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 #include <iostream>

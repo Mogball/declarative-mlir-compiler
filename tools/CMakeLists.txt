@@ -4,7 +4,6 @@ target_link_libraries(test
   DMCIO
   DMCSpec
   DMCTraits
-  MLIRAnalysis
   MLIRStandardOps
   )
 

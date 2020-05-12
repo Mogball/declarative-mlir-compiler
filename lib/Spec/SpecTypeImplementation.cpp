@@ -107,7 +107,7 @@ LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
        ++tyIt, values = getValues(op, ++groupIdx)) {
     if (tyIt == tyEnd)
       return op->emitOpError("too many ") << name << 's';
-    if (std::begin(values) == std::end(values))
+    if (std::begin(values) == std::end(values) && !tyIt->isa<VariadicType>())
       return op->emitOpError("not enough ") << name << 's';
     for (auto valIt = std::begin(values), valEnd = std::end(values);
          valIt != valEnd; ++valIt, ++valIdx) {

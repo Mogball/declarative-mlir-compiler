@@ -14,7 +14,7 @@ namespace dmc {
 void addAttributesIfNotPresent(ArrayRef<NamedAttribute> attrs,
                                OperationState &result) {
   llvm::DenseSet<StringRef> present;
-  present.reserve(result.attributes.size());
+  present.reserve(llvm::size(result.attributes));
   for (auto &namedAttr : result.attributes)
     present.insert(namedAttr.first);
   for (auto &namedAttr : attrs)
@@ -127,14 +127,15 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   mlir::TypeAttr funcTypeAttr;
-  mlir::DictionaryAttr opAttrs;
+  NamedAttrList opAttrs;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       parser.parseAttribute(funcTypeAttr, getTypeAttrName(),
                             result.attributes) ||
-      parser.parseAttribute(opAttrs, getOpAttrDictAttrName(),
-                            result.attributes))
+      parser.parseOptionalAttrDict(opAttrs))
     return failure();
+  result.addAttribute(getOpAttrDictAttrName(),
+                      mlir::DictionaryAttr::get(opAttrs, result.getContext()));
   if (!parser.parseOptionalKeyword("config") &&
       parser.parseOptionalAttrDict(result.attributes))
     return failure();
@@ -269,7 +270,7 @@ void TypeOp::build(OpBuilder &builder, OperationState &result,
 namespace impl {
 ParseResult parseSingleAttribute(Attribute &attr, OpAsmParser &parser) {
   constexpr auto attrName = "attr";
-  SmallVector<NamedAttribute, 1> attrList;
+  NamedAttrList attrList;
   return parser.parseAttribute(attr, attrName, attrList);
 }
 } // end namespace impl

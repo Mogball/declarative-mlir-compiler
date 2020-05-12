@@ -72,10 +72,11 @@ Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
 void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
   auto dynTy = type.cast<DynamicType>();
   printer << name;
-  if (!paramSpec.empty()) {
-    auto it = std::begin(paramSpec);
+  auto params = dynTy.getParams();
+  if (!params.empty()) {
+    auto it = std::begin(params);
     printer << '<' << (*it++);
-    for (auto e = std::end(paramSpec); it != e; ++it)
+    for (auto e = std::end(params); it != e; ++it)
       printer << ',' << (*it);
     printer << '>';
   }

@@ -7,7 +7,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Parser.h>
-#include <mlir/Analysis/Verifier.h>
+#include <mlir/IR/Verifier.h>
 
 using namespace mlir;
 using namespace dmc;
