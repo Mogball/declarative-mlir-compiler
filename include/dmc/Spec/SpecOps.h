@@ -144,10 +144,10 @@ private:
 ///
 /// dmc.Type @My2DArray<#dmc.Type, #dmc.UI32, #dmc.UI32>
 ///
-/// This will generate a type: u.My2DArray<i32, 4, 5>. Type parameters can be
-/// left as `?`.
+/// This will generate a type: u.My2DArray<i32, 4, 5>.
 ///
-/// TODO support for type constraints, named parameters, type conversion.
+/// TODO support for type constraints, named parameters, type conversion,
+/// imcomplete types with ?.
 class TypeOp
     : public mlir::Op<TypeOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
@@ -167,6 +167,15 @@ public:
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
+
+  /// Getters.
+  llvm::StringRef getTypeName();
+  llvm::ArrayRef<mlir::Attribute> getParameters();
+
+private:
+  static inline llvm::StringRef getParametersAttrName() {
+    return "params";
+  }
 };
 
 } // end namespace dmc

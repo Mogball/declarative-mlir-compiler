@@ -188,7 +188,7 @@ class OfTypeAttr : public SpecAttr<OfTypeAttr, SpecAttrs::OfType,
 public:
   using Base::Base;
 
-  static OfTypeAttr get(mlir::Type ty, mlir::MLIRContext *ctx);
+  static OfTypeAttr get(mlir::Type ty);
   static OfTypeAttr getChecked(mlir::Location loc, mlir::Type ty);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::Type ty);

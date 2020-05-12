@@ -1,5 +1,6 @@
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Traits/Registry.h"
 
@@ -71,10 +72,10 @@ LogicalResult DialectOp::verify() {
   if (body->getNumArguments() != 0)
     return emitOpError("expected Dialect body to have zero arguments");
   /// Verify attributes
-  if (!getAttrOfType<BoolAttr>(getAllowUnknownOpsAttrName()))
+  if (!getAttrOfType<mlir::BoolAttr>(getAllowUnknownOpsAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getAllowUnknownOpsAttrName();
-  if (!getAttrOfType<BoolAttr>(getAllowUnknownTypesAttrName()))
+  if (!getAttrOfType<mlir::BoolAttr>(getAllowUnknownTypesAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getAllowUnknownTypesAttrName();
   return success();
@@ -89,11 +90,13 @@ StringRef DialectOp::getName() {
 }
 
 bool DialectOp::allowsUnknownOps() {
-  return getAttrOfType<BoolAttr>(getAllowUnknownOpsAttrName()).getValue();
+  return getAttrOfType<mlir::BoolAttr>(getAllowUnknownOpsAttrName())
+      .getValue();
 }
 
 bool DialectOp::allowsUnknownTypes() {
-  return getAttrOfType<BoolAttr>(getAllowUnknownTypesAttrName()).getValue();
+  return getAttrOfType<mlir::BoolAttr>(getAllowUnknownTypesAttrName())
+      .getValue();
 }
 
 /// OperationOp
@@ -113,7 +116,7 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
                         ArrayRef<NamedAttribute> attrs) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
-  result.addAttribute(getTypeAttrName(), TypeAttr::get(type));
+  result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
   result.attributes.append(std::begin(attrs), std::end(attrs));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
@@ -182,9 +185,9 @@ bool OperationOp::isIsolatedFromAbove() {
 namespace impl {
 
 template <typename TraitT>
-bool hasTrait(ArrayAttr opTraits) {
-  return llvm::count_if(opTraits.getAsRange<FlatSymbolRefAttr>(),
-      [](FlatSymbolRefAttr sym) {
+bool hasTrait(mlir::ArrayAttr opTraits) {
+  return llvm::count_if(opTraits.getAsRange<mlir::FlatSymbolRefAttr>(),
+      [](mlir::FlatSymbolRefAttr sym) {
           return sym.getValue() == TraitT::getName();
       });
 }
@@ -192,23 +195,23 @@ bool hasTrait(ArrayAttr opTraits) {
 } // end namespace impl
 
 LogicalResult OperationOp::verify() {
-  if (!getAttrOfType<BoolAttr>(getIsTerminatorAttrName()))
+  if (!getAttrOfType<mlir::BoolAttr>(getIsTerminatorAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsTerminatorAttrName();
-  if (!getAttrOfType<BoolAttr>(getIsCommutativeAttrName()))
+  if (!getAttrOfType<mlir::BoolAttr>(getIsCommutativeAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsCommutativeAttrName();
-  if (!getAttrOfType<BoolAttr>(getIsIsolatedFromAboveAttrName()))
+  if (!getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
-  auto opTraits = getAttrOfType<ArrayAttr>(getOpTraitsAttrName());
+  auto opTraits = getAttrOfType<mlir::ArrayAttr>(getOpTraitsAttrName());
   if (!opTraits)
     return emitOpError("expected ArrayAttr named: ")
         << getOpTraitsAttrName();
   /// TODO support full SymbolRefAttr to refer to dynamic traits, e.g.
   /// `@Python.MyOpTrait`
   else if (llvm::count_if(opTraits,
-        [](Attribute attr) { return !attr.isa<FlatSymbolRefAttr>(); }))
+        [](Attribute attr) { return !attr.isa<mlir::FlatSymbolRefAttr>(); }))
     return emitOpError("expected ArrayAttr '") << getOpTraitsAttrName()
         << "' of only FlatSymbolRefAttr";
 
@@ -238,7 +241,7 @@ LogicalResult OperationOp::verify() {
   /// Verify that the remaining traits exist
   auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
   assert(registry != nullptr && "TraitRegistry dialect was not registered");
-  for (auto trait : opTraits.getAsRange<FlatSymbolRefAttr>()) {
+  for (auto trait : opTraits.getAsRange<mlir::FlatSymbolRefAttr>()) {
     if (!registry->lookupTrait(trait.getValue()))
       return emitOpError("trait '") << trait.getValue() << "' not found";
   }
@@ -249,6 +252,94 @@ LogicalResult OperationOp::verifyType() {
   if (!getType().isa<mlir::FunctionType>())
     return emitOpError("requires '" + getTypeAttrName() +
                        "' attribute of function type");
+  return success();
+}
+
+/// TypeOp.
+void TypeOp::build(OpBuilder &builder, OperationState &result,
+                   StringRef name, ArrayRef<Attribute> parameters) {
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  result.addAttribute(getParametersAttrName(),
+                      builder.getArrayAttr(parameters));
+}
+
+/// Parse a single attribute with OpAsmParser. OpAsmParser only provides
+/// a function to parse a named attribute into a list.
+namespace impl {
+ParseResult parseSingleAttribute(Attribute &attr, OpAsmParser &parser) {
+  constexpr auto attrName = "attr";
+  SmallVector<NamedAttribute, 1> attrList;
+  return parser.parseAttribute(attr, attrName, attrList);
+}
+} // end namespace impl
+
+// type       ::= `dmc.Type` `@`type-name param-list?
+// param-list ::= `<` param (`,` param)* `>`
+ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
+  mlir::StringAttr nameAttr;
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+                             result.attributes))
+    return failure();
+
+  SmallVector<Attribute, 2> parameters;
+  if (!parser.parseOptionalLess()) {
+    do {
+      Attribute parameter;
+      if (impl::parseSingleAttribute(parameter, parser))
+        return failure();
+      // If a type attribute was specified, create an OfTypeAttr
+      if (auto typeAttr = parameter.dyn_cast<mlir::TypeAttr>())
+        parameter = OfTypeAttr::get(typeAttr.getValue());
+      parameters.push_back(parameter);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseGreater())
+      return failure();
+  }
+  result.addAttribute(getParametersAttrName(),
+      mlir::ArrayAttr::get(parameters, result.getContext()));
+  return success();
+}
+
+void TypeOp::print(OpAsmPrinter &printer) {
+  printer << getOperation()->getName() << ' ';
+  printer.printSymbolName(getName());
+  auto parameters = getParameters();
+  if (!parameters.empty()) {
+    auto it = std::begin(parameters);
+    printer << '<' << (*it++);
+    for (auto e = std::end(parameters); it != e; ++it)
+      printer << ',' << (*it);
+    printer << '>';
+  }
+}
+
+StringRef TypeOp::getTypeName() {
+  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
+      .getValue();
+}
+
+ArrayRef<Attribute> TypeOp::getParameters() {
+  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName())
+      .getValue();
+}
+
+LogicalResult TypeOp::verify() {
+  if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
+    return emitOpError("expected StringAttr named: ")
+        << SymbolTable::getSymbolAttrName();
+  if (!getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()))
+    return emitOpError("expected ArrayAttr named: ")
+        << getParametersAttrName();
+
+  /// Check that all attributes are SpecAttr.
+  unsigned idx = 0;
+  for (auto it = std::begin(getParameters()), e = std::end(getParameters());
+       it != e; ++it, ++idx) {
+    if (!SpecAttrs::is(*it))
+      return emitOpError("expected parameter #") << idx << " to be an "
+          << "attribute constraint, but got " << *it;
+  }
   return success();
 }
 

@@ -204,8 +204,8 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
 }
 
 /// OfTypeAttr implementation.
-OfTypeAttr OfTypeAttr::get(Type ty, MLIRContext *ctx) {
-  return Base::get(ctx, SpecAttrs::OfType, ty);
+OfTypeAttr OfTypeAttr::get(Type ty) {
+  return Base::get(ty.getContext(), SpecAttrs::OfType, ty);
 }
 
 OfTypeAttr OfTypeAttr::getChecked(Location loc, Type ty) {

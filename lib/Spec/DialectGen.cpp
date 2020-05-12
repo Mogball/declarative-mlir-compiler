@@ -47,11 +47,19 @@ void registerOp(OperationOp opOp, DynamicDialect *dialect) {
   op->finalize();
 }
 
+void registerType(TypeOp typeOp, DynamicDialect *dialect) {
+  dialect->createDynamicType(typeOp.getName(), typeOp.getParameters());
+}
+
 void registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
   dialect->allowUnknownOperations(dialectOp.allowsUnknownOps());
   dialect->allowUnknownTypes(dialectOp.allowsUnknownTypes());
+
+  /// First create the Types
+  for (auto typeOp : dialectOp.getOps<TypeOp>())
+    registerType(typeOp, dialect);
 
   /// Create the Ops
   for (auto opOp : dialectOp.getOps<OperationOp>())

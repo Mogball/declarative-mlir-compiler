@@ -56,7 +56,7 @@ DynamicTypeImpl::DynamicTypeImpl(DynamicContext *ctx, StringRef name,
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
   std::vector<Attribute> params;
   params.reserve(paramSpec.size());
-  if (!parser.parseLess()) {
+  if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
       if (parser.parseAttribute(attr))
