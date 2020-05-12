@@ -1,6 +1,7 @@
 add_library(DMCDynamic
   DynamicContext.cpp
   DynamicDialect.cpp
+  DynamicDialectImpl.cpp
   DynamicObject.cpp
   DynamicOperation.cpp
   DynamicType.cpp

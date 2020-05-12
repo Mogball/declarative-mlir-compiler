@@ -83,11 +83,19 @@ void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
   }
 }
 
+/// One instance of DynamicType needs to be registered for each DynamicDialect,
+/// but that isn't possible, so we have to avoid any calls that use the TypeID
+/// of DynamicType.
+///
+/// If DynamicType is registered to each DynamicDialect, MLIR will complain
+/// about duplicate symbol registration if more than one DynamicDialect is
+/// instantiated. If it is not registered, then Base::get will fail to lookup
+/// the Dialect, so we must directly provide the dialect.
 DynamicType DynamicType::get(DynamicTypeImpl *impl,
                              ArrayRef<Attribute> params) {
   auto *ctx = impl->getDynContext()->getContext();
   return ctx->getTypeUniquer().get<Base::ImplType>(
-      [&](TypeStorage *storage) {
+      [impl](TypeStorage *storage) {
         storage->initializeDialect(*impl->getDialect());
       },
       DynamicTypeKind, impl, params);

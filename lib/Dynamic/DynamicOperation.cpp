@@ -50,7 +50,7 @@ DynamicOperation *DynamicOperation::of(Operation *op) {
   /// All DynamicOperations must belong to a DynamicDialect.
   /// TODO mlir::Dialect should indicate if it is dynamic.
   auto *dialect = static_cast<DynamicDialect *>(op->getDialect());
-  return dialect->getDynContext()->lookupOp(op);
+  return dialect->lookupOp(op);
 }
 
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
@@ -77,8 +77,8 @@ void DynamicOperation::finalize() {
   opInfo = AbstractOperation::lookup(
       name, dialect->getContext());
   assert(opInfo != nullptr && "Failed to add DynamicOperation");
-  // Give ownership to DynamicContext
-  getDynContext()->registerDynamicOp(this);
+  // Give ownership to DynamicDialect
+  dialect->registerDynamicOp(this);
 }
 
 LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {

@@ -16,6 +16,7 @@ class DynamicTypeImpl;
 class DynamicDialect : public mlir::Dialect,
                        public DynamicObject {
 public:
+  ~DynamicDialect();
   DynamicDialect(llvm::StringRef name, DynamicContext *ctx);
 
   /// Create a new Op associated with this Dialect. Additional configs are
@@ -40,7 +41,21 @@ public:
   void printType(mlir::Type type,
                  mlir::DialectAsmPrinter &printer) const override;
 
+  /// Register a DynamicOperation with this dialect so its config
+  /// is stored for later use. The dialect takes ownership.
+  void registerDynamicOp(DynamicOperation *op);
+  /// Lookup the DynamicOperation belonging to an Operation.
+  DynamicOperation *lookupOp(mlir::Operation *op) const;
+
+  /// Register a DynamicType with the dialect. The dialect takes ownership.
+  void registerDynamicType(DynamicTypeImpl *type);
+  /// Lookup a DynamicType with the given name.
+  DynamicTypeImpl *lookupType(llvm::StringRef name) const;
+
 private:
+  class Impl;
+  std::unique_ptr<Impl> impl;
+
   friend class DynamicOperation;
 };
 

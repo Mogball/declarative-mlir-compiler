@@ -151,7 +151,7 @@ int main() {
     builder.setInsertionPointToStart(entry);
 
     OperationState state{UnknownLoc::get(&mlirContext),
-        {"std.addi", &mlirContext}};
+        {"test0.opA", &mlirContext}};
     state.addTypes({b.getIntegerType(16)});
     state.addOperands(entry->getArguments());
     state.addAttribute("myAttr", b.getI32IntegerAttr(42));

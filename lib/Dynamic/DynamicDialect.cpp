@@ -6,10 +6,6 @@ using namespace mlir;
 
 namespace dmc {
 
-DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
-    : Dialect{name, ctx->getContext()},
-      DynamicObject{ctx} {}
-
 DynamicOperation *DynamicDialect::createDynamicOp(StringRef name) {
   /// Allocate on heap so AbstractOperation references stay valid.
   /// Ownership must be passed to DynamicContext.
@@ -19,7 +15,8 @@ DynamicOperation *DynamicDialect::createDynamicOp(StringRef name) {
 DynamicTypeImpl *DynamicDialect::createDynamicType(
     StringRef name, ArrayRef<Attribute> paramSpec) {
   auto *type = new DynamicTypeImpl(this, name, paramSpec);
-  getDynContext()->registerDynamicType(type);
+  /// Take ownership of the type.
+  registerDynamicType(type);
   return type;
 }
 
@@ -28,7 +25,7 @@ Type DynamicDialect::parseType(DialectAsmParser &parser) const {
   StringRef name;
   if (parser.parseKeyword(&name))
     return Type{};
-  auto *typeImpl = getDynContext()->lookupType(name);
+  auto *typeImpl = lookupType(name);
   if (!typeImpl) {
     emitError(loc) << "Unknown type name: " << name;
     return Type{};
