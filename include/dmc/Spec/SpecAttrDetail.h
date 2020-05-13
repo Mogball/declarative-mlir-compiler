@@ -1,10 +1,7 @@
 #pragma once
 
 #include "SpecAttrImplementation.h"
-
-#include <mlir/IR/Types.h>
-#include <mlir/IR/Location.h>
-#include <mlir/IR/Diagnostics.h>
+#include "SpecTypeDetail.h"
 
 namespace dmc {
 
@@ -56,6 +53,20 @@ public:
     return mlir::success(attr.isa<AttrT>() &&
         mlir::succeeded(this->getImpl()->type.template cast<UnderlyingT>()
             .verify(attr.cast<AttrT>().getType())));
+  }
+
+  static mlir::Attribute parse(mlir::DialectAsmParser &parser) {
+    auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+    auto width = impl::parseSingleWidth(parser);
+    if (!width)
+      return {};
+    return getChecked(loc, UnderlyingT::get(*width, loc.getContext()));
+  }
+
+  void print(mlir::DialectAsmPrinter &printer) {
+    printer << ConcreteType::getAttrName();
+    auto width = this->getImpl()->type.template cast<UnderlyingT>().getWidth();
+    impl::printSingleWidth(printer, width);
   }
 };
 

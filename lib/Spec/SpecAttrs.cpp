@@ -305,8 +305,8 @@ void printAttrList(detail::AttrListStorage *impl,
 
 } // end anonymous namespace
 
-void SpecDialect::printAttribute(Attribute attr,
-    DialectAsmPrinter &printer) const {
+void SpecDialect::printAttribute(
+    Attribute attr, DialectAsmPrinter &printer) const {
   using namespace SpecAttrs;
   assert(is(attr) && "Not a SpecAttr");
   switch (attr.getKind()) {
@@ -323,24 +323,19 @@ void SpecDialect::printAttribute(Attribute attr,
     printer << "APInt";
     break;
   case AnyI:
-    printer << "AnyI";
-    printSingleWidth(getTypeImpl<AnyIAttr>(attr), printer);
+    attr.cast<AnyIAttr>().print(printer);
     break;
   case I:
-    printer << "I";
-    printSingleWidth(getTypeImpl<IAttr>(attr), printer);
+    attr.cast<IAttr>().print(printer);
     break;
   case SI:
-    printer << "SI";
-    printSingleWidth(getTypeImpl<SIAttr>(attr), printer);
+    attr.cast<SIAttr>().print(printer);
     break;
   case UI:
-    printer << "UI";
-    printSingleWidth(getTypeImpl<UIAttr>(attr), printer);
+    attr.cast<UIAttr>().print(printer);
     break;
   case F:
-    printer << "F";
-    printSingleWidth(getTypeImpl<FAttr>(attr), printer);
+    attr.cast<FAttr>().print(printer);
     break;
   case String:
     printer << "String";

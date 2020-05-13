@@ -43,11 +43,6 @@ public:
                  mlir::Type type) const override;
   void printAttribute(mlir::Attribute attribute,
                       mlir::DialectAsmPrinter &printer) const override;
-
-private:
-  /// Type printing helper re-used in Attribute printing.
-  void printSingleWidth(detail::WidthStorage *impl,
-                        mlir::DialectAsmPrinter &printer) const;
 };
 
 } // end namespace dmc

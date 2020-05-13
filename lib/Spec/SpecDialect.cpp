@@ -72,7 +72,7 @@ struct ParseAction {
 
 Type SpecDialect::parseType(DialectAsmParser &parser) const {
   StringRef typeName;
-  if (!parser.parseKeyword(&typeName))
+  if (parser.parseKeyword(&typeName))
     return Type{};
   auto kind = llvm::StringSwitch<unsigned>(typeName)
     .Case(AnyType::getTypeName(), SpecTypes::Any)

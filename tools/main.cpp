@@ -157,7 +157,7 @@ int main() {
     state.addAttribute("myAttr", b.getI32IntegerAttr(42));
     auto *op = builder.createOperation(state);
 
-    auto ret = builder.create<ReturnOp>(UnknownLoc::get(&mlirContext));
+    builder.create<ReturnOp>(UnknownLoc::get(&mlirContext));
 
     auto myAttr = AnyIAttr::get(AnyIType::get(32, &mlirContext));
     std::vector<NamedAttribute> opAttrs{b.getNamedAttr("myAttr", myAttr)};

@@ -437,44 +437,44 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
 
 void printTypeList(ArrayRef<Type> tys, DialectAsmPrinter &printer) {
   auto it = std::begin(tys);
+  printer << '<';
   printer.printType(*it++);
   for (auto e = std::end(tys); it != e; ++it) {
     printer << ',';
     printer.printType(*it);
   }
+  printer << '>';
 }
 
 void AnyOfType::print(DialectAsmPrinter &printer) {
-  printer << "AnyOf<";
+  printer << getTypeName();
   printTypeList(getImpl()->types, printer);
-  printer << '>';
 }
 
 void AllOfType::print(DialectAsmPrinter &printer) {
-  printer << "AllOf<";
+  printer << getTypeName();
   printTypeList(getImpl()->types, printer);
-  printer << '>';
 }
 
 void ComplexType::print(DialectAsmPrinter &printer) {
-  printer << "Complex<";
+  printer << getTypeName() << '<';
   printer.printType(getImpl()->type);
   printer << '>';
 }
 
 void OpaqueType::print(DialectAsmPrinter &printer) {
-  printer << "Opaque<" << getImpl()->dialectName << ','
-          << getImpl()->typeName << '>';
+  printer << getTypeName() << "<\"" << getImpl()->dialectName << "\",\""
+          << getImpl()->typeName << "\">";
 }
 
 void VariadicType::print(DialectAsmPrinter &printer) {
-  printer << "Variadic<";
+  printer << getTypeName() << '<';
   printer.printType(getImpl()->type);
   printer << '>';
 }
 
 void IsaType::print(DialectAsmPrinter &printer) {
-  printer << "Isa<";
+  printer << getTypeName() << '<';
   printer.printAttribute(getImpl()->symRef);
   printer << '>';
 }

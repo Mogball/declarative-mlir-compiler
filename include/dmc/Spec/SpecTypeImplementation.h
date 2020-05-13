@@ -82,9 +82,6 @@ public:
 
   /// Compare type kinds.
   static bool kindof(unsigned kind) { return kind == Kind; }
-
-  /// Get the type storage.
-  auto getImpl() { return Parent::getImpl(); }
 };
 
 /// Simple type shorthand class.

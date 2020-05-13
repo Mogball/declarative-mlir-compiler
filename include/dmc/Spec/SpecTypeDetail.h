@@ -95,6 +95,8 @@ public:
     printer << ConcreteType::getTypeName();
     impl::printSingleWidth(printer, this->getImpl()->width);
   }
+
+  unsigned getWidth() const { return this->getImpl()->width; }
 };
 
 /// An integer type with fixed width.

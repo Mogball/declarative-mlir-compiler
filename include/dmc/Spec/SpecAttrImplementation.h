@@ -3,6 +3,8 @@
 #include "dmc/Kind.h"
 
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/Builders.h>
 
 namespace dmc {
 
@@ -60,8 +62,6 @@ public:
   using Parent::Parent;
 
   static bool kindof(unsigned kind) { return kind == Kind; }
-
-  auto getImpl() { return Parent::getImpl(); }
 };
 
 template <typename ConcreteType, unsigned Kind>
@@ -73,6 +73,12 @@ public:
 
   static ConcreteType get(mlir::MLIRContext *ctx) {
     return Parent::get(ctx, Kind);
+  }
+  static mlir::Attribute parse(mlir::DialectAsmParser &parser) {
+    return get(parser.getBuilder().getContext());
+  }
+  void print(mlir::DialectAsmPrinter &printer) {
+    printer << ConcreteType::getTypeName();
   }
 };
 
