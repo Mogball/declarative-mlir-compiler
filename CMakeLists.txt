@@ -34,7 +34,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 include(AddDMC)
 
 # Global options
-add_compile_options(-fno-exceptions)
+add_compile_options(-fno-exceptions -Wall -Werror)
 
 # Global includes
 include_directories(include ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})

@@ -138,7 +138,7 @@ public:
     return getChecked(loc, *widths);
   }
 
-  void print(mlir::DialectAsmParser &printer) {
+  void print(mlir::DialectAsmPrinter &printer) {
     printer << ConcreteType::getTypeName();
     impl::printWidthList(printer, this->getImpl()->widths);
   }

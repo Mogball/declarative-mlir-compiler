@@ -1,10 +1,11 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecOps.h"
-#include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/SpecTypeSwitch.h"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
+#include <llvm/ADT/StringSwitch.h>
 
 using namespace mlir;
 
@@ -40,35 +41,6 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
 namespace {
 
 template <typename BaseT>
-Type parseSingleWidthType(DialectAsmParser &parser) {
-  // *i-type ::= `*I` `<` width `>`
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  unsigned width;
-  if (parser.parseLess() || parser.parseInteger(width) ||
-      parser.parseGreater())
-    return Type{};
-  return BaseT::getChecked(loc, width);
-}
-
-template <typename BaseT>
-Type parseWidthListType(DialectAsmParser &parser) {
-  // *int-of-widths-type ::= `*IntOfWidths` `<` width(`,` width)* `>`
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  if (parser.parseLess())
-    return Type{};
-  SmallVector<unsigned, 2> widths;
-  do {
-    unsigned width;
-    if (parser.parseInteger(width))
-      return Type{};
-    widths.push_back(width);
-  } while (!parser.parseOptionalComma());
-  if (parser.parseGreater())
-    return Type{};
-  return BaseT::getChecked(loc, widths);
-}
-
-template <typename BaseT>
 Type parseTypeList(DialectAsmParser &parser) {
   // *-of-type ::= `AnyOf` `<` type(`,` type)* `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
@@ -89,64 +61,63 @@ Type parseTypeList(DialectAsmParser &parser) {
 } // end anonymous namespace
 
 /// Type parsing.
+struct ParseAction {
+  DialectAsmParser &parser;
+
+  template <typename ConcreteType>
+  Type operator()() const {
+    return ConcreteType::parse(parser);
+  }
+};
+
 Type SpecDialect::parseType(DialectAsmParser &parser) const {
-  // TODO string switch
-  if (!parser.parseOptionalKeyword("Any"))
-    return AnyType::get(getContext());
-  if (!parser.parseOptionalKeyword("None"))
-    return NoneType::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyOf"))
-    return parseTypeList<AnyOfType>(parser);
-  if (!parser.parseOptionalKeyword("AllOf"))
-    return parseTypeList<AllOfType>(parser);
-  if (!parser.parseOptionalKeyword("AnyInteger"))
-    return AnyIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyI"))
-    return parseSingleWidthType<AnyIType>(parser);
-  if (!parser.parseOptionalKeyword("AnyIntOfWidths"))
-    return parseWidthListType<AnyIntOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("AnySignlessInteger"))
-    return AnySignlessIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("I"))
-    return parseSingleWidthType<IType>(parser);
-  if (!parser.parseOptionalKeyword("SignlessIntOfWidths"))
-    return parseWidthListType<SignlessIntOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("AnySignedInteger"))
-    return AnySignedIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("SI"))
-    return parseSingleWidthType<SIType>(parser);
-  if (!parser.parseOptionalKeyword("SignedIntOfWidths"))
-    return parseWidthListType<SignedIntOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("AnyUnsignedInteger"))
-    return AnyUnsignedIntegerType::get(getContext());
-  if (!parser.parseOptionalKeyword("UI"))
-    return parseSingleWidthType<UIType>(parser);
-  if (!parser.parseOptionalKeyword("UnsignedIntOfWidths"))
-    return parseWidthListType<UnsignedIntOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("Index"))
-    return IndexType::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyFloat"))
-    return AnyFloatType::get(getContext());
-  if (!parser.parseOptionalKeyword("F"))
-    return parseSingleWidthType<FType>(parser);
-  if (!parser.parseOptionalKeyword("FloatOfWidths"))
-    return parseWidthListType<FloatOfWidthsType>(parser);
-  if (!parser.parseOptionalKeyword("BF16"))
-    return BF16Type::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyComplex"))
-    return AnyComplexType::get(getContext());
-  if (!parser.parseOptionalKeyword("Complex"))
-    return ComplexType::parse(parser);
-  if (!parser.parseOptionalKeyword("Opaque"))
-    return OpaqueType::parse(parser);
-  if (!parser.parseOptionalKeyword("Function"))
-    return FunctionType::get(getContext());
-  if (!parser.parseOptionalKeyword("Variadic"))
-    return VariadicType::parse(parser);
-  if (!parser.parseOptionalKeyword("Isa"))
-    return IsaType::parse(parser);
-  parser.emitError(parser.getCurrentLocation(), "Unknown TypeConstraint");
-  return Type{};
+  StringRef typeName;
+  if (!parser.parseKeyword(&typeName))
+    return Type{};
+  auto kind = llvm::StringSwitch<unsigned>(typeName)
+    .Case(AnyType::getTypeName(), SpecTypes::Any)
+    .Case(NoneType::getTypeName(), SpecTypes::None)
+    .Case(AnyOfType::getTypeName(), SpecTypes::AnyOf)
+    .Case(AllOfType::getTypeName(), SpecTypes::AllOf)
+    .Case(AnyIntegerType::getTypeName(), SpecTypes::AnyInteger)
+    .Case(AnyIType::getTypeName(), SpecTypes::AnyI)
+    .Case(AnyIntOfWidthsType::getTypeName(), SpecTypes::AnyIntOfWidths)
+    .Case(AnySignlessIntegerType::getTypeName(), SpecTypes::AnySignlessInteger)
+    .Case(IType::getTypeName(), SpecTypes::I)
+    .Case(SignlessIntOfWidthsType::getTypeName(), SpecTypes::SignlessIntOfWidths)
+    .Case(AnySignedIntegerType::getTypeName(), SpecTypes::AnySignedInteger)
+    .Case(SIType::getTypeName(), SpecTypes::SI)
+    .Case(SignedIntOfWidthsType::getTypeName(), SpecTypes::SignedIntOfWidths)
+    .Case(AnyUnsignedIntegerType::getTypeName(), SpecTypes::AnyUnsignedInteger)
+    .Case(UIType::getTypeName(), SpecTypes::UI)
+    .Case(UnsignedIntOfWidthsType::getTypeName(), SpecTypes::UnsignedIntOfWidths)
+    .Case(IndexType::getTypeName(), SpecTypes::Index)
+    .Case(AnyFloatType::getTypeName(), SpecTypes::AnyFloat)
+    .Case(FType::getTypeName(), SpecTypes::F)
+    .Case(FloatOfWidthsType::getTypeName(), SpecTypes::FloatOfWidths)
+    .Case(BF16Type::getTypeName(), SpecTypes::BF16)
+    .Case(AnyComplexType::getTypeName(), SpecTypes::AnyComplex)
+    .Case(ComplexType::getTypeName(), SpecTypes::Complex)
+    .Case(OpaqueType::getTypeName(), SpecTypes::Opaque)
+    .Case(FunctionType::getTypeName(), SpecTypes::Function)
+    .Case(VariadicType::getTypeName(), SpecTypes::Variadic)
+    .Case(IsaType::getTypeName(), SpecTypes::Isa)
+    .Default(SpecTypes::NUM_TYPES);
+
+  if (kind == SpecTypes::NUM_TYPES) {
+    parser.emitError(parser.getCurrentLocation(), "unknown type constraint");
+    return Type{};
+  }
+  ParseAction action{parser};
+  return SpecTypes::kindSwitch(action, kind);
+}
+
+Type AnyOfType::parse(DialectAsmParser &parser) {
+  return parseTypeList<AnyOfType>(parser);
+}
+
+Type AllOfType::parse(DialectAsmParser &parser) {
+  return parseTypeList<AllOfType>(parser);
 }
 
 Type ComplexType::parse(DialectAsmParser &parser) {
@@ -197,9 +168,11 @@ namespace {
 template <typename BaseT>
 Attribute parseSizedAttr(DialectAsmParser &parser) {
   using UnderlyingT = typename BaseT::Underlying;
+  auto width = impl::parseSingleWidth(parser);
+  if (!width) return {};
   return BaseT::getChecked(
       parser.getEncodedSourceLoc(parser.getCurrentLocation()),
-      parseSingleWidthType<UnderlyingT>(parser).template cast<UnderlyingT>());
+      UnderlyingT::get(*width, parser.getBuilder().getContext()));
 }
 
 template <typename BaseT>

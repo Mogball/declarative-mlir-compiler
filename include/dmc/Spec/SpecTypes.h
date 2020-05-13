@@ -31,6 +31,7 @@ struct IsaTypeStorage;
 class AnyType : public SimpleType<AnyType, SpecTypes::Any> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Any"; }
   inline mlir::LogicalResult verify(Type) { return mlir::success(); }
 };
 
@@ -38,6 +39,7 @@ public:
 class NoneType : public SimpleType<NoneType, SpecTypes::None> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "None"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::NoneType>());
   }
@@ -48,6 +50,7 @@ class AnyOfType : public SpecType<AnyOfType, SpecTypes::AnyOf,
                                   detail::TypeListStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyOf"; }
 
   static AnyOfType get(llvm::ArrayRef<Type> tys);
   static AnyOfType getChecked(mlir::Location loc, llvm::ArrayRef<Type> tys);
@@ -67,6 +70,7 @@ class AllOfType : public SpecType<AllOfType, SpecTypes::AllOf,
                                   detail::TypeListStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AllOf"; }
 
   static AllOfType get(llvm::ArrayRef<Type> tys);
   static AllOfType getChecked(mlir::Location loc, llvm::ArrayRef<Type> tys);
@@ -74,6 +78,7 @@ public:
       mlir::Location loc, llvm::ArrayRef<Type> tys);
   mlir::LogicalResult verify(Type ty);
 
+  static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
 };
 
@@ -82,6 +87,7 @@ class AnyIntegerType
     : public SimpleType<AnyIntegerType, SpecTypes::AnyInteger> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyInteger"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::IntegerType>());
   }
@@ -91,6 +97,7 @@ public:
 class AnyIType : public IntegerWidthType<AnyIType, SpecTypes::AnyI> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyI"; }
   /// Check Type is an integer of specified width.
   mlir::LogicalResult verify(Type ty);
 };
@@ -100,6 +107,7 @@ class AnyIntOfWidthsType : public IntegerTypeOfWidths<
     AnyIntOfWidthsType, SpecTypes::AnyIntOfWidths> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyIntOfWidths"; }
   /// Check Type is an integer of one of the specified widths.
   mlir::LogicalResult verify(Type ty);
 };
@@ -109,6 +117,7 @@ class AnySignlessIntegerType : public SimpleType<
     AnySignlessIntegerType, SpecTypes::AnySignlessInteger> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnySignlessInteger"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isSignlessInteger());
   }
@@ -118,6 +127,7 @@ public:
 class IType : public IntegerWidthType<IType, SpecTypes::I> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "I"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -126,6 +136,7 @@ class SignlessIntOfWidthsType : public IntegerTypeOfWidths<
     SignlessIntOfWidthsType, SpecTypes::SignlessIntOfWidths> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "SignlessIntOfWidths"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -135,6 +146,7 @@ class AnySignedIntegerType
                         SpecTypes::AnySignedInteger> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnySignedInteger"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isSignedInteger());
   }
@@ -144,6 +156,7 @@ public:
 class SIType : public IntegerWidthType<SIType, SpecTypes::SI> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "SI"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -152,6 +165,7 @@ class SignedIntOfWidthsType : public IntegerTypeOfWidths<
     SignedIntOfWidthsType, SpecTypes::SignedIntOfWidths> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "SignedIntOfWidths"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -161,6 +175,7 @@ class AnyUnsignedIntegerType
                         SpecTypes::AnyUnsignedInteger> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyUnsignedInteger"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isUnsignedInteger());
   }
@@ -170,6 +185,7 @@ public:
 class UIType : public IntegerWidthType<UIType, SpecTypes::UI> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "UI"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -178,6 +194,7 @@ class UnsignedIntOfWidthsType : public IntegerTypeOfWidths<
     UnsignedIntOfWidthsType, SpecTypes::UnsignedIntOfWidths> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "UnsignedIntOfWidths"; }
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -185,6 +202,7 @@ public:
 class IndexType : public SimpleType<IndexType, SpecTypes::Index> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Index"; }
   mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::IndexType>());
   }
@@ -195,6 +213,7 @@ class AnyFloatType : public SimpleType<AnyFloatType,
                                        SpecTypes::AnyFloat> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyFloat"; }
   mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::FloatType>());
   }
@@ -204,6 +223,7 @@ public:
 class FType : public NumericWidthType<FType, SpecTypes::F> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "F"; }
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
   mlir::LogicalResult verify(Type ty);
@@ -214,6 +234,7 @@ class FloatOfWidthsType : public NumericTypeOfWidths<
     FloatOfWidthsType, SpecTypes::FloatOfWidths> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "FloatOfWidths"; }
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   mlir::LogicalResult verify(Type ty);
@@ -223,6 +244,7 @@ public:
 class BF16Type : public SimpleType<BF16Type, SpecTypes::BF16> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "BF16"; }
   mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isBF16());
   }
@@ -233,6 +255,7 @@ class AnyComplexType : public SimpleType<AnyComplexType,
                                          SpecTypes::AnyComplex> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "AnyComplex"; }
   mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::ComplexType>());
   }
@@ -243,6 +266,7 @@ class ComplexType : public SpecType<ComplexType, SpecTypes::Complex,
                                     detail::OneTypeStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Complex"; }
 
   static ComplexType get(Type elTy);
   static ComplexType getChecked(mlir::Location loc, Type elTy);
@@ -257,6 +281,7 @@ class OpaqueType : public SpecType<OpaqueType, SpecTypes::Opaque,
                                    detail::OpaqueTypeStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Opaque"; }
 
   static OpaqueType get(llvm::StringRef dialectName, llvm::StringRef typeName,
                         mlir::MLIRContext *ctx);
@@ -275,6 +300,7 @@ public:
 class FunctionType : public SimpleType<FunctionType, SpecTypes::Function> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Function"; }
   inline mlir::LogicalResult verify(Type ty) {
     return mlir::success(ty.isa<mlir::FunctionType>());
   }
@@ -285,6 +311,7 @@ class VariadicType : public SpecType<VariadicType, SpecTypes::Variadic,
                                      detail::OneTypeStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Variadic"; }
 
   static VariadicType get(mlir::Type ty);
   static VariadicType getChecked(mlir::Location loc, mlir::Type ty);
@@ -314,6 +341,7 @@ class IsaType : public SpecType<IsaType, SpecTypes::Isa,
                                 detail::IsaTypeStorage> {
 public:
   using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Isa"; }
 
   static IsaType get(mlir::SymbolRefAttr typeRef);
   static IsaType getChecked(mlir::Location loc, mlir::SymbolRefAttr typeRef);

@@ -100,10 +100,13 @@ public:
   static ConcreteType get(mlir::MLIRContext *ctx) {
     return Parent::get(ctx, Kind);
   }
-
   /// Parser for simple types.
   static mlir::Type parse(mlir::DialectAsmParser &parser) {
     return get(parser.getBuilder().getContext());
+  }
+  /// Printer for simple types.
+  void print(mlir::DialectAsmPrinter &printer) {
+    printer << ConcreteType::getTypeName();
   }
 };
 

@@ -101,7 +101,6 @@ bool DialectOp::allowsUnknownTypes() {
 
 /// OperationOp
 void OperationOp::setOpType(mlir::FunctionType opTy) {
-  auto newType = mlir::TypeAttr::get(opTy);
   setAttr(getTypeAttrName(), mlir::TypeAttr::get(opTy));
 }
 

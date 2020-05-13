@@ -1,4 +1,3 @@
-#include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecTypeSwitch.h"
 #include "dmc/Traits/SpecTraits.h"
 

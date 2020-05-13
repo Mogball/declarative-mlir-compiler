@@ -54,7 +54,7 @@ LogicalResult verifyWidthList(
     return emitError(loc) << "empty width list";
   /// Check for duplicate values.
   std::unordered_set<unsigned> widthSet{std::begin(widths), std::end(widths)};
-  if (std::size(widthSet) != llvm::size(widths))
+  if (std::size(widthSet) != std::size(widths))
     return emitError(loc) << "duplicate widths in width list";
   /// Verify individual widths.
   for (auto width : widths)
@@ -74,6 +74,29 @@ Optional<unsigned> parseSingleWidth(mlir::DialectAsmParser &parser) {
 
 void printSingleWidth(mlir::DialectAsmPrinter &printer, unsigned width) {
   printer << '<' << width << '>';
+}
+
+Optional<WidthList> parseWidthList(DialectAsmParser &parser) {
+  // *int-of-widths-type ::= `*IntOfWidths` `<` width(`,` width)* `>`
+  if (parser.parseLess())
+    return {};
+  SmallVector<unsigned, 2> widths;
+  do {
+    unsigned width;
+    if (parser.parseInteger(width))
+      return {};
+    widths.push_back(width);
+  } while (!parser.parseOptionalComma());
+  if (parser.parseGreater())
+    return {};
+  return widths;
+}
+
+void printWidthList(DialectAsmPrinter &printer, ArrayRef<unsigned> widths) {
+  auto it = std::begin(widths);
+  printer << '<' << (*it++);
+  for (auto e = std::end(widths); it != e; ++it)
+    printer << ',' << (*it);
 }
 
 } // end namespace impl
