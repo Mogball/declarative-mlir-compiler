@@ -2,6 +2,7 @@ add_library(DMCSpec
   SpecDialect.cpp
   SpecTypes.cpp
   SpecTypeImplementation.cpp
+  SpecTypeDetail.cpp
   SpecOps.cpp
   SpecAttrs.cpp
   SpecAttrImplementation.cpp

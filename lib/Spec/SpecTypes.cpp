@@ -5,13 +5,10 @@
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicType.h"
 
-#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/TypeUtilities.h>
-
-#include <unordered_set>
 
 using namespace mlir;
 
@@ -52,49 +49,17 @@ struct TypeListStorage : public TypeStorage {
 };
 
 /// WidthStorage implementation.
-WidthStorage::WidthStorage(KeyTy key) : width{key} {}
-
-/// Compare the width.
-bool WidthStorage::operator==(const KeyTy &key) const {
-  return key == width;
+WidthStorage *WidthStorage::construct(TypeStorageAllocator &alloc,
+                                      const KeyTy &key) {
+  return new (alloc.allocate<WidthStorage>()) WidthStorage{key};
 }
 
-/// Hash the width.
-llvm::hash_code WidthStorage::hashKey(const KeyTy &key) {
-  return llvm::hash_value(key);
+/// WidthListStorage implementation.
+WidthListStorage *WidthListStorage::construct(TypeStorageAllocator &alloc,
+                                              KeyTy key) {
+  return new (alloc.allocate<WidthListStorage>())
+      WidthListStorage{std::move(key)};
 }
-
-/// Create the WidthStorage;
-WidthStorage *WidthStorage::construct(
-    TypeStorageAllocator &alloc, const KeyTy &key) {
-  return new (alloc.allocate<WidthStorage>())
-      WidthStorage{key};
-}
-
-/// Storage for SpecTypes parameterized by a list of widths. Used
-/// commonly for Integer TypeConstraints. Lists must be equal
-/// regardless of element order.
-struct WidthListStorage : public TypeStorage {
-  /// Use list of widths as a compound key.
-  using KeyTy = ImmutableSortedList<unsigned>;
-
-  explicit WidthListStorage(KeyTy key) : widths{std::move(key)} {}
-
-  /// Compare all types.
-  bool operator==(const KeyTy &key) const { return key == widths; }
-  /// Hash all the widths together.
-  static llvm::hash_code hashKey(const KeyTy &key) {
-    return key.hash();
-  }
-
-  /// Create the WidthListStorage.
-  static WidthListStorage *construct(TypeStorageAllocator &alloc, KeyTy key) {
-    return new (alloc.allocate<WidthListStorage>())
-        WidthListStorage{std::move(key)};
-  }
-
-  KeyTy widths;
-};
 
 /// Storage for TypeConstraints with one Type parameter.
 struct OneTypeStorage : public TypeStorage {
@@ -175,23 +140,6 @@ struct IsaTypeStorage : public TypeStorage {
 /// Helper functions.
 namespace impl {
 
-template <typename BaseT>
-LogicalResult verifyWidthList(Location loc, ArrayRef<unsigned> widths,
-                              const char *typeName) {
-  if (widths.empty())
-    return emitError(loc) << "empty " << typeName << " width list passed";
-  std::unordered_set<unsigned> widthSet{std::begin(widths),
-                                        std::end(widths)};
-  if (std::size(widthSet) != std::size(widths))
-    return emitError(loc) << "duplicate " << typeName << " widths passed";
-
-  for (auto width : widths) {
-    if (failed(BaseT::verifyConstructionInvariants(loc, width)))
-      return failure();
-  }
-  return success();
-}
-
 static LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
   if (tys.empty())
     return emitError(loc) << "empty Type list passed";
@@ -202,10 +150,6 @@ static LogicalResult verifyTypeList(Location loc, ArrayRef<Type> tys) {
 }
 
 } // end namespace impl
-
-static auto getSortedWidths(ArrayRef<unsigned> widths) {
-  return getSortedListOf<std::less<unsigned>>(widths);
-}
 
 static auto getSortedTypes(ArrayRef<Type> tys) {
   return getSortedListOf<detail::TypeComparator>(tys);
@@ -265,257 +209,73 @@ LogicalResult AllOfType::verify(Type ty) {
 }
 
 /// AnyIType implementation.
-AnyIType AnyIType::get(unsigned width, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::AnyI, width);
-}
-
-AnyIType AnyIType::getChecked(Location loc, unsigned width) {
-  return Base::getChecked(loc, SpecTypes::AnyI, width);
-}
-
-LogicalResult AnyIType::verifyConstructionInvariants(
-    Location loc, unsigned width) {
-  switch (width) {
-  case 1:
-  case 8:
-  case 16:
-  case 32:
-  case 64:
-    return success();
-  default:
-    return emitError(loc) << "width must be one of [1, 8, 16, 32, 64]";
-  }
-}
-
 LogicalResult AnyIType::verify(Type ty) {
   return success(ty.isInteger(getImpl()->width));
 }
 
 /// AnyIntOfWidthsType implementation.
-AnyIntOfWidthsType AnyIntOfWidthsType::get(
-    ArrayRef<unsigned> widths, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::AnyIntOfWidths,
-                   getSortedWidths(widths));
-}
-
-AnyIntOfWidthsType AnyIntOfWidthsType::getChecked(Location loc,
-                                           ArrayRef<unsigned> widths) {
-  return Base::getChecked(loc, SpecTypes::AnyIntOfWidths,
-                          getSortedWidths(widths));
-
-}
-
-LogicalResult AnyIntOfWidthsType::verifyConstructionInvariants(
-    Location loc, ArrayRef<unsigned> widths) {
-  return impl::verifyWidthList<AnyIType>(loc, widths, "integer");
-}
-
 LogicalResult AnyIntOfWidthsType::verify(Type ty) {
-  for (auto width : getImpl()->widths) {
-    if (ty.isInteger(width))
-      return success();
-  }
-  return failure();
+  return verifyWidthType(ty, [](unsigned width, Type ty) {
+    return success(ty.isInteger(width));
+  });
 }
 
 /// IType implementation.
-IType IType::get(unsigned width, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::I, width);
-}
-
-IType IType::getChecked(Location loc, unsigned width) {
-  return Base::getChecked(loc, SpecTypes::I, width);
-}
-
-LogicalResult IType::verifyConstructionInvariants(
-    Location loc, unsigned width) {
-  return AnyIType::verifyConstructionInvariants(loc, width);
-}
-
 LogicalResult IType::verify(Type ty) {
   return success(ty.isSignlessInteger(getImpl()->width));
 }
 
 /// SignlessIntOfWidthsType implementation.
-SignlessIntOfWidthsType SignlessIntOfWidthsType::get(
-    ArrayRef<unsigned> widths, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::SignlessIntOfWidths,
-                   getSortedWidths(widths));
-}
-
-SignlessIntOfWidthsType SignlessIntOfWidthsType::getChecked(
-    Location loc, ArrayRef<unsigned> widths) {
-  return Base::getChecked(loc, SpecTypes::SignlessIntOfWidths,
-                          getSortedWidths(widths));
-}
-
-LogicalResult SignlessIntOfWidthsType::verifyConstructionInvariants(
-    Location loc, ArrayRef<unsigned> widths) {
-  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
-}
-
 LogicalResult SignlessIntOfWidthsType::verify(Type ty) {
-  for (auto width : getImpl()->widths) {
-    if (ty.isSignlessInteger(width))
-      return success();
-  }
-  return failure();
+  return verifyWidthType(ty, [](unsigned width, Type ty) {
+    return success(ty.isSignlessInteger(width));
+  });
 }
 
 /// SIType implementation.
-SIType SIType::get(unsigned width, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::SI, width);
-}
-
-SIType SIType::getChecked(Location loc, unsigned width) {
-  return Base::getChecked(loc, SpecTypes::SI, width);
-}
-
-LogicalResult SIType::verifyConstructionInvariants(
-    Location loc, unsigned width) {
-  return AnyIType::verifyConstructionInvariants(loc, width);
-}
-
 LogicalResult SIType::verify(Type ty) {
   return success(ty.isSignedInteger(getImpl()->width));
 }
 
 /// SignedIntOfWidthsType implementation.
-SignedIntOfWidthsType SignedIntOfWidthsType::get(
-    ArrayRef<unsigned> widths, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::SignedIntOfWidths,
-                   getSortedWidths(widths));
-}
-
-SignedIntOfWidthsType SignedIntOfWidthsType::getChecked(
-    Location loc, ArrayRef<unsigned> widths) {
-  return Base::getChecked(loc, SpecTypes::SignedIntOfWidths,
-                          getSortedWidths(widths));
-}
-
-LogicalResult SignedIntOfWidthsType::verifyConstructionInvariants(
-    Location loc, ArrayRef<unsigned> widths) {
-  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
-}
-
 LogicalResult SignedIntOfWidthsType::verify(Type ty) {
-  for (auto width : getImpl()->widths) {
-    if (ty.isSignedInteger(width))
-      return success();
-  }
-  return failure();
+  return verifyWidthType(ty, [](unsigned width, Type ty) {
+    return success(ty.isSignedInteger(width));
+  });
 }
 
 /// UIType implementation.
-UIType UIType::get(unsigned width, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::UI, width);
-}
-
-UIType UIType::getChecked(Location loc, unsigned width) {
-  return Base::getChecked(loc, SpecTypes::UI, width);
-}
-
-LogicalResult UIType::verifyConstructionInvariants(
-    Location loc, unsigned width) {
-  return AnyIType::verifyConstructionInvariants(loc, width);
-}
-
 LogicalResult UIType::verify(Type ty) {
   return success(ty.isUnsignedInteger(getImpl()->width));
 }
 
 /// UnsignedIntOfWidthsType implementation.
-UnsignedIntOfWidthsType UnsignedIntOfWidthsType::get(
-    ArrayRef<unsigned> widths, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::UnsignedIntOfWidths,
-                   getSortedWidths(widths));
-}
-
-UnsignedIntOfWidthsType UnsignedIntOfWidthsType::getChecked(
-    Location loc, ArrayRef<unsigned> widths) {
-  return Base::getChecked(loc, SpecTypes::UnsignedIntOfWidths,
-                          getSortedWidths(widths));
-}
-
-LogicalResult UnsignedIntOfWidthsType::verifyConstructionInvariants(
-    Location loc, ArrayRef<unsigned> widths) {
-  return AnyIntOfWidthsType::verifyConstructionInvariants(loc, widths);
-}
-
 LogicalResult UnsignedIntOfWidthsType::verify(Type ty) {
-  for (auto width : getImpl()->widths) {
-    if (ty.isUnsignedInteger(width))
-      return success();
-  }
-  return failure();
+  return verifyWidthType(ty, [](unsigned width, Type ty) {
+    return success(ty.isUnsignedInteger(width));
+  });
 }
 
 /// FType implementation.
-namespace {
-inline LogicalResult verifyFloatWidth(unsigned width, Type ty) {
-  switch (width) {
-  case 16:
-    return success(ty.isF16());
-  case 32:
-    return success(ty.isF32());
-  case 64:
-    return success(ty.isF64());
-  default:
-    llvm_unreachable("Invalid floating point width");
-    return failure();
-  }
-}
-} // end anonymous namespace
-
-FType FType::get(unsigned width, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::F, width);
-}
-
-FType FType::getChecked(Location loc, unsigned width) {
-  return Base::getChecked(loc, SpecTypes::F, width);
-}
-
 LogicalResult FType::verifyConstructionInvariants(
     Location loc, unsigned width) {
-  // Width must be one of [16, 32, 64]
-  switch (width) {
-  case 16:
-  case 32:
-  case 64:
-    return success();
-  default:
-    return emitError(loc) << "float width must be one of [16, 32, 64]";
-  }
+  return impl::verifyFloatWidth(loc, width);
 }
 
 LogicalResult FType::verify(Type ty) {
-  return verifyFloatWidth(getImpl()->width, ty);
+  return impl::verifyFloatType(getImpl()->width, ty);
 }
 
 /// FLoatOfWidthsType implementation
-FloatOfWidthsType FloatOfWidthsType::get(
-    ArrayRef<unsigned> widths, MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::FloatOfWidths,
-                   getSortedWidths(widths));
-}
-
-FloatOfWidthsType FloatOfWidthsType::getChecked(
-    Location loc, ArrayRef<unsigned> widths) {
-  return Base::getChecked(loc, SpecTypes::FloatOfWidths,
-                          getSortedWidths(widths));
-}
-
 LogicalResult FloatOfWidthsType::verifyConstructionInvariants(
     Location loc, ArrayRef<unsigned> widths) {
-  return impl::verifyWidthList<FType>(loc, widths, "float");
+  return impl::verifyWidthList(loc, widths, impl::verifyFloatWidth);
 }
 
 LogicalResult FloatOfWidthsType::verify(Type ty) {
-  for (auto width : getImpl()->widths) {
-    if (succeeded(verifyFloatWidth(width, ty)))
-      return success();
-  }
-  return failure();
+  return verifyWidthType(ty, [](unsigned width, Type ty) {
+    return impl::verifyFloatType(width, ty);
+  });
 }
 
 /// ComplexType implementation.

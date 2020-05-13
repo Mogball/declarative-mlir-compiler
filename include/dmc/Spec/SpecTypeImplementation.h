@@ -3,6 +3,9 @@
 #include "dmc/Kind.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
+#include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/Builders.h>
+
 namespace dmc {
 
 namespace SpecTypes {
@@ -96,6 +99,11 @@ public:
   /// Dispatch to simple Type getter.
   static ConcreteType get(mlir::MLIRContext *ctx) {
     return Parent::get(ctx, Kind);
+  }
+
+  /// Parser for simple types.
+  static mlir::Type parse(mlir::DialectAsmParser &parser) {
+    return get(parser.getBuilder().getContext());
   }
 };
 

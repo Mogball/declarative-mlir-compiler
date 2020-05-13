@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SpecTypeImplementation.h"
+#include "SpecTypeDetail.h"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/StandardTypes.h>
@@ -57,6 +58,7 @@ public:
   /// Check Type is in the list.
   mlir::LogicalResult verify(Type ty);
 
+  static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
 };
 
@@ -86,36 +88,18 @@ public:
 };
 
 /// Match any IntegerType of specified width.
-class AnyIType : public SpecType<AnyIType, SpecTypes::AnyI,
-                                 detail::WidthStorage> {
+class AnyIType : public IntegerWidthType<AnyIType, SpecTypes::AnyI> {
 public:
   using Base::Base;
-
-  static AnyIType get(unsigned width, mlir::MLIRContext *ctx);
-  static AnyIType getChecked(mlir::Location loc, unsigned width);
-
-  /// Width must be one of [1, 8, 16, 32, 64].
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, unsigned width);
   /// Check Type is an integer of specified width.
   mlir::LogicalResult verify(Type ty);
 };
 
 /// Match any IntegerType of the specified widths.
-class AnyIntOfWidthsType
-    : public SpecType<AnyIntOfWidthsType, SpecTypes::AnyIntOfWidths,
-                      detail::WidthListStorage> {
+class AnyIntOfWidthsType : public IntegerTypeOfWidths<
+    AnyIntOfWidthsType, SpecTypes::AnyIntOfWidths> {
 public:
   using Base::Base;
-
-  static AnyIntOfWidthsType get(
-      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
-  static AnyIntOfWidthsType getChecked(mlir::Location loc,
-                                       llvm::ArrayRef<unsigned> widths);
-
-  /// Each width must be one of [1, 8, 16, 32, 64];
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   /// Check Type is an integer of one of the specified widths.
   mlir::LogicalResult verify(Type ty);
 };
@@ -131,30 +115,17 @@ public:
 };
 
 /// Match a signless integer of a specified width.
-class IType : public SpecType<IType, SpecTypes::I, detail::WidthStorage> {
+class IType : public IntegerWidthType<IType, SpecTypes::I> {
 public:
   using Base::Base;
-
-  static IType get(unsigned width, mlir::MLIRContext *ctx);
-  static IType getChecked(mlir::Location loc, unsigned width);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, unsigned width);
   mlir::LogicalResult verify(Type ty);
 };
 
 /// Match a signless integer of one of the specified widths.
-class SignlessIntOfWidthsType
-    : public SpecType<SignlessIntOfWidthsType, SpecTypes::SignlessIntOfWidths,
-                      detail::WidthListStorage> {
+class SignlessIntOfWidthsType : public IntegerTypeOfWidths<
+    SignlessIntOfWidthsType, SpecTypes::SignlessIntOfWidths> {
 public:
   using Base::Base;
-
-  static SignlessIntOfWidthsType get(
-      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
-  static SignlessIntOfWidthsType getChecked(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -170,30 +141,17 @@ public:
 };
 
 /// Match any signed integer of the specified width;
-class SIType : public SpecType<SIType, SpecTypes::SI, detail::WidthStorage> {
+class SIType : public IntegerWidthType<SIType, SpecTypes::SI> {
 public:
   using Base::Base;
-
-  static SIType get(unsigned width, mlir::MLIRContext *ctx);
-  static SIType getChecked(mlir::Location loc, unsigned width);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, unsigned width);
   mlir::LogicalResult verify(Type ty);
 };
 
 /// Match any signed integer of the specified widths.
-class SignedIntOfWidthsType
-    : public SpecType<SignedIntOfWidthsType, SpecTypes::SignedIntOfWidths,
-                      detail::WidthListStorage> {
+class SignedIntOfWidthsType : public IntegerTypeOfWidths<
+    SignedIntOfWidthsType, SpecTypes::SignedIntOfWidths> {
 public:
   using Base::Base;
-
-  static SignedIntOfWidthsType get(
-      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
-  static SignedIntOfWidthsType getChecked(
-      mlir::Location, llvm::ArrayRef<unsigned> widths);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location, llvm::ArrayRef<unsigned> widths);
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -209,30 +167,17 @@ public:
 };
 
 /// Match any unsigned integer of the specified width.
-class UIType : public SpecType<UIType, SpecTypes::UI, detail::WidthStorage> {
+class UIType : public IntegerWidthType<UIType, SpecTypes::UI> {
 public:
   using Base::Base;
-
-  static UIType get(unsigned width, mlir::MLIRContext *ctx);
-  static UIType getChecked(mlir::Location loc, unsigned width);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, unsigned width);
   mlir::LogicalResult verify(Type ty);
 };
 
 /// Match any unsigned integer of the specified widths.
-class UnsignedIntOfWidthsType
-    : public SpecType<UnsignedIntOfWidthsType, SpecTypes::UnsignedIntOfWidths,
-                      detail::WidthListStorage> {
+class UnsignedIntOfWidthsType : public IntegerTypeOfWidths<
+    UnsignedIntOfWidthsType, SpecTypes::UnsignedIntOfWidths> {
 public:
   using Base::Base;
-
-  static UnsignedIntOfWidthsType get(
-      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
-  static UnsignedIntOfWidthsType getChecked(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   mlir::LogicalResult verify(Type ty);
 };
 
@@ -256,28 +201,19 @@ public:
 };
 
 /// Match a float of the specified width.
-class FType : public SpecType<FType, SpecTypes::F, detail::WidthStorage> {
+class FType : public NumericWidthType<FType, SpecTypes::F> {
 public:
   using Base::Base;
-
-  static FType get(unsigned width, mlir::MLIRContext *ctx);
-  static FType getChecked(mlir::Location loc, unsigned width);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, unsigned width);
   mlir::LogicalResult verify(Type ty);
 };
 
 /// Match a float of the specified widths.
-class FloatOfWidthsType
-    : public SpecType<FloatOfWidthsType, SpecTypes::FloatOfWidths,
-                      detail::WidthListStorage> {
+class FloatOfWidthsType : public NumericTypeOfWidths<
+    FloatOfWidthsType, SpecTypes::FloatOfWidths> {
 public:
   using Base::Base;
-
-  static FloatOfWidthsType get(
-      llvm::ArrayRef<unsigned> widths, mlir::MLIRContext *ctx);
-  static FloatOfWidthsType getChecked(
-      mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<unsigned> widths);
   mlir::LogicalResult verify(Type ty);
