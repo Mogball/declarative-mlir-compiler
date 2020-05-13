@@ -17,4 +17,10 @@ module {
     %2 = "test.get_value"() : () -> i32
     "test.my_ret"(%2) : (i32) -> ()
   }
+
+  func @test3() -> i32 {
+    %0 = "test.get_value"() : () -> i32
+    //"test.op_d"() { attr3 = 1 } : () -> ()
+    "test.my_ret"(%0) : (i32) -> ()
+  }
 }

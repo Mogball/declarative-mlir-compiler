@@ -10,45 +10,47 @@ namespace dmc {
 
 namespace {
 
-class OpaqueTypeLower {
+class TypeReparser {
 public:
-  OpaqueTypeLower(DialectOp dialectOp, OperationOp opOp)
-      : dialectName{dialectOp.getName()},
-        opOp{opOp} {}
+  TypeReparser(OperationOp opOp) : opOp{opOp} {}
 
-  Type tryLowerOpaqueType(Type type);
-  template <typename TypeRange> Optional<std::vector<Type>>
-  tryLowerOpaqueTypes(TypeRange types, StringRef name);
-  LogicalResult lowerTypes();
+  Optional<mlir::DictionaryAttr> reparseAttrs(mlir::DictionaryAttr opAttrs);
+
+  template <typename TypeRange>
+  Optional<std::vector<Type>> reparseTypes(TypeRange types, StringRef name);
+
+  LogicalResult reparseTypes();
 
 private:
-  StringRef dialectName;
   OperationOp opOp;
 };
 
-Type parseOpaqueType(OpaqueType opaqueTy) {
+Type reparseType(Type type) {
+  /// Unresolved dynamic types can be nested inside other types, so, lacking
+  /// a good way to generically traverse nested types, we have to print the
+  /// whole type and reparse it.
   std::string buf;
   llvm::raw_string_ostream os{buf};
-  opaqueTy.print(os);
-  return mlir::parseType(os.str(), opaqueTy.getContext());
+  type.print(os);
+  // TODO improve error reporting
+  return mlir::parseType(os.str(), type.getContext());
 }
 
-Type OpaqueTypeLower::tryLowerOpaqueType(Type type) {
-  auto opaqueTy = type.dyn_cast<OpaqueType>();
-  if (opaqueTy && opaqueTy.getDialectNamespace() == dialectName) {
-    return parseOpaqueType(opaqueTy);
-  }
-  return type;
+Attribute reparseAttr(Attribute attr) {
+  std::string buf;
+  llvm::raw_string_ostream os{buf};
+  attr.print(os);
+  return mlir::parseAttribute(os.str(), attr.getContext());
 }
 
 template <typename TypeRange>
-Optional<std::vector<Type>> OpaqueTypeLower::tryLowerOpaqueTypes(
+Optional<std::vector<Type>> TypeReparser::reparseTypes(
     TypeRange types, StringRef name) {
   std::vector<Type> newTypes;
   newTypes.reserve(llvm::size(types));
   unsigned idx = 0;
   for (auto type : types) {
-    if (auto newType = tryLowerOpaqueType(type)) {
+    if (auto newType = reparseType(type)) {
       newTypes.push_back(newType);
     } else {
       opOp.emitOpError("failed to parse type for ") << name << " #" << idx;
@@ -59,15 +61,38 @@ Optional<std::vector<Type>> OpaqueTypeLower::tryLowerOpaqueTypes(
   return newTypes;
 }
 
-LogicalResult OpaqueTypeLower::lowerTypes() {
+Optional<mlir::DictionaryAttr>
+TypeReparser::reparseAttrs(mlir::DictionaryAttr opAttrs) {
+  NamedAttrList newNamedAttrs;
+  for (auto [name, attr] : opAttrs.getValue()) {
+    if (auto newAttr = reparseAttr(attr)) {
+      newNamedAttrs.push_back({name, newAttr});
+    } else {
+      opOp.emitOpError("failed to parse attribute '") << name << '\'';
+      return llvm::None;
+    }
+  }
+  return mlir::DictionaryAttr::get(newNamedAttrs, opAttrs.getContext());
+}
+
+LogicalResult TypeReparser::reparseTypes() {
+  /// Reparse any place where a custom type may appear: Op type and attributes.
   auto opTy = opOp.getType();
-  auto argTys = tryLowerOpaqueTypes(opTy.getInputs(), "operand");
-  auto resTys = tryLowerOpaqueTypes(opTy.getResults(), "result");
+  auto argTys = reparseTypes(opTy.getInputs(), "operand");
+  auto resTys = reparseTypes(opTy.getResults(), "result");
   if (!argTys || !resTys)
     return failure();
   auto newOpTy = mlir::FunctionType::get(*argTys, *resTys, opOp.getContext());
   if (newOpTy != opTy)
     opOp.setOpType(newOpTy);
+
+  auto opAttrs = opOp.getOpAttrs();
+  auto newOpAttrs = reparseAttrs(opAttrs);
+  if (!newOpAttrs)
+    return failure();
+  if (newOpAttrs != opAttrs)
+    opOp.setOpAttrs(*newOpAttrs);
+
   return success();
 }
 
@@ -76,8 +101,8 @@ LogicalResult OpaqueTypeLower::lowerTypes() {
 
 LogicalResult lowerOpaqueTypes(DialectOp dialectOp) {
   for (auto opOp : dialectOp.getOps<OperationOp>()) {
-    OpaqueTypeLower lower{dialectOp, opOp};
-    if (failed(lower.lowerTypes()))
+    TypeReparser lower{opOp};
+    if (failed(lower.reparseTypes()))
       return failure();
   }
   return success();

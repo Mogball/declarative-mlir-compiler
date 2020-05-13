@@ -105,6 +105,10 @@ void OperationOp::setOpType(mlir::FunctionType opTy) {
   setAttr(getTypeAttrName(), mlir::TypeAttr::get(opTy));
 }
 
+void OperationOp::setOpAttrs(mlir::DictionaryAttr opAttrs) {
+  setAttr(getOpAttrDictAttrName(), opAttrs);
+}
+
 void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
                                           OperationState &result) {
   auto falseAttr = builder.getBoolAttr(false);
@@ -118,11 +122,14 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
 
 void OperationOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, mlir::FunctionType type,
-                        ArrayRef<NamedAttribute> attrs) {
+                        ArrayRef<NamedAttribute> opAttrs,
+                        ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
-  result.addAttribute(getOpTraitsAttrName(), builder.getDictionaryAttr(attrs));
+  result.addAttribute(getOpAttrDictAttrName(),
+                      builder.getDictionaryAttr(opAttrs));
+  result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
 }

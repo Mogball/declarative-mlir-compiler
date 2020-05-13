@@ -96,7 +96,8 @@ public:
 
   static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name, mlir::FunctionType type,
-                    llvm::ArrayRef<mlir::NamedAttribute> attrs);
+                    llvm::ArrayRef<mlir::NamedAttribute> opAttrs,
+                    llvm::ArrayRef<mlir::NamedAttribute> config);
 
   /// Operation hooks.
   static mlir::ParseResult parse(mlir::OpAsmParser &parser,
@@ -115,6 +116,8 @@ public:
 
   /// Replace the Op type.
   void setOpType(mlir::FunctionType opTy);
+  /// Replace the Op attributes.
+  void setOpAttrs(mlir::DictionaryAttr opAttrs);
 
 private:
   /// Hooks for FunctionLike
