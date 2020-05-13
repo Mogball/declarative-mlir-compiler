@@ -1,4 +1,5 @@
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/SpecTypeSwitch.h"
 #include "dmc/Traits/SpecTraits.h"
 
 #include <mlir/IR/Operation.h>
@@ -12,66 +13,19 @@ bool is(Type base) {
   return Any <= base.getKind() && base.getKind() < NUM_TYPES;
 }
 
+struct VerifyAction {
+  Type argTy; // type to verify
+
+  template <typename ConcreteType>
+  LogicalResult operator()(ConcreteType base) const {
+    return base.template verify(argTy);
+  }
+};
+
 /// Big switch table.
 LogicalResult delegateVerify(Type base, Type ty) {
-  assert(is(base) && "Not a SpecType");
-  switch (base.getKind()) {
-  case Any:
-    return base.cast<AnyType>().verify(ty);
-  case None:
-    return base.cast<NoneType>().verify(ty);
-  case AnyOf:
-    return base.cast<AnyOfType>().verify(ty);
-  case AllOf:
-    return base.cast<AllOfType>().verify(ty);
-  case AnyInteger:
-    return base.cast<AnyIntegerType>().verify(ty);
-  case AnyI:
-    return base.cast<AnyIType>().verify(ty);
-  case AnyIntOfWidths:
-    return base.cast<AnyIntOfWidthsType>().verify(ty);
-  case AnySignlessInteger:
-    return base.cast<AnySignlessIntegerType>().verify(ty);
-  case I:
-    return base.cast<IType>().verify(ty);
-  case SignlessIntOfWidths:
-    return base.cast<SignlessIntOfWidthsType>().verify(ty);
-  case AnySignedInteger:
-    return base.cast<AnySignedIntegerType>().verify(ty);
-  case SI:
-    return base.cast<SIType>().verify(ty);
-  case SignedIntOfWidths:
-    return base.cast<SignedIntOfWidthsType>().verify(ty);
-  case AnyUnsignedInteger:
-    return base.cast<AnyUnsignedIntegerType>().verify(ty);
-  case UI:
-    return base.cast<UIType>().verify(ty);
-  case UnsignedIntOfWidths:
-    return base.cast<UnsignedIntOfWidthsType>().verify(ty);
-  case Index:
-    return base.cast<IndexType>().verify(ty);
-  case AnyFloat:
-    return base.cast<AnyFloatType>().verify(ty);
-  case F:
-    return base.cast<FType>().verify(ty);
-  case FloatOfWidths:
-    return base.cast<FloatOfWidthsType>().verify(ty);
-  case BF16:
-    return base.cast<BF16Type>().verify(ty);
-  case AnyComplex:
-    return base.cast<AnyComplexType>().verify(ty);
-  case Complex:
-    return base.cast<ComplexType>().verify(ty);
-  case Opaque:
-    return base.cast<OpaqueType>().verify(ty);
-  case Variadic:
-    return base.cast<VariadicType>().verify(ty);
-  case Isa:
-    return base.cast<IsaType>().verify(ty);
-  default:
-    llvm_unreachable("Unknown SpecType");
-    return failure();
-  }
+  VerifyAction action{ty};
+  return SpecTypes::kindSwitch(action, base);
 }
 
 } // end namespace SpecTypes
