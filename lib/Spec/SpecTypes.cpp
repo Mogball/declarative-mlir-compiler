@@ -2,6 +2,8 @@
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/Support.h"
 #include "dmc/Spec/SpecTypeDetail.h"
+#include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/DynamicType.h"
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/SmallPtrSet.h>
@@ -141,6 +143,31 @@ struct OpaqueTypeStorage : public TypeStorage {
 
   StringRef dialectName;
   StringRef typeName;
+};
+
+/// Store a reference to a dialect and a belonging type.
+struct IsaTypeStorage : public TypeStorage {
+  using KeyTy = mlir::SymbolRefAttr;
+
+  explicit IsaTypeStorage(mlir::SymbolRefAttr symRef)
+      : symRef{symRef} {}
+
+  bool operator==(const KeyTy &key) const {
+    return key == symRef;
+  }
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return hash_value(key);
+  }
+
+  static IsaTypeStorage *construct(TypeStorageAllocator &alloc,
+      const KeyTy &key) {
+    return new (alloc.allocate<IsaTypeStorage>()) IsaTypeStorage{key};
+  }
+
+  mlir::SymbolRefAttr symRef;
+
+  StringRef getDialectRef() { return symRef.getRootReference(); }
+  StringRef getTypeRef() { return symRef.getLeafReference(); }
 };
 
 } // end namespace detail
@@ -571,6 +598,69 @@ LogicalResult VariadicType::verify(Type ty) {
   return success();
 }
 
+/// IsaType implementation.
+IsaType IsaType::get(mlir::SymbolRefAttr typeRef) {
+  return Base::get(typeRef.getContext(), SpecTypes::Isa, typeRef);
+}
+
+IsaType IsaType::getChecked(Location loc, mlir::SymbolRefAttr typeRef) {
+  return Base::getChecked(loc, SpecTypes::Isa, typeRef);
+}
+
+LogicalResult IsaType::verifyConstructionInvariants(
+    Location loc, mlir::SymbolRefAttr typeRef) {
+  if (!typeRef)
+    return emitError(loc) << "Null type reference";
+  auto nestedRefs = typeRef.getNestedReferences();
+  if (llvm::size(nestedRefs) != 1)
+    return emitError(loc) << "Expected type reference to have depth 2, "
+        << "in the form @dialect::@typename";
+  /// TODO verify that the type reference is valid. Dynamic dialects and
+  /// types are not registered during first-parse so currently this must
+  /// be deferred to IsaType::verify.
+  return success();
+}
+
+static DynamicTypeImpl *lookupTypeReference(
+    MLIRContext *ctx, StringRef dialectName, StringRef typeName) {
+  /// First resolve the dialect reference.
+  /// TODO implement a post-parse verification pass?
+  auto *dialect = ctx->getRegisteredDialect(dialectName);
+  if (!dialect) {
+    llvm::errs() << "error: reference to unknown dialect '"
+        << dialectName << '\'';
+    return nullptr;
+  }
+  auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
+  if (!dynDialect) {
+    llvm::errs() << "error: dialect '" << dialectName
+        << "' is not a dynamic dialect";
+    return nullptr;
+  }
+  /// Resolve the type reference.
+  auto *typeImpl = dynDialect->lookupType(typeName);
+  if (!typeImpl) {
+    llvm::errs() << "error: dialect '" << dialectName
+        << "' does not have type '" << typeName << '\'';
+    return nullptr;
+  }
+  return typeImpl;
+}
+
+LogicalResult IsaType::verify(Type ty) {
+  /// Check that the argument type is a dynamic type.
+  auto dynTy = ty.dyn_cast<DynamicType>();
+  if (!dynTy)
+    return failure();
+  /// Lookup the type kind.
+  auto *typeImpl = lookupTypeReference(
+      getContext(), getImpl()->getDialectRef(), getImpl()->getTypeRef());
+  if (!typeImpl)
+    return failure();
+  /// Simply compare the type kinds.
+  return success(typeImpl == dynTy.getTypeImpl());
+}
+
 /// Type printing.
 void SpecDialect::printSingleWidth(detail::WidthStorage *impl,
                                    DialectAsmPrinter &printer) const {
@@ -676,6 +766,9 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
   case Variadic:
     type.cast<VariadicType>().print(printer);
     break;
+  case Isa:
+    type.cast<IsaType>().print(printer);
+    break;
   default:
     llvm_unreachable("Unknown SpecType");
     break;
@@ -717,6 +810,12 @@ void OpaqueType::print(DialectAsmPrinter &printer) {
 void VariadicType::print(DialectAsmPrinter &printer) {
   printer << "Variadic<";
   printer.printType(getImpl()->type);
+  printer << '>';
+}
+
+void IsaType::print(DialectAsmPrinter &printer) {
+  printer << "Isa<";
+  printer.printAttribute(getImpl()->symRef);
   printer << '>';
 }
 

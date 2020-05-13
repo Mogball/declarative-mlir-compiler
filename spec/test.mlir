@@ -5,10 +5,10 @@ module {
     "test.my_ret"(%2, %0, %1, %arg1) { attr2 = false } : (si32, ui32, bf16, i64) -> ()
   }
   func @test1() -> !test.Array2D<3,2> {
-    %0 = "test.get_value"() : () -> !test.Array2D<2,3>
+    %0 = "test.get_value"() : () -> !test.Array2D<5,3>
     %1 = "test.get_value"() : () -> i32
-    %2 = "test.transpose"(%0) : (!test.Array2D<2,3>) -> !test.Array2D<3,2>
-    "test.my_ret"(%1, %2) : (i32, !test.Array2D<3,2>) -> ()
+    %2 = "test.transpose"(%0) : (!test.Array2D<5,3>) -> !test.Array2D<3,5>
+    "test.my_ret"(%1, %2) : (i32, !test.Array2D<3,5>) -> ()
   }
 
   func @test2() -> i32 {

@@ -82,7 +82,7 @@ TraitT *DynamicOperation::getTrait() {
   auto it = traits.find(TraitT::getName());
   if (it == std::end(traits))
     return nullptr;
-  return static_cast<TraitT *>(it->second.get());
+  return dynamic_cast<TraitT *>(it->second.get());
 }
 
 } // end namespace dmc

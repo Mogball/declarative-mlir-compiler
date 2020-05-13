@@ -7,6 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(declarative-compiler)
 
+# Enable RTTI
+set(LLVM_ENABLE_RTTI ON CACHE INTERNAL "")
 # Configure LLVM and MLIR directories
 set(LLVM_PROJECT_DIR llvm-project)
 set(LLVM_DIR ${LLVM_PROJECT_DIR}/llvm)
@@ -32,7 +34,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 include(AddDMC)
 
 # Global options
-add_compile_options(-fno-rtti -fno-exceptions)
+add_compile_options(-fno-exceptions)
 
 # Global includes
 include_directories(include ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})

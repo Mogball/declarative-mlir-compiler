@@ -48,8 +48,8 @@ public:
 
 DynamicOperation *DynamicOperation::of(Operation *op) {
   /// All DynamicOperations must belong to a DynamicDialect.
-  /// TODO mlir::Dialect should indicate if it is dynamic.
-  auto *dialect = static_cast<DynamicDialect *>(op->getDialect());
+  auto *dialect = dynamic_cast<DynamicDialect *>(op->getDialect());
+  assert(dialect && "Dynamic operation belongs to a non-dynamic dialect?");
   return dialect->lookupOp(op);
 }
 

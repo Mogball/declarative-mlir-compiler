@@ -23,6 +23,7 @@ struct WidthStorage;
 struct WidthListStorage;
 struct OneTypeStorage;
 struct OpaqueTypeStorage;
+struct IsaTypeStorage;
 } // end namespace detail
 
 /// Match any type.
@@ -357,7 +358,6 @@ public:
 
   static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);
-
 };
 
 /// Check if a type range contains a variadic type.
@@ -367,7 +367,28 @@ inline static bool hasVariadicValues(const TypeRange &tys) {
       [](mlir::Type ty) { return ty.isa<VariadicType>(); });
 }
 
+/// Match a dynamic type based on kind. For example, to match a type
+///
+/// dmc.Dialect @MyDialect {
+///   dmc.Type @MyType<i32>
+/// }
+///
+/// With any parameter values, use !dmc.Isa<@MyDialect::@MyType>.
+class IsaType : public SpecType<IsaType, SpecTypes::Isa,
+                                detail::IsaTypeStorage> {
+public:
+  using Base::Base;
+
+  static IsaType get(mlir::SymbolRefAttr typeRef);
+  static IsaType getChecked(mlir::Location loc, mlir::SymbolRefAttr typeRef);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, mlir::SymbolRefAttr typeRef);
+  mlir::LogicalResult verify(mlir::Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
 /// TODO Container types (vectors, tensors, etc.), memref types, tuples.
-/// TODO variadic and optional types.
 
 } // end namespace dmc

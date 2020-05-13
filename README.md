@@ -10,9 +10,13 @@ Build with `cmake --build . --target DMC<lib>`.
 
 ## Short-Term TODOs
 
-- Dynamic type and attribute definitions
+- Dynamic attribute definitions
 
 ## Long-Term TODOs
 
-- Add graceful failures (e.g. multiple Ops with the same name) instead of relying on MLIR asserts to better support dynamic environment
-- Integrate `Location` propagation for all API layers
+- Incremental parsing: dynamic objects are registered during the parse, which
+  means that references to dynamic objects (e.g. types and attributes) can be
+  resolved on-the-go.
+- Add graceful failures (e.g. multiple Ops with the same name) instead of
+  relying on MLIR asserts to better support dynamic environment.
+- Integrate `Location` propagation for all API layer.

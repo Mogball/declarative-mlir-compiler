@@ -168,6 +168,4 @@ int main() {
     module.print(llvm::outs());
     llvm::outs() << "\n";
   }
-
-  llvm::errs() << mlir::parseType("!dmc.Any", &mlirContext) << "\n";
 }

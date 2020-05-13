@@ -43,6 +43,8 @@ enum Kinds {
 
   Variadic, // Optional is a subset of Variadic
 
+  Isa,
+
   NUM_TYPES
 };
 
@@ -78,6 +80,7 @@ public:
   /// Compare type kinds.
   static bool kindof(unsigned kind) { return kind == Kind; }
 
+  /// Get the type storage.
   auto getImpl() { return Parent::getImpl(); }
 };
 

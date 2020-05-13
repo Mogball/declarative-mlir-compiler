@@ -24,7 +24,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyUnsignedIntegerType, UIType, UnsignedIntOfWidthsType,
       IndexType, AnyFloatType, FType, FloatOfWidthsType, BF16Type,
       AnyComplexType, ComplexType, OpaqueType,
-      FunctionType, VariadicType
+      FunctionType, VariadicType, IsaType
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
@@ -143,6 +143,8 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     return FunctionType::get(getContext());
   if (!parser.parseOptionalKeyword("Variadic"))
     return VariadicType::parse(parser);
+  if (!parser.parseOptionalKeyword("Isa"))
+    return IsaType::parse(parser);
   parser.emitError(parser.getCurrentLocation(), "Unknown TypeConstraint");
   return Type{};
 }
@@ -177,6 +179,16 @@ Type VariadicType::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Type{};
   return VariadicType::getChecked(loc, baseTy);
+}
+
+Type IsaType::parse(DialectAsmParser &parser) {
+  // `Isa` `<` sym-ref `>`
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::SymbolRefAttr typeRef;
+  if (parser.parseLess() || parser.parseAttribute(typeRef) ||
+      parser.parseGreater())
+    return Type{};
+  return IsaType::getChecked(loc, typeRef);
 }
 
 /// Attribute parsing.

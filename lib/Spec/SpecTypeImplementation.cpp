@@ -66,6 +66,8 @@ LogicalResult delegateVerify(Type base, Type ty) {
     return base.cast<OpaqueType>().verify(ty);
   case Variadic:
     return base.cast<VariadicType>().verify(ty);
+  case Isa:
+    return base.cast<IsaType>().verify(ty);
   default:
     llvm_unreachable("Unknown SpecType");
     return failure();
