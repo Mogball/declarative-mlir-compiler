@@ -51,7 +51,10 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  registerAllDialects(*dialectModule, &dynCtx);
+  if (failed(registerAllDialects(*dialectModule, &dynCtx))) {
+    llvm::errs() << "Failed to register dynamic dialects\n";
+    return -1;
+  }
 
   OwningModuleRef mlirModule;
   StringRef mlirInFile{argv[2]};

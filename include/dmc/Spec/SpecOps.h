@@ -183,6 +183,4 @@ private:
   }
 };
 
-void lowerOpaqueTypes(DialectOp dialectOp);
-
 } // end namespace dmc

@@ -6,6 +6,7 @@
 
 namespace dmc {
 
-void registerAllDialects(mlir::ModuleOp dialects, DynamicContext *ctx);
+mlir::LogicalResult registerAllDialects(mlir::ModuleOp dialects,
+                                        DynamicContext *ctx);
 
 } // end namespace dmc

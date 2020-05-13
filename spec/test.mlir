@@ -9,10 +9,12 @@ module {
     %1 = "test.get_value"() : () -> i32
     %2 = "test.transpose"(%0) : (!test.Array2D<2,3>) -> !test.Array2D<3,2>
     "test.my_ret"(%1, %2) : (i32, !test.Array2D<3,2>) -> ()
+  }
 
-    //%0 = "test.get_value"() : () -> !test.CustomType
-    //%1 = "test.op_c"(%0) : (!test.CustomType) -> !test.CustomType
-    //%2 = "test.get_value"() : () -> i32
-    //"test.my_ret"(%2) : (i32) -> ()
+  func @test2() -> i32 {
+    %0 = "test.get_value"() : () -> !test.CustomType
+    %1 = "test.op_c"(%0) : (!test.CustomType) -> !test.CustomType
+    %2 = "test.get_value"() : () -> i32
+    "test.my_ret"(%2) : (i32) -> ()
   }
 }

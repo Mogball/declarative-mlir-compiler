@@ -1,6 +1,7 @@
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/LowerOpaqueType.h"
 #include "dmc/Traits/Registry.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
@@ -9,7 +10,7 @@ using namespace mlir;
 
 namespace dmc {
 
-void registerOp(OperationOp opOp, DynamicDialect *dialect) {
+LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
   auto *op = dialect->createDynamicOp(opOp.getName().getValue());
 
@@ -45,33 +46,45 @@ void registerOp(OperationOp opOp, DynamicDialect *dialect) {
 
   /// Finally, register the Op.
   op->finalize();
+  return success();
 }
 
-void registerType(TypeOp typeOp, DynamicDialect *dialect) {
+LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
   dialect->createDynamicType(typeOp.getName(), typeOp.getParameters());
+  return success();
 }
 
-void registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
+LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
   dialect->allowUnknownOperations(dialectOp.allowsUnknownOps());
   dialect->allowUnknownTypes(dialectOp.allowsUnknownTypes());
 
   /// First create the Types
-  for (auto typeOp : dialectOp.getOps<TypeOp>())
-    registerType(typeOp, dialect);
+  for (auto typeOp : dialectOp.getOps<TypeOp>()) {
+    if (failed(registerType(typeOp, dialect)))
+      return failure();
+  }
 
   /// Rewrite operations with newly registered types.
-  lowerOpaqueTypes(dialectOp);
+  if (failed(lowerOpaqueTypes(dialectOp)))
+    return failure();
 
   /// Create the Ops
-  for (auto opOp : dialectOp.getOps<OperationOp>())
-    registerOp(opOp, dialect);
+  for (auto opOp : dialectOp.getOps<OperationOp>()) {
+    if (failed(registerOp(opOp, dialect)))
+      return failure();
+  }
+
+  return success();
 }
 
-void registerAllDialects(ModuleOp dialects, DynamicContext *ctx) {
-  for (auto dialectOp : dialects.getOps<DialectOp>())
-    registerDialect(dialectOp, ctx);
+LogicalResult registerAllDialects(ModuleOp dialects, DynamicContext *ctx) {
+  for (auto dialectOp : dialects.getOps<DialectOp>()) {
+    if (failed(registerDialect(dialectOp, ctx)))
+      return failure();
+  }
+  return success();
 }
 
 } // end namespace dmc

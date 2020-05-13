@@ -10,6 +10,6 @@ dmc.Dialect @test {
   dmc.Type @CustomType
   dmc.Type @Array2D<i64, i64>
   dmc.Op @op_c(!test.CustomType) -> !test.CustomType
-  dmc.Op @transpose(!test.Array2D<2,3>) -> !test.Array2D<3,2>
+  dmc.Op @transpose(!test.Array2D<2 3>) -> !test.Array2D<3,2>
   dmc.Op @get_value() -> !dmc.Any
 }
