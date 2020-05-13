@@ -6,5 +6,9 @@ add_library(DMCSpec
   SpecAttrs.cpp
   SpecAttrImplementation.cpp
   DialectGen.cpp
+  LowerOpaqueType.cpp
   )
-target_link_libraries(DMCSpec MLIRIR)
+target_link_libraries(DMCSpec
+  MLIRIR
+  MLIRTransforms
+  )

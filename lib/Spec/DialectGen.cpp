@@ -61,6 +61,9 @@ void registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   for (auto typeOp : dialectOp.getOps<TypeOp>())
     registerType(typeOp, dialect);
 
+  /// Rewrite operations with newly registered types.
+  lowerOpaqueTypes(dialectOp);
+
   /// Create the Ops
   for (auto opOp : dialectOp.getOps<OperationOp>())
     registerOp(opOp, dialect);

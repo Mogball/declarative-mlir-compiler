@@ -100,6 +100,11 @@ bool DialectOp::allowsUnknownTypes() {
 }
 
 /// OperationOp
+void OperationOp::setOpType(mlir::FunctionType opTy) {
+  auto newType = mlir::TypeAttr::get(opTy);
+  setAttr(getTypeAttrName(), mlir::TypeAttr::get(opTy));
+}
+
 void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
                                           OperationState &result) {
   auto falseAttr = builder.getBoolAttr(false);
@@ -117,7 +122,7 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
-  result.attributes.append(std::begin(attrs), std::end(attrs));
+  result.addAttribute(getOpTraitsAttrName(), builder.getDictionaryAttr(attrs));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
 }

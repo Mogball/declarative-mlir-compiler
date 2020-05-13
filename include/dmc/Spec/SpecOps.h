@@ -87,6 +87,7 @@ class OperationOp
     : public mlir::Op<OperationOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
                       mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::FunctionLike,
+                      mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait> {
 public:
   using Op::Op;
@@ -111,6 +112,9 @@ public:
   bool isTerminator();
   bool isCommutative();
   bool isIsolatedFromAbove();
+
+  /// Replace the Op type.
+  void setOpType(mlir::FunctionType opTy);
 
 private:
   /// Hooks for FunctionLike
@@ -152,6 +156,7 @@ class TypeOp
     : public mlir::Op<TypeOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
                       mlir::OpTrait::IsIsolatedFromAbove,
+                      mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait> {
 public:
   using Op::Op;
@@ -177,5 +182,7 @@ private:
     return "params";
   }
 };
+
+void lowerOpaqueTypes(DialectOp dialectOp);
 
 } // end namespace dmc
