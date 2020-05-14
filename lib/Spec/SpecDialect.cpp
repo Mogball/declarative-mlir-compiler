@@ -1,7 +1,7 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecOps.h"
-#include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Spec/SpecTypeSwitch.h"
+#include "dmc/Spec/SpecAttrSwitch.h"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
@@ -61,11 +61,12 @@ Type parseTypeList(DialectAsmParser &parser) {
 } // end anonymous namespace
 
 /// Type parsing.
+template <typename RetT>
 struct ParseAction {
   DialectAsmParser &parser;
 
   template <typename ConcreteType>
-  Type operator()() const {
+  RetT operator()() const {
     return ConcreteType::parse(parser);
   }
 };
@@ -108,7 +109,7 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     parser.emitError(parser.getCurrentLocation(), "unknown type constraint");
     return Type{};
   }
-  ParseAction action{parser};
+  ParseAction<Type> action{parser};
   return SpecTypes::kindSwitch(action, kind);
 }
 
@@ -166,16 +167,6 @@ Type IsaType::parse(DialectAsmParser &parser) {
 namespace {
 
 template <typename BaseT>
-Attribute parseSizedAttr(DialectAsmParser &parser) {
-  using UnderlyingT = typename BaseT::Underlying;
-  auto width = impl::parseSingleWidth(parser);
-  if (!width) return {};
-  return BaseT::getChecked(
-      parser.getEncodedSourceLoc(parser.getCurrentLocation()),
-      UnderlyingT::get(*width, parser.getBuilder().getContext()));
-}
-
-template <typename BaseT>
 Attribute parseAttrList(DialectAsmParser &parser) {
   // *of-attr ::= `*Of` `<` attr(`,` attr)* `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
@@ -197,56 +188,42 @@ Attribute parseAttrList(DialectAsmParser &parser) {
 
 Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
                                       Type type) const {
-  assert(!type && "SpecAttr has no Type");
-  /// TODO string switch
-  if (!parser.parseOptionalKeyword("Any"))
-    return AnyAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Bool"))
-    return BoolAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Index"))
-    return IndexAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("APInt"))
-    return APIntAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("AnyI"))
-    return parseSizedAttr<AnyIAttr>(parser);
-  if (!parser.parseOptionalKeyword("I"))
-    return parseSizedAttr<IAttr>(parser);
-  if (!parser.parseOptionalKeyword("SI"))
-    return parseSizedAttr<SIAttr>(parser);
-  if (!parser.parseOptionalKeyword("UI"))
-    return parseSizedAttr<UIAttr>(parser);
-  if (!parser.parseOptionalKeyword("F"))
-    return parseSizedAttr<FAttr>(parser);
-  if (!parser.parseOptionalKeyword("String"))
-    return StringAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Type"))
-    return TypeAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Unit"))
-    return UnitAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Dictionary"))
-    return DictionaryAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Elements"))
-    return ElementsAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Array"))
-    return ArrayAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("SymbolRef"))
-    return SymbolRefAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("FlatSymbolRef"))
-    return FlatSymbolRefAttr::get(getContext());
-  if (!parser.parseOptionalKeyword("Constant"))
-    return ConstantAttr::parse(parser);
-  if (!parser.parseOptionalKeyword("AnyOf"))
-    return parseAttrList<AnyOfAttr>(parser);
-  if (!parser.parseOptionalKeyword("AllOf"))
-    return parseAttrList<AllOfAttr>(parser);
-  if (!parser.parseOptionalKeyword("OfType"))
-    return OfTypeAttr::parse(parser);
-  if (!parser.parseOptionalKeyword("Optional"))
-    return OptionalAttr::parse(parser);
-  if (!parser.parseOptionalKeyword("Default"))
-    return DefaultAttr::parse(parser);
-  parser.emitError(parser.getCurrentLocation(), "Unknown AttrConstraint");
-  return Attribute{};
+  StringRef attrName;
+  if (parser.parseKeyword(&attrName))
+    return Attribute{};
+  auto kind = llvm::StringSwitch<unsigned>(attrName)
+    .Case(AnyAttr::getAttrName(), SpecAttrs::Any)
+    .Case(BoolAttr::getAttrName(), SpecAttrs::Bool)
+    .Case(IndexAttr::getAttrName(), SpecAttrs::Index)
+    .Case(APIntAttr::getAttrName(), SpecAttrs::APInt)
+    .Case(AnyIAttr::getAttrName(), SpecAttrs::AnyI)
+    .Case(IAttr::getAttrName(), SpecAttrs::I)
+    .Case(SIAttr::getAttrName(), SpecAttrs::SI)
+    .Case(UIAttr::getAttrName(), SpecAttrs::UI)
+    .Case(FAttr::getAttrName(), SpecAttrs::F)
+    .Case(StringAttr::getAttrName(), SpecAttrs::String)
+    .Case(TypeAttr::getAttrName(), SpecAttrs::Type)
+    .Case(UnitAttr::getAttrName(), SpecAttrs::Unit)
+    .Case(DictionaryAttr::getAttrName(), SpecAttrs::Dictionary)
+    .Case(ElementsAttr::getAttrName(), SpecAttrs::Elements)
+    .Case(ArrayAttr::getAttrName(), SpecAttrs::Array)
+    .Case(SymbolRefAttr::getAttrName(), SpecAttrs::SymbolRef)
+    .Case(FlatSymbolRefAttr::getAttrName(), SpecAttrs::FlatSymbolRef)
+    .Case(ConstantAttr::getAttrName(), SpecAttrs::Constant)
+    .Case(AnyOfAttr::getAttrName(), SpecAttrs::AnyOf)
+    .Case(AllOfAttr::getAttrName(), SpecAttrs::AllOf)
+    .Case(OfTypeAttr::getAttrName(), SpecAttrs::OfType)
+    .Case(OptionalAttr::getAttrName(), SpecAttrs::Optional)
+    .Case(DefaultAttr::getAttrName(), SpecAttrs::Default)
+    .Default(SpecAttrs::NUM_ATTRS);
+
+  if (kind == SpecAttrs::NUM_ATTRS) {
+    parser.emitError(parser.getCurrentLocation(),
+        "unknown attribute constraint");
+    return Attribute{};
+  }
+  ParseAction<Attribute> action{parser};
+  return SpecAttrs::kindSwitch(action, kind);
 }
 
 Attribute ConstantAttr::parse(DialectAsmParser &parser) {
@@ -256,6 +233,14 @@ Attribute ConstantAttr::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Attribute{};
   return ConstantAttr::getChecked(loc, constAttr);
+}
+
+Attribute AnyOfAttr::parse(DialectAsmParser &parser) {
+  return parseAttrList<AnyOfAttr>(parser);
+}
+
+Attribute AllOfAttr::parse(DialectAsmParser &parser) {
+  return parseAttrList<AllOfAttr>(parser);
 }
 
 Attribute OfTypeAttr::parse(DialectAsmParser &parser) {
