@@ -85,11 +85,6 @@ LogicalResult DialectOp::verify() {
 Region &DialectOp::getBodyRegion() { return getOperation()->getRegion(0); }
 Block *DialectOp::getBody() { return &getBodyRegion().front(); }
 
-StringRef DialectOp::getName() {
-  return getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName())
-      .getValue();
-}
-
 bool DialectOp::allowsUnknownOps() {
   return getAttrOfType<mlir::BoolAttr>(getAllowUnknownOpsAttrName())
       .getValue();
@@ -159,7 +154,7 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
 
 void OperationOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
-  printer.printSymbolName(getName().getValue());
+  printer.printSymbolName(getName());
   printer.printType(getType());
   printer << ' ';
   printer.printAttribute(getOpAttrs());
@@ -167,10 +162,6 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printer.printOptionalAttrDict(getAttrs(), {
       SymbolTable::getSymbolAttrName(), getTypeAttrName(),
       getOpAttrDictAttrName()});
-}
-
-mlir::StringAttr OperationOp::getName() {
-  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName());
 }
 
 mlir::DictionaryAttr OperationOp::getOpAttrs() {
@@ -293,13 +284,6 @@ void TypeOp::print(OpAsmPrinter &printer) {
   printParameterList(printer);
 }
 
-LogicalResult TypeOp::verify() {
-  if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
-    return emitOpError("expected StringAttr named: ")
-        << SymbolTable::getSymbolAttrName();
-  return success();
-}
-
 /// AttributeOp
 void AttributeOp::build(OpBuilder &builder, OperationState &result,
                         StringRef name, ArrayRef<Attribute> parameters) {
@@ -324,13 +308,6 @@ void AttributeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
   printParameterList(printer);
-}
-
-LogicalResult AttributeOp::verify() {
-  if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
-    return emitOpError("expected StringAttr named: ")
-        << SymbolTable::getSymbolAttrName();
-  return success();
 }
 
 } // end namespace dmc

@@ -13,7 +13,7 @@ namespace dmc {
 
 LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
-  auto op = dialect->createDynamicOp(opOp.getName().getValue());
+  auto op = dialect->createDynamicOp(opOp.getName());
 
   /// Add traits for fundamental properties.
   if (opOp.isTerminator())

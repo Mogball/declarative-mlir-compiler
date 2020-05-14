@@ -39,7 +39,6 @@ public:
   mlir::LogicalResult verify();
 
   /// Getters
-  llvm::StringRef getName();
   bool allowsUnknownOps();
   bool allowsUnknownTypes();
 
@@ -108,7 +107,6 @@ public:
   mlir::LogicalResult verify();
 
   /// Getters.
-  mlir::StringAttr getName();
   mlir::DictionaryAttr getOpAttrs();
   mlir::ArrayAttr getOpTraits();
 
@@ -177,7 +175,6 @@ public:
   static mlir::ParseResult parse(mlir::OpAsmParser &parser,
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
-  mlir::LogicalResult verify();
 };
 
 class AttributeOp
@@ -200,7 +197,6 @@ public:
   static mlir::ParseResult parse(mlir::OpAsmParser &parser,
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
-  mlir::LogicalResult verify();
 };
 
 } // end namespace dmc
