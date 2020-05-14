@@ -5,6 +5,9 @@ using namespace dmc;
 
 namespace mlir {
 namespace dmc {
+
+#include "dmc/Spec/ParameterList.cpp.inc"
+
 namespace impl {
 LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   unsigned idx = 0;
@@ -16,6 +19,45 @@ LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   }
   return success();
 }
+
+/// Parse a single attribute. OpAsmPrinter provides only an API to parse
+/// a NamedAttribute into a list.
+ParseResult parseParameter(OpAsmParser &parser, Attribute &attr) {
+  NamedAttrList attrList;
+  return parser.parseAttribute(attr, "single", attrList);
+}
+
+void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
+  if (!params.empty()) {
+    auto it = std::begin(params);
+    printer << '<' << *it++;
+    for (auto e = std::end(params); it != e; ++it)
+      printer << ',' << *it;
+    printer << '>';
+  }
+}
 } // end namespace impl
+
+ParseResult ParameterList::parse(OpAsmParser &parser, NamedAttrList &attrList) {
+  SmallVector<Attribute, 2> params;
+  if (!parser.parseOptionalLess()) {
+    do {
+      Attribute param;
+      if (impl::parseParameter(parser, param))
+        return failure();
+      /// If a type attribute was provided, wrap in a SpecAttr.
+      if (auto tyAttr = param.dyn_cast<mlir::TypeAttr>())
+        param = OfTypeAttr::get(tyAttr.getValue());
+      params.push_back(param);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseGreater())
+      return failure();
+  }
+  attrList.append(Trait<int>::getParametersAttrName(),
+                  parser.getBuilder().getArrayAttr(params));
+  return success();
+}
+
+
 } // end namespace dmc
 } // end namespace mlir

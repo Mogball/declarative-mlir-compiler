@@ -8,6 +8,7 @@
 #include <mlir/IR/OpImplementation.h>
 
 using namespace mlir;
+using namespace mlir::dmc;
 
 namespace dmc {
 
@@ -195,7 +196,6 @@ bool OperationOp::isIsolatedFromAbove() {
 
 /// Trait array manipulation helpers.
 namespace impl {
-
 template <typename TraitT>
 bool hasTrait(mlir::ArrayAttr opTraits) {
   return llvm::count_if(opTraits.getAsRange<mlir::FlatSymbolRefAttr>(),
@@ -203,7 +203,6 @@ bool hasTrait(mlir::ArrayAttr opTraits) {
           return sym.getValue() == TraitT::getName();
       });
 }
-
 } // end namespace impl
 
 LogicalResult OperationOp::verify() {
@@ -267,43 +266,6 @@ LogicalResult OperationOp::verifyType() {
   return success();
 }
 
-namespace impl {
-ParseResult parseParameter(OpAsmParser &parser, Attribute &attr) {
-  NamedAttrList attrList;
-  return parser.parseAttribute(attr, "single", attrList);
-}
-
-ParseResult parseParameterList(OpAsmParser &parser, mlir::ArrayAttr &paramAttr,
-                               StringRef attrName, NamedAttrList &attrList) {
-  SmallVector<Attribute, 2> params;
-  if (!parser.parseOptionalLess()) {
-    do {
-      Attribute param;
-      if (parseParameter(parser, param))
-        return failure();
-      /// If a type attribute was provided, wrap in a SpecAttr.
-      if (auto tyAttr = param.dyn_cast<mlir::TypeAttr>())
-        param = OfTypeAttr::get(tyAttr.getValue());
-      params.push_back(param);
-    } while (!parser.parseOptionalComma());
-    if (parser.parseGreater())
-      return failure();
-  }
-  attrList.append(attrName, parser.getBuilder().getArrayAttr(params));
-  return success();
-}
-
-void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
-  if (!params.empty()) {
-    auto it = std::begin(params);
-    printer << '<' << *it++;
-    for (auto e = std::end(params); it != e; ++it)
-      printer << ',' << *it;
-    printer << '>';
-  }
-}
-} // end namespace impl
-
 /// TypeOp.
 void TypeOp::build(OpBuilder &builder, OperationState &result,
                    StringRef name, ArrayRef<Attribute> parameters) {
@@ -320,8 +282,7 @@ ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::ArrayAttr paramAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      impl::parseParameterList(parser, paramAttr, getParametersAttrName(),
-                               result.attributes))
+      ParameterList::parse(parser, result.attributes))
     return failure();
   return success();
 }
@@ -329,7 +290,7 @@ ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
 void TypeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  impl::printParameterList(printer, getParameters());
+  printParameterList(printer);
 }
 
 LogicalResult TypeOp::verify() {
@@ -354,8 +315,7 @@ ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::ArrayAttr paramAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      impl::parseParameterList(parser, paramAttr, getParametersAttrName(),
-                               result.attributes))
+      ParameterList::parse(parser, result.attributes))
     return failure();
   return success();
 }
@@ -363,7 +323,7 @@ ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
 void AttributeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  impl::printParameterList(printer, getParameters());
+  printParameterList(printer);
 }
 
 LogicalResult AttributeOp::verify() {

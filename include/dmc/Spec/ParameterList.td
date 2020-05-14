@@ -19,6 +19,14 @@ def ParameterList : OpInterface<"ParameterList"> {
             getParametersAttrName()).getValue();
       }]
     >,
+    InterfaceMethod<[{
+        Print the parameter list.
+      }],
+      "void", "printParameterList", (ins "OpAsmPrinter &":$printer), [{}], [{
+        auto op = dyn_cast<ConcreteOp>(this->getOperation());
+        impl::printParameterList(printer, op.getParameters());
+      }]
+     >,
   ];
 
   let verify = [{
@@ -31,6 +39,11 @@ def ParameterList : OpInterface<"ParameterList"> {
 
   let extraTraitClassDeclaration = [{
     static llvm::StringLiteral getParametersAttrName() { return "params"; }
+  }];
+
+  /// Parser and printer for parameter lists.
+  let extraClassDeclaration = [{
+    static ParseResult parse(OpAsmParser &parser, NamedAttrList &attrList);
   }];
 }
 
