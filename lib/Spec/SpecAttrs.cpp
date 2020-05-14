@@ -1,6 +1,5 @@
-#include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/SpecAttrSwitch.h"
 #include "dmc/Spec/SpecDialect.h"
-#include "dmc/Spec/Support.h"
 #include "dmc/Spec/SpecTypeDetail.h"
 #include "dmc/Spec/SpecTypeImplementation.h"
 
@@ -284,16 +283,9 @@ LogicalResult DefaultAttr::verify(Attribute attr) {
 /// Attribute printing.
 namespace {
 
-template <typename AttrT>
-auto *getTypeImpl(Attribute attr) {
-  return attr.template cast<AttrT>().getImpl()
-      ->type.template cast<typename AttrT::Underlying>().getImpl();
-}
-
-void printAttrList(detail::AttrListStorage *impl,
-                   DialectAsmPrinter &printer) {
+template <typename AttrList>
+void printAttrList(const AttrList &attrs, DialectAsmPrinter &printer) {
   printer << '<';
-  auto &attrs = impl->attrs;
   auto it = std::begin(attrs);
   printer.printAttribute(*it++);
   for (auto e = std::end(attrs); it != e; ++it) {
@@ -305,108 +297,52 @@ void printAttrList(detail::AttrListStorage *impl,
 
 } // end anonymous namespace
 
+struct PrintAction {
+  DialectAsmPrinter &printer;
+
+  template <typename ConcreteType>
+  int operator()(ConcreteType base) const {
+    base.print(printer);
+    return 0;
+  }
+};
+
 void SpecDialect::printAttribute(
     Attribute attr, DialectAsmPrinter &printer) const {
-  using namespace SpecAttrs;
-  assert(is(attr) && "Not a SpecAttr");
-  switch (attr.getKind()) {
-  case Any:
-    printer << "Any";
-    break;
-  case Bool:
-    printer << "Bool";
-    break;
-  case Index:
-    printer << "Index";
-    break;
-  case APInt:
-    printer << "APInt";
-    break;
-  case AnyI:
-    attr.cast<AnyIAttr>().print(printer);
-    break;
-  case I:
-    attr.cast<IAttr>().print(printer);
-    break;
-  case SI:
-    attr.cast<SIAttr>().print(printer);
-    break;
-  case UI:
-    attr.cast<UIAttr>().print(printer);
-    break;
-  case F:
-    attr.cast<FAttr>().print(printer);
-    break;
-  case String:
-    printer << "String";
-    break;
-  case Type:
-    printer << "Type";
-    break;
-  case Unit:
-    printer << "Unit";
-    break;
-  case Dictionary:
-    printer << "Dictionary";
-    break;
-  case Elements:
-    printer << "Elements";
-    break;
-  case Array:
-    printer << "Array";
-    break;
-  case SymbolRef:
-    printer << "SymbolRef";
-    break;
-  case FlatSymbolRef:
-    printer << "FlatSymbolRef";
-    break;
-  case Constant:
-    attr.cast<ConstantAttr>().print(printer);
-    break;
-  case AnyOf:
-    printer << "AnyOf";
-    printAttrList(attr.cast<AnyOfAttr>().getImpl(), printer);
-    break;
-  case AllOf:
-    printer << "AllOf";
-    printAttrList(attr.cast<AllOfAttr>().getImpl(), printer);
-    break;
-  case OfType:
-    attr.cast<OfTypeAttr>().print(printer);
-    break;
-  case Optional:
-    attr.cast<OptionalAttr>().print(printer);
-    break;
-  case Default:
-    attr.cast<DefaultAttr>().print(printer);
-    break;
-  default:
-    llvm_unreachable("Unknown SpecAttr");
-    break;
-  }
+  PrintAction action{printer};
+  SpecAttrs::kindSwitch(action, attr);
 }
 
 void ConstantAttr::print(DialectAsmPrinter &printer) {
-  printer << "Constant<";
+  printer << getAttrName() << '<';
   printer.printAttribute(getImpl()->attr);
   printer << '>';
 }
 
+void AnyOfAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName();
+  printAttrList(getImpl()->attrs, printer);
+}
+
+void AllOfAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName();
+  printAttrList(getImpl()->attrs, printer);
+}
+
 void OfTypeAttr::print(DialectAsmPrinter &printer) {
-  printer << "OfType<";
+  printer << getAttrName() << '<';
   printer.printType(getImpl()->type);
   printer << '>';
 }
 
 void OptionalAttr::print(DialectAsmPrinter &printer) {
-  printer << "Optional<";
+  printer << getAttrName() << '<';
   printer.printAttribute(getImpl()->attr);
   printer << '>';
 }
 
 void DefaultAttr::print(DialectAsmPrinter &printer) {
-  printer << "Default<";
+  printer << getAttrName() << '<';
   printer.printAttribute(getImpl()->baseAttr);
   printer << ',';
   printer.printAttribute(getImpl()->defaultAttr);

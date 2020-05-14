@@ -35,4 +35,16 @@ ImmutableSortedList<T> getSortedListOf(llvm::ArrayRef<T> arr) {
   return {arr, ComparatorT{}};
 }
 
+/// Wrapper for kind switches with an Arg instance.
+template <typename ActionT, typename ArgT>
+struct KindActionWrapper {
+  const ActionT &action;
+  ArgT base;
+
+  template <typename ConcreteType>
+  auto operator()() const {
+    return action(base.template cast<ConcreteType>());
+  }
+};
+
 } // end namespace dmc

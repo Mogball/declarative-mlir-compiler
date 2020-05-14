@@ -17,7 +17,7 @@ struct VerifyAction {
 
   template <typename ConcreteType>
   LogicalResult operator()(ConcreteType base) const {
-    return base.template verify(argTy);
+    return base.verify(argTy);
   }
 };
 

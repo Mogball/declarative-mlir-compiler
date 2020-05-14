@@ -1,25 +1,8 @@
 #include "SpecTypes.h"
+#include "Support.h"
 
 namespace dmc {
 namespace SpecTypes {
-
-template <typename ActionT>
-struct KindActionWrapper {
-  const ActionT &action;
-  mlir::Type base;
-
-  template <typename ConcreteType>
-  auto operator()() const {
-    return action(base.template cast<ConcreteType>());
-  }
-};
-
-template <typename ActionT>
-auto kindSwitch(const ActionT &action, mlir::Type base) {
-  assert(SpecTypes::is(base) && "Not a SpecType");
-  KindActionWrapper<ActionT> wrapper{action, base};
-  return kindSwitch(wrapper, base.getKind());
-}
 
 /// Big switch table.
 template <typename ActionT>
@@ -78,6 +61,13 @@ auto kindSwitch(const ActionT &action, unsigned kind) {
   case Isa:
     return action.template operator()<IsaType>();
   }
+}
+
+template <typename ActionT>
+auto kindSwitch(const ActionT &action, mlir::Type base) {
+  assert(SpecTypes::is(base) && "Not a SpecType");
+  KindActionWrapper<ActionT, mlir::Type> wrapper{action, base};
+  return kindSwitch(wrapper, base.getKind());
 }
 
 } // end namespace SpecTypes

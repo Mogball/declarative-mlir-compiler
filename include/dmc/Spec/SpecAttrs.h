@@ -187,6 +187,9 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
   mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 class AllOfAttr : public SpecAttr<AllOfAttr, SpecAttrs::AllOf,
@@ -201,6 +204,9 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Attribute> attrs);
   mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 class OfTypeAttr : public SpecAttr<OfTypeAttr, SpecAttrs::OfType,

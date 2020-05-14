@@ -78,7 +78,7 @@ public:
     return get(parser.getBuilder().getContext());
   }
   void print(mlir::DialectAsmPrinter &printer) {
-    printer << ConcreteType::getTypeName();
+    printer << ConcreteType::getAttrName();
   }
 };
 

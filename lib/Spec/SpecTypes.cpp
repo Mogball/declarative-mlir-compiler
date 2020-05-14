@@ -425,7 +425,7 @@ struct PrintAction {
 
   template <typename ConcreteType>
   int operator()(ConcreteType base) const {
-    base.template print(printer);
+    base.print(printer);
     return 0;
   }
 };
