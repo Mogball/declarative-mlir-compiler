@@ -181,9 +181,36 @@ public:
   llvm::ArrayRef<mlir::Attribute> getParameters();
 
 private:
-  static inline llvm::StringRef getParametersAttrName() {
-    return "params";
-  }
+  static llvm::StringRef getParametersAttrName() { return "params"; }
+};
+
+class AttributeOp
+    : public mlir::Op<AttributeOp,
+                      mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
+                      mlir::OpTrait::IsIsolatedFromAbove,
+                      mlir::OpTrait::HasParent<DialectOp>::Impl,
+                      mlir::SymbolOpInterface::Trait> {
+public:
+  using Op::Op;
+
+  static llvm::StringRef getOperationName() { return "dmc.Attr"; }
+
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
+                    llvm::StringRef name,
+                    llvm::ArrayRef<mlir::Attribute> parameters);
+
+  /// Operation hooks.
+  static mlir::ParseResult parse(mlir::OpAsmParser &parser,
+                                 mlir::OperationState &result);
+  void print(mlir::OpAsmPrinter &printer);
+  mlir::LogicalResult verify();
+
+  /// Getters.
+  llvm::StringRef getAttrName();
+  llvm::ArrayRef<mlir::Attribute> getParameters();
+
+private:
+  static llvm::StringRef getParametersAttrName() { return "params"; }
 };
 
 } // end namespace dmc

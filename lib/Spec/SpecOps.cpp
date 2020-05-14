@@ -267,6 +267,43 @@ LogicalResult OperationOp::verifyType() {
   return success();
 }
 
+namespace impl {
+ParseResult parseParameter(OpAsmParser &parser, Attribute &attr) {
+  NamedAttrList attrList;
+  return parser.parseAttribute(attr, "single", attrList);
+}
+
+ParseResult parseParameterList(OpAsmParser &parser, mlir::ArrayAttr &paramAttr,
+                               StringRef attrName, NamedAttrList &attrList) {
+  SmallVector<Attribute, 2> params;
+  if (!parser.parseOptionalLess()) {
+    do {
+      Attribute param;
+      if (parseParameter(parser, param))
+        return failure();
+      /// If a type attribute was provided, wrap in a SpecAttr.
+      if (auto tyAttr = param.dyn_cast<mlir::TypeAttr>())
+        param = OfTypeAttr::get(tyAttr.getValue());
+      params.push_back(param);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseGreater())
+      return failure();
+  }
+  attrList.append(attrName, parser.getBuilder().getArrayAttr(params));
+  return success();
+}
+
+void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
+  if (!params.empty()) {
+    auto it = std::begin(params);
+    printer << '<' << *it++;
+    for (auto e = std::end(params); it != e; ++it)
+      printer << ',' << *it;
+    printer << '>';
+  }
+}
+} // end namespace impl
+
 /// TypeOp.
 void TypeOp::build(OpBuilder &builder, OperationState &result,
                    StringRef name, ArrayRef<Attribute> parameters) {
@@ -276,54 +313,23 @@ void TypeOp::build(OpBuilder &builder, OperationState &result,
                       builder.getArrayAttr(parameters));
 }
 
-/// Parse a single attribute with OpAsmParser. OpAsmParser only provides
-/// a function to parse a named attribute into a list.
-namespace impl {
-ParseResult parseSingleAttribute(Attribute &attr, OpAsmParser &parser) {
-  constexpr auto attrName = "attr";
-  NamedAttrList attrList;
-  return parser.parseAttribute(attr, attrName, attrList);
-}
-} // end namespace impl
-
 // type       ::= `dmc.Type` `@`type-name param-list?
 // param-list ::= `<` param (`,` param)* `>`
 ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
+  mlir::ArrayAttr paramAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
-                             result.attributes))
+                             result.attributes) ||
+      impl::parseParameterList(parser, paramAttr, getParametersAttrName(),
+                               result.attributes))
     return failure();
-
-  SmallVector<Attribute, 2> parameters;
-  if (!parser.parseOptionalLess()) {
-    do {
-      Attribute parameter;
-      if (impl::parseSingleAttribute(parameter, parser))
-        return failure();
-      // If a type attribute was specified, create an OfTypeAttr
-      if (auto typeAttr = parameter.dyn_cast<mlir::TypeAttr>())
-        parameter = OfTypeAttr::get(typeAttr.getValue());
-      parameters.push_back(parameter);
-    } while (!parser.parseOptionalComma());
-    if (parser.parseGreater())
-      return failure();
-  }
-  result.addAttribute(getParametersAttrName(),
-      mlir::ArrayAttr::get(parameters, result.getContext()));
   return success();
 }
 
 void TypeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  auto parameters = getParameters();
-  if (!parameters.empty()) {
-    auto it = std::begin(parameters);
-    printer << '<' << (*it++);
-    for (auto e = std::end(parameters); it != e; ++it)
-      printer << ',' << (*it);
-    printer << '>';
-  }
+  impl::printParameterList(printer, getParameters());
 }
 
 StringRef TypeOp::getTypeName() {
@@ -332,26 +338,56 @@ StringRef TypeOp::getTypeName() {
 }
 
 ArrayRef<Attribute> TypeOp::getParameters() {
-  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName())
-      .getValue();
+  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()).getValue();
 }
 
 LogicalResult TypeOp::verify() {
   if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
     return emitOpError("expected StringAttr named: ")
         << SymbolTable::getSymbolAttrName();
-  if (!getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()))
-    return emitOpError("expected ArrayAttr named: ")
-        << getParametersAttrName();
+  return success();
+}
 
-  /// Check that all attributes are SpecAttr.
-  unsigned idx = 0;
-  for (auto it = std::begin(getParameters()), e = std::end(getParameters());
-       it != e; ++it, ++idx) {
-    if (!SpecAttrs::is(*it))
-      return emitOpError("expected parameter #") << idx << " to be an "
-          << "attribute constraint, but got " << *it;
-  }
+/// AttributeOp
+void AttributeOp::build(OpBuilder &builder, OperationState &result,
+                        StringRef name, ArrayRef<Attribute> parameters) {
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  result.addAttribute(getParametersAttrName(),
+                      builder.getArrayAttr(parameters));
+}
+
+/// attr ::= `dmc.Attr` `@`attr-name param-list?
+ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
+  mlir::StringAttr nameAttr;
+  mlir::ArrayAttr paramAttr;
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+                             result.attributes) ||
+      impl::parseParameterList(parser, paramAttr, getParametersAttrName(),
+                               result.attributes))
+    return failure();
+  return success();
+}
+
+void AttributeOp::print(OpAsmPrinter &printer) {
+  printer << getOperation()->getName() << ' ';
+  printer.printSymbolName(getName());
+  impl::printParameterList(printer, getParameters());
+}
+
+StringRef AttributeOp::getAttrName() {
+  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
+      .getValue();
+}
+
+ArrayRef<Attribute> AttributeOp::getParameters() {
+  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()).getValue();
+}
+
+LogicalResult AttributeOp::verify() {
+  if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
+    return emitOpError("expected StringAttr named: ")
+        << SymbolTable::getSymbolAttrName();
   return success();
 }
 
