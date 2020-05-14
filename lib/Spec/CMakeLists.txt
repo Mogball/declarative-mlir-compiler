@@ -8,8 +8,12 @@ add_library(DMCSpec
   SpecAttrImplementation.cpp
   DialectGen.cpp
   LowerOpaqueType.cpp
+  ParameterList.cpp
   )
 target_link_libraries(DMCSpec
   MLIRIR
   MLIRTransforms
+  )
+add_dependencies(DMCSpec
+  DMCParameterListIncGen
   )

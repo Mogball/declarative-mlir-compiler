@@ -332,15 +332,6 @@ void TypeOp::print(OpAsmPrinter &printer) {
   impl::printParameterList(printer, getParameters());
 }
 
-StringRef TypeOp::getTypeName() {
-  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
-      .getValue();
-}
-
-ArrayRef<Attribute> TypeOp::getParameters() {
-  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()).getValue();
-}
-
 LogicalResult TypeOp::verify() {
   if (!getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName()))
     return emitOpError("expected StringAttr named: ")
@@ -373,15 +364,6 @@ void AttributeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
   impl::printParameterList(printer, getParameters());
-}
-
-StringRef AttributeOp::getAttrName() {
-  return getAttrOfType<mlir::StringAttr>(SymbolTable::getSymbolAttrName())
-      .getValue();
-}
-
-ArrayRef<Attribute> AttributeOp::getParameters() {
-  return getAttrOfType<mlir::ArrayAttr>(getParametersAttrName()).getValue();
 }
 
 LogicalResult AttributeOp::verify() {

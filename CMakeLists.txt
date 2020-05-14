@@ -37,6 +37,13 @@ include(AddDMC)
 add_compile_options(-fno-exceptions -Wall -Werror -fdiagnostics-color)
 
 # Global includes
-include_directories(include ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
+include_directories(
+  include
+  ${CMAKE_BINARY_DIR}/include
+  ${LLVM_INCLUDE_DIRS}
+  ${MLIR_INCLUDE_DIRS}
+  )
+
+add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)

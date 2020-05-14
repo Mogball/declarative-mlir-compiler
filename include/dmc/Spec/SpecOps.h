@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ParameterList.h"
+
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/IR/FunctionSupport.h>
@@ -160,7 +162,8 @@ class TypeOp
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
-                      mlir::SymbolOpInterface::Trait> {
+                      mlir::SymbolOpInterface::Trait,
+                      mlir::dmc::ParameterList::Trait> {
 public:
   using Op::Op;
 
@@ -175,13 +178,6 @@ public:
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
-
-  /// Getters.
-  llvm::StringRef getTypeName();
-  llvm::ArrayRef<mlir::Attribute> getParameters();
-
-private:
-  static llvm::StringRef getParametersAttrName() { return "params"; }
 };
 
 class AttributeOp
@@ -189,7 +185,8 @@ class AttributeOp
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
-                      mlir::SymbolOpInterface::Trait> {
+                      mlir::SymbolOpInterface::Trait,
+                      mlir::dmc::ParameterList::Trait> {
 public:
   using Op::Op;
 
@@ -204,13 +201,6 @@ public:
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
-
-  /// Getters.
-  llvm::StringRef getAttrName();
-  llvm::ArrayRef<mlir::Attribute> getParameters();
-
-private:
-  static llvm::StringRef getParametersAttrName() { return "params"; }
 };
 
 } // end namespace dmc
