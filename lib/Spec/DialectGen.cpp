@@ -59,6 +59,13 @@ LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
   return success();
 }
 
+LogicalResult registerAttr(AttributeOp attrOp, DynamicDialect *dialect) {
+  if (failed(dialect->createDynamicAttr(
+        attrOp.getName(), attrOp.getParameters())))
+    return attrOp.emitOpError("an attribute with this name already exists");
+  return success();
+}
+
 LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
@@ -68,6 +75,12 @@ LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// First create the Types
   for (auto typeOp : dialectOp.getOps<TypeOp>()) {
     if (failed(registerType(typeOp, dialect)))
+      return failure();
+  }
+
+  /// Create the Attributes.
+  for (auto attrOp : dialectOp.getOps<AttributeOp>()) {
+    if (failed(registerAttr(attrOp, dialect)))
       return failure();
   }
 

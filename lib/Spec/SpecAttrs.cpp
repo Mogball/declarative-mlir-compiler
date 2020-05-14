@@ -2,6 +2,8 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecTypeDetail.h"
 #include "dmc/Spec/SpecTypeImplementation.h"
+#include "dmc/Dynamic/DynamicAttribute.h"
+#include "dmc/Dynamic/DynamicDialect.h"
 
 #include <llvm/ADT/SmallPtrSet.h>
 #include <mlir/IR/DialectImplementation.h>
@@ -103,6 +105,26 @@ struct DefaultAttrStorage : public AttributeStorage {
 
   Attribute baseAttr;
   Attribute defaultAttr;
+};
+
+struct IsaAttrStorage : public AttributeStorage {
+  using KeyTy = mlir::SymbolRefAttr;
+
+  explicit IsaAttrStorage(mlir::SymbolRefAttr symRef)
+      : symRef{symRef} {}
+
+  bool operator==(const KeyTy &key) const { return key == symRef; }
+  static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }
+
+  static IsaAttrStorage *construct(AttributeStorageAllocator &alloc,
+                                   const KeyTy &key) {
+    return new (alloc.allocate<IsaAttrStorage>()) IsaAttrStorage{key};
+  }
+
+  mlir::SymbolRefAttr symRef;
+
+  StringRef getDialectRef() { return symRef.getRootReference(); }
+  StringRef getAttrRef() { return symRef.getLeafReference(); }
 };
 
 struct AttrComparator {
@@ -280,6 +302,61 @@ LogicalResult DefaultAttr::verify(Attribute attr) {
   return success(baseAttr == attr);
 }
 
+/// IsaAttr implementation.
+IsaAttr IsaAttr::get(mlir::SymbolRefAttr attrRef) {
+  return Base::get(attrRef.getContext(), SpecAttrs::Isa, attrRef);
+}
+
+IsaAttr IsaAttr::getChecked(Location loc, mlir::SymbolRefAttr attrRef) {
+  return Base::getChecked(loc, SpecAttrs::Isa, attrRef);
+}
+
+LogicalResult IsaAttr::verifyConstructionInvariants(
+    Location loc, mlir::SymbolRefAttr attrRef) {
+  if (!attrRef)
+    return emitError(loc) << "Null attribute reference";
+  auto nestedRefs = attrRef.getNestedReferences();
+  if (llvm::size(nestedRefs) != 1)
+    return emitError(loc) << "Expected attribute reference to have depth 2, "
+        << "in the form @dialect::@attrname";
+  return success();
+}
+
+static DynamicAttributeImpl *lookupAttrReference(
+    MLIRContext *ctx, StringRef dialectName, StringRef attrName) {
+  auto *dialect = ctx->getRegisteredDialect(dialectName);
+  if (!dialect) {
+    llvm::errs() << "error: reference to unknown dialect '"
+        << dialectName << '\'';
+    return nullptr;
+  }
+  auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
+  if (!dynDialect) {
+    llvm::errs() << "error: dialect '" << dialectName
+        << "' is not a dynamic dialect";
+    return nullptr;
+  }
+  /// Resolve the attribute reference.
+  auto *attrImpl = dynDialect->lookupAttr(attrName);
+  if (!attrImpl) {
+    llvm::errs() << "error: dialect '" << dialectName
+        << "' does not have attribute '" << attrName << '\'';
+    return nullptr;
+  }
+  return attrImpl;
+}
+
+LogicalResult IsaAttr::verify(Attribute attr) {
+  auto dynAttr = attr.dyn_cast<DynamicAttribute>();
+  if (!dynAttr)
+    return failure();
+  auto *attrImpl = lookupAttrReference(
+    getContext(), getImpl()->getDialectRef(), getImpl()->getAttrRef());
+  if (!attrImpl)
+    return failure();
+  return success(attrImpl == dynAttr.getAttrImpl());
+}
+
 /// Attribute printing.
 namespace {
 
@@ -346,6 +423,12 @@ void DefaultAttr::print(DialectAsmPrinter &printer) {
   printer.printAttribute(getImpl()->baseAttr);
   printer << ',';
   printer.printAttribute(getImpl()->defaultAttr);
+  printer << '>';
+}
+
+void IsaAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName() << '<';
+  printer.printAttribute(getImpl()->symRef);
   printer << '>';
 }
 

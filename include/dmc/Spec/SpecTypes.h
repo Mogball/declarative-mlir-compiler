@@ -347,7 +347,7 @@ public:
   static IsaType getChecked(mlir::Location loc, mlir::SymbolRefAttr typeRef);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::SymbolRefAttr typeRef);
-  mlir::LogicalResult verify(mlir::Type ty);
+  mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);

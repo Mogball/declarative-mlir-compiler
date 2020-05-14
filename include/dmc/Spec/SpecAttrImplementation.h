@@ -39,6 +39,8 @@ enum Kinds {
   Optional,
   Default,
 
+  Isa,
+
   NUM_ATTRS
 };
 

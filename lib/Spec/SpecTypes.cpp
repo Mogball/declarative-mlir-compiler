@@ -115,15 +115,11 @@ struct IsaTypeStorage : public TypeStorage {
   explicit IsaTypeStorage(mlir::SymbolRefAttr symRef)
       : symRef{symRef} {}
 
-  bool operator==(const KeyTy &key) const {
-    return key == symRef;
-  }
-  static llvm::hash_code hashKey(const KeyTy &key) {
-    return hash_value(key);
-  }
+  bool operator==(const KeyTy &key) const { return key == symRef; }
+  static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }
 
   static IsaTypeStorage *construct(TypeStorageAllocator &alloc,
-      const KeyTy &key) {
+                                   const KeyTy &key) {
     return new (alloc.allocate<IsaTypeStorage>()) IsaTypeStorage{key};
   }
 

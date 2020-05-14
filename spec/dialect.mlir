@@ -13,5 +13,8 @@ dmc.Dialect @test {
   dmc.Op @transpose(!dmc.Isa<@test::@Array2D>) -> !dmc.Isa<@test::@Array2D>
   dmc.Op @get_value() -> !dmc.Any
 
-  dmc.Op @op_d() -> () { attr3 = #dmc.OfType<!test.Array2D<3,3>> }
+  dmc.Attr @CustomAttr
+  dmc.Attr @Pair<#dmc.Any, #dmc.Any>
+  dmc.Op @op_d() -> () { attr3 = #dmc.Isa<@test::@Pair>,
+                         attr4 = #dmc.Isa<@test::@CustomAttr> }
 }

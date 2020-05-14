@@ -12,6 +12,7 @@ struct ConstantAttrStorage;
 struct AttrListStorage;
 struct OneTypeAttrStorage;
 struct DefaultAttrStorage;
+struct IsaAttrStorage;
 } // end namespace detail
 
 class AnyAttr : public SimpleAttr<AnyAttr, SpecAttrs::Any> {
@@ -263,6 +264,22 @@ public:
 
   /// Get the default value.
   Attribute getDefaultValue();
+};
+
+class IsaAttr : public SpecAttr<IsaAttr, SpecAttrs::Isa,
+                                detail::IsaAttrStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "Isa"; }
+
+  static IsaAttr get(mlir::SymbolRefAttr attrRef);
+  static IsaAttr getChecked(mlir::Location loc, mlir::SymbolRefAttr attrRef);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, mlir::SymbolRefAttr attrRef);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 /// TODO typed elements attributes: int, float, ranked, string

@@ -53,6 +53,8 @@ auto kindSwitch(const ActionT& action, unsigned kind) {
     return action.template operator()<OptionalAttr>();
   case Default:
     return action.template operator()<DefaultAttr>();
+  case Isa:
+    return action.template operator()<IsaAttr>();
   }
 }
 

@@ -15,7 +15,7 @@ namespace dmc {
 SpecDialect::SpecDialect(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
   addOperations<
-      DialectOp, DialectTerminatorOp, OperationOp, TypeOp
+      DialectOp, DialectTerminatorOp, OperationOp, TypeOp, AttributeOp
   >();
   addTypes<
       AnyType, NoneType, AnyOfType, AllOfType,
@@ -34,7 +34,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       DictionaryAttr, ElementsAttr, ArrayAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
       ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr,
-      OptionalAttr, DefaultAttr
+      OptionalAttr, DefaultAttr, IsaAttr
   >();
 }
 
@@ -220,6 +220,7 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     .Case(OfTypeAttr::getAttrName(), SpecAttrs::OfType)
     .Case(OptionalAttr::getAttrName(), SpecAttrs::Optional)
     .Case(DefaultAttr::getAttrName(), SpecAttrs::Default)
+    .Case(IsaAttr::getAttrName(), SpecAttrs::Isa)
     .Default(SpecAttrs::NUM_ATTRS);
 
   if (kind == SpecAttrs::NUM_ATTRS) {
@@ -274,6 +275,15 @@ Attribute DefaultAttr::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Attribute{};
   return DefaultAttr::getChecked(loc, baseAttr, defaultAttr);
+}
+
+Attribute IsaAttr::parse(DialectAsmParser &parser) {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::SymbolRefAttr attrRef;
+  if (parser.parseLess() || parser.parseAttribute(attrRef) ||
+      parser.parseGreater())
+    return Attribute{};
+  return IsaAttr::getChecked(loc, attrRef);
 }
 
 } // end namespace dmc
