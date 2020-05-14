@@ -1,4 +1,6 @@
 #include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/DynamicType.h"
+#include "dmc/Dynamic/DynamicAttribute.h"
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
@@ -15,6 +17,7 @@ class DynamicDialect::Impl {
 
   StringMap<std::unique_ptr<DynamicOperation>> dynOps;
   StringMap<std::unique_ptr<DynamicTypeImpl>> dynTys;
+  StringMap<std::unique_ptr<DynamicAttributeImpl>> dynAttrs;
 };
 
 DynamicDialect::~DynamicDialect() = default;
@@ -24,20 +27,23 @@ DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
       DynamicObject{ctx},
       impl{std::make_unique<Impl>()} {}
 
-void DynamicDialect::registerDynamicOp(DynamicOperation *op) {
-  // TODO return an error if Op already exists
-  impl->dynOps.try_emplace(op->getOpInfo()->name, op);
+LogicalResult
+DynamicDialect::registerDynamicOp(std::unique_ptr<DynamicOperation> op) {
+  auto [it, inserted] = impl->dynOps.try_emplace(op->getOpInfo()->name,
+                                                 std::move(op));
+  return success(inserted);
 }
 
-DynamicOperation *DynamicDialect::lookupOp(Operation *op) const {
-  auto it = impl->dynOps.find(op->getName().getStringRef());
-  assert(it != impl->dynOps.end() && "DynamicOperation not found");
-  return it->second.get();
+DynamicOperation *DynamicDialect::lookupOp(StringRef name) const {
+  auto it = impl->dynOps.find(name);
+  return it == std::end(impl->dynOps) ? nullptr : it->second.get();
 }
 
-void DynamicDialect::registerDynamicType(DynamicTypeImpl *type) {
-  // TODO return an error if Type already exists
-  impl->dynTys.try_emplace(type->getName(), type);
+LogicalResult
+DynamicDialect::registerDynamicType(std::unique_ptr<DynamicTypeImpl> type) {
+  auto [it, inserted] = impl->dynTys.try_emplace(type->getName(),
+                                                 std::move(type));
+  return success(inserted);
 }
 
 DynamicTypeImpl *DynamicDialect::lookupType(StringRef name) const {
@@ -45,5 +51,16 @@ DynamicTypeImpl *DynamicDialect::lookupType(StringRef name) const {
   return it == std::end(impl->dynTys) ? nullptr : it->second.get();
 }
 
+LogicalResult DynamicDialect
+::registerDynamicAttr(std::unique_ptr<DynamicAttributeImpl> attr) {
+  auto [it, inserted] = impl->dynAttrs.try_emplace(attr->getName(),
+                                                   std::move(attr));
+  return success(inserted);
+}
+
+DynamicAttributeImpl *DynamicDialect::lookupAttr(StringRef name) const {
+  auto it = impl->dynAttrs.find(name);
+  return it == std::end(impl->dynAttrs) ? nullptr : it->second.get();
+}
 
 } // end namespace dmc

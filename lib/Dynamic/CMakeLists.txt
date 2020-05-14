@@ -5,6 +5,7 @@ add_library(DMCDynamic
   DynamicObject.cpp
   DynamicOperation.cpp
   DynamicType.cpp
+  DynamicAttribute.cpp
   TypeIDAllocator.cpp
   )
 target_link_libraries(DMCDynamic

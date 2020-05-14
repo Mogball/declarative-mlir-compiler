@@ -45,7 +45,9 @@ public:
 
   /// DynamicOperation creation: define the Base Operation, add properties,
   /// traits, custom functions, hooks, etc, then register with Dialect.
-  void finalize();
+  ///
+  /// Returns failure() if another Operation with the same name exists.
+  mlir::LogicalResult finalize();
 
   /// Delegate function to verify each OpTrait.
   mlir::LogicalResult verifyOpTraits(mlir::Operation *op) const;

@@ -188,6 +188,11 @@ Attribute parseAttrList(DialectAsmParser &parser) {
 
 Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
                                       Type type) const {
+  if (type) {
+    parser.emitError(parser.getCurrentLocation(),
+                     "spec attribute cannot have a type");
+    return Attribute{};
+  }
   StringRef attrName;
   if (parser.parseKeyword(&attrName))
     return Attribute{};
@@ -219,7 +224,7 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
 
   if (kind == SpecAttrs::NUM_ATTRS) {
     parser.emitError(parser.getCurrentLocation(),
-        "unknown attribute constraint");
+                     "unknown attribute constraint");
     return Attribute{};
   }
   ParseAction<Attribute> action{parser};

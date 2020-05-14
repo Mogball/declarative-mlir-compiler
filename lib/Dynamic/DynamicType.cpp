@@ -1,4 +1,6 @@
 #include "dmc/Dynamic/DynamicType.h"
+#include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/DynamicAttribute.h"
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
 
@@ -24,7 +26,7 @@ struct DynamicTypeStorage : public TypeStorage {
   /// Compare implmentation pointer and parameter values.
   bool operator==(const KeyTy &key) const {
     return impl == key.first &&
-        params.size() == key.second.size() &&
+        std::size(params) == std::size(key.second) &&
         std::equal(std::begin(params), std::end(params),
                    std::begin(key.second));
   }
@@ -56,16 +58,16 @@ DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
 
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
   std::vector<Attribute> params;
-  params.reserve(paramSpec.size());
+  params.reserve(std::size(paramSpec));
   if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
       if (parser.parseAttribute(attr))
-        return Type{};
+        return {};
       params.push_back(attr);
     } while (!parser.parseOptionalComma());
     if (parser.parseGreater())
-      return Type{};
+      return {};
   }
   return DynamicType::getChecked(loc, this, params);
 }
@@ -104,7 +106,7 @@ DynamicType DynamicType::get(DynamicTypeImpl *impl,
 DynamicType DynamicType::getChecked(Location loc, DynamicTypeImpl *impl,
                                     ArrayRef<Attribute> params) {
   if (failed(verifyConstructionInvariants(loc, impl, params)))
-    return DynamicType{};
+    return {};
   return get(impl, params);
 }
 

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "DynamicDialect.h"
-#include "DynamicOperation.h"
-#include "DynamicType.h"
 #include "TypeIDAllocator.h"
 
+#include <mlir/IR/MLIRContext.h>
+
 namespace dmc {
+
+/// Forward declarations.
+class DynamicDialect;
 
 /// Manages the creation and lifetime of dynamic MLIR objects:
 /// Dialects, Operations, Types, and Attributes.

@@ -1,5 +1,6 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicOperation.h"
+#include "dmc/Dynamic/DynamicDialect.h"
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
@@ -50,7 +51,7 @@ DynamicOperation *DynamicOperation::of(Operation *op) {
   /// All DynamicOperations must belong to a DynamicDialect.
   auto *dialect = dynamic_cast<DynamicDialect *>(op->getDialect());
   assert(dialect && "Dynamic operation belongs to a non-dynamic dialect?");
-  return dialect->lookupOp(op);
+  return dialect->lookupOp(op->getName().getStringRef());
 }
 
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
@@ -64,7 +65,10 @@ void DynamicOperation::addOpTrait(
   assert(inserted && "Trait already exists");
 }
 
-void DynamicOperation::finalize() {
+LogicalResult DynamicOperation::finalize() {
+  // Check that the operation name is unused.
+  if (AbstractOperation::lookup(name, dialect->getContext()))
+    return failure();
   // Add the operation to the dialect
   dialect->addOperation({
       name, *dialect, getOpProperties(), getTypeID(),
@@ -73,12 +77,10 @@ void DynamicOperation::finalize() {
       BaseOp::getCanonicalizationPatterns,
       BaseOp::getRawInterface, BaseOp::hasTrait
   });
-  // Grab the reference to the allocated AbstractOperation
-  opInfo = AbstractOperation::lookup(
-      name, dialect->getContext());
+  /// Take reference to the operation info.
+  opInfo = AbstractOperation::lookup(name, dialect->getContext());
   assert(opInfo != nullptr && "Failed to add DynamicOperation");
-  // Give ownership to DynamicDialect
-  dialect->registerDynamicOp(this);
+  return success();
 }
 
 LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {

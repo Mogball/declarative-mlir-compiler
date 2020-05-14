@@ -1,4 +1,5 @@
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Dynamic/DynamicDialect.h"
 
 #include <llvm/ADT/StringMap.h>
 #include <mlir/IR/Operation.h>

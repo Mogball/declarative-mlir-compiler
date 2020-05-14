@@ -12,7 +12,7 @@ class DynamicDialect;
 
 namespace detail{
 struct DynamicTypeStorage;
-}
+} // end namespace detail
 
 /// DynamicType underlying class. The class stores type class functions like
 /// the parser, printer, and conversions. Each dynamic Type instance holds a
@@ -60,6 +60,7 @@ public:
                          llvm::ArrayRef<mlir::Attribute> params);
   static DynamicType getChecked(mlir::Location loc, DynamicTypeImpl *impl,
                                 llvm::ArrayRef<mlir::Attribute> params);
+  /// Verify that the parameter attributes are valid.
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, DynamicTypeImpl *impl,
       llvm::ArrayRef<mlir::Attribute> params);

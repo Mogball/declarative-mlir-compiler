@@ -1,4 +1,5 @@
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/IO/ModuleWriter.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/Registry.h"
@@ -31,20 +32,26 @@ int main() {
   auto *dialectTest1 = ctx.createDynamicDialect("test1");
   std::cout << "Dialects registered" << std::endl;
 
-  auto *opA = dialectTest0->createDynamicOp("opA");
-  auto *opB = dialectTest0->createDynamicOp("opB");
-  auto *opC = dialectTest1->createDynamicOp("opC");
-  auto *opD = dialectTest1->createDynamicOp("opD");
+  {
+    auto opA = dialectTest0->createDynamicOp("opA");
+    auto opB = dialectTest0->createDynamicOp("opB");
+    auto opC = dialectTest1->createDynamicOp("opC");
+    auto opD = dialectTest1->createDynamicOp("opD");
 
-  opA->addOpTrait<NOperands>(1);
-  opA->addOpTrait<NResults>(1);
-  opA->addOpTrait<IsCommutative>();
+    opA->addOpTrait<NOperands>(1);
+    opA->addOpTrait<NResults>(1);
+    opA->addOpTrait<IsCommutative>();
 
-  // Finalize ops
-  opA->finalize();
-  opB->finalize();
-  opC->finalize();
-  opD->finalize();
+    // Finalize ops
+    opA->finalize();
+    opB->finalize();
+    opC->finalize();
+    opD->finalize();
+    dialectTest0->registerDynamicOp(std::move(opA));
+    dialectTest0->registerDynamicOp(std::move(opB));
+    dialectTest1->registerDynamicOp(std::move(opC));
+    dialectTest1->registerDynamicOp(std::move(opD));
+  }
 
   std::cout << "Ops registered" << std::endl;
 
@@ -52,6 +59,7 @@ int main() {
   ModuleWriter writer{&ctx};
   OpBuilder b{&mlirContext};
 
+  auto *opA = dialectTest0->lookupOp("test0.opA");
   auto testFunc = writer.createFunction("testFunc",
       {b.getIntegerType(32)}, {b.getIntegerType(64)});
   FunctionWriter funcWriter{testFunc};

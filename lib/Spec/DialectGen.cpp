@@ -1,3 +1,4 @@
+#include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
@@ -12,7 +13,7 @@ namespace dmc {
 
 LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
-  auto *op = dialect->createDynamicOp(opOp.getName().getValue());
+  auto op = dialect->createDynamicOp(opOp.getName().getValue());
 
   /// Add traits for fundamental properties.
   if (opOp.isTerminator())
@@ -45,12 +46,16 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
 
   /// Finally, register the Op.
-  op->finalize();
+  if (failed(op->finalize()) ||
+      failed(dialect->registerDynamicOp(std::move(op))))
+    return opOp.emitOpError("an operation with this name already exists");
   return success();
 }
 
 LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
-  dialect->createDynamicType(typeOp.getName(), typeOp.getParameters());
+  if (failed(dialect->createDynamicType(
+        typeOp.getName(), typeOp.getParameters())))
+    return typeOp.emitOpError("a type with this name already exists");
   return success();
 }
 
