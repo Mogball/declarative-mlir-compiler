@@ -20,6 +20,7 @@
 using namespace mlir;
 using namespace dmc;
 
+/// TODO actually write unit tests.
 static DialectRegistration<StandardOpsDialect> registerStandardOps;
 static DialectRegistration<SpecDialect> registerSpecOps;
 static DialectRegistration<TraitRegistry> registerTraits;

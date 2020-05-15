@@ -30,13 +30,11 @@ int main(int argc, char *argv[]) {
   SourceMgrDiagnosticHandler dialectDiag{dialectSrcMgr, &ctx};
   auto dialectModule = mlir::parseSourceFile(argv[1], dialectSrcMgr, &ctx);
   if (!dialectModule) {
-    llvm::errs() << "Failed to load dialect module: "
-        << argv[1] << "\n";
+    llvm::errs() << "Failed to load dialect module: " << argv[1] << "\n";
     return -1;
   }
   if (failed(verify(*dialectModule))) {
-    llvm::errs() << "Failed to verify dialect module: "
-        << argv[1] << "\n";
+    llvm::errs() << "Failed to verify dialect module: " << argv[1] << "\n";
     return -1;
   }
 
@@ -49,13 +47,11 @@ int main(int argc, char *argv[]) {
   SourceMgrDiagnosticHandler mlirDiag{mlirSrcMgr, &ctx};
   auto mlirModule = mlir::parseSourceFile(argv[2], mlirSrcMgr, &ctx);
   if (!mlirModule) {
-    llvm::errs() << "Failed to load MLIR module: "
-        << argv[2] << "\n";
+    llvm::errs() << "Failed to load MLIR module: " << argv[2] << "\n";
     return -1;
   }
   if (failed(verify(*mlirModule))) {
-    llvm::errs() << "Failed to verify MLIR module: "
-        << argv[2] << "\n";
+    llvm::errs() << "Failed to verify MLIR module: " << argv[2] << "\n";
     return -1;
   }
 

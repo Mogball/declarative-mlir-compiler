@@ -7,30 +7,16 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Parser.h>
+#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Module.h>
+#include <mlir/IR/Verifier.h>
 
 using namespace mlir;
+using namespace llvm;
 using namespace dmc;
 
 static DialectRegistration<SpecDialect> specDialectRegistration;
 static DialectRegistration<TraitRegistry> registerTraits;
-
-int loadModule(StringRef inFile, MLIRContext *ctx, OwningModuleRef &module) {
-  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
-      llvm::MemoryBuffer::getFileOrSTDIN(inFile);
-  if (auto ec = fileOrErr.getError()) {
-    llvm::errs() << "Could not open input file: " << ec.message() << "\n";
-    return -1;
-  }
-  llvm::SourceMgr sourceMgr;
-  sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc{});
-  module = mlir::parseSourceFile(sourceMgr, ctx);
-  if (!module) {
-    llvm::errs() << "Failed to load file: " << inFile << "\n";
-    return -1;
-  }
-  return 0;
-}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -39,10 +25,17 @@ int main(int argc, char *argv[]) {
   }
 
   MLIRContext ctx;
-  OwningModuleRef module;
-  StringRef inFile{argv[1]};
-  if (auto err = loadModule(inFile, &ctx, module))
-    return err;
-  module->print(llvm::outs());
+  SourceMgr srcMgr;
+  SourceMgrDiagnosticHandler srcMgrDiagHandler{srcMgr, &ctx};
+  auto mlirModule = mlir::parseSourceFile(argv[1], srcMgr, &ctx);
+  if (!mlirModule) {
+    llvm::errs() << "Failed to load MLIR file: " << argv[1] << "\n";
+    return -1;
+  }
+  if (failed(verify(*mlirModule))) {
+    llvm::errs() << "Failed to verify MLIR module: " << argv[1] << "\n";
+    return -1;
+  }
+  mlirModule->print(llvm::outs());
   llvm::outs() << "\n";
 }
