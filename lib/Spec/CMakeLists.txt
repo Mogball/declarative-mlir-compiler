@@ -7,9 +7,9 @@ add_library(DMCSpec
   SpecAttrs.cpp
   SpecAttrImplementation.cpp
   DialectGen.cpp
-  LowerOpaqueType.cpp
   ParameterList.cpp
   ReparseOpInterface.cpp
+  OpReparsing.cpp
   )
 target_link_libraries(DMCSpec
   MLIRIR

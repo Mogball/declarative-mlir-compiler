@@ -20,6 +20,15 @@ def ParameterList : OpInterface<"ParameterList"> {
       }]
     >,
     InterfaceMethod<[{
+        Replace the Op's parameter list.
+      }],
+      "void", "setParameters", (ins "ArrayRef<Attribute>":$params), [{}], [{
+        auto *op = this->getOperation();
+        op->setAttr(getParametersAttrName(),
+                    ArrayAttr::get(params, op->getContext()));
+      }]
+    >,
+    InterfaceMethod<[{
         Print the parameter list.
       }],
       "void", "printParameterList", (ins "OpAsmPrinter &":$printer), [{}], [{

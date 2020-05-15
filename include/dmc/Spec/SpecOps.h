@@ -2,6 +2,7 @@
 
 #include "ParameterList.h"
 #include "HasChildren.h"
+#include "ReparseOpInterface.h"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/SymbolTable.h>
@@ -100,7 +101,8 @@ class OperationOp
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
                       mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::FunctionLike,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
-                      mlir::SymbolOpInterface::Trait> {
+                      mlir::SymbolOpInterface::Trait,
+                      mlir::dmc::ReparseOpInterface::Trait> {
 public:
   using Op::Op;
 
@@ -129,6 +131,9 @@ public:
   void setOpType(mlir::FunctionType opTy);
   /// Replace the Op attributes.
   void setOpAttrs(mlir::DictionaryAttr opAttrs);
+
+  /// Reparse types and attributes.
+  mlir::ParseResult reparse();
 
 private:
   /// Hooks for FunctionLike
@@ -172,7 +177,8 @@ class TypeOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ParameterList::Trait> {
+                      mlir::dmc::ParameterList::Trait,
+                      mlir::dmc::ReparseOpInterface::Trait> {
 public:
   using Op::Op;
 
@@ -186,6 +192,9 @@ public:
   static mlir::ParseResult parse(mlir::OpAsmParser &parser,
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
+
+  /// Reparse nested types and attributes.
+  mlir::ParseResult reparse();
 };
 
 class AttributeOp
@@ -194,7 +203,8 @@ class AttributeOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ParameterList::Trait> {
+                      mlir::dmc::ParameterList::Trait,
+                      mlir::dmc::ReparseOpInterface::Trait> {
 public:
   using Op::Op;
 
@@ -208,6 +218,9 @@ public:
   static mlir::ParseResult parse(mlir::OpAsmParser &parser,
                                  mlir::OperationState &result);
   void print(mlir::OpAsmPrinter &printer);
+
+  /// Reparse nested types and attributes.
+  mlir::ParseResult reparse();
 };
 
 } // end namespace dmc

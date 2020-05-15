@@ -2,12 +2,12 @@
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
-#include "dmc/Spec/LowerOpaqueType.h"
 #include "dmc/Traits/Registry.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
 
 using namespace mlir;
+using namespace mlir::dmc;
 
 namespace dmc {
 
@@ -72,26 +72,23 @@ LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   dialect->allowUnknownOperations(dialectOp.allowsUnknownOps());
   dialect->allowUnknownTypes(dialectOp.allowsUnknownTypes());
 
-  /// First create the Types
-  for (auto typeOp : dialectOp.getOps<TypeOp>()) {
-    if (failed(registerType(typeOp, dialect)))
-      return failure();
-  }
-
-  /// Create the Attributes.
-  for (auto attrOp : dialectOp.getOps<AttributeOp>()) {
-    if (failed(registerAttr(attrOp, dialect)))
-      return failure();
-  }
-
-  /// Rewrite operations with newly registered types.
-  if (failed(lowerOpaqueTypes(dialectOp)))
-    return failure();
-
-  /// Create the Ops
-  for (auto opOp : dialectOp.getOps<OperationOp>()) {
-    if (failed(registerOp(opOp, dialect)))
-      return failure();
+  /// Walk the children operations.
+  for (auto &specOp : dialectOp) {
+    /// If the op can be reparsed, do so.
+    if (auto reparseOp = dyn_cast<ReparseOpInterface>(&specOp))
+      if (failed(reparseOp.reparse()))
+        return failure();
+    /// Op-specific actions.
+    if (auto opOp = dyn_cast<OperationOp>(&specOp)) {
+      if (failed(registerOp(opOp, dialect)))
+        return failure();
+    } else if (auto typeOp = dyn_cast<TypeOp>(&specOp)) {
+      if (failed(registerType(typeOp, dialect)))
+        return failure();
+    } else if (auto attrOp = dyn_cast<AttributeOp>(&specOp)) {
+      if (failed(registerAttr(attrOp, dialect)))
+        return failure();
+    }
   }
 
   return success();

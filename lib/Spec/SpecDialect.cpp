@@ -188,9 +188,11 @@ Attribute parseAttrList(DialectAsmParser &parser) {
 
 Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
                                       Type type) const {
-  if (type) {
+  /// TODO supported for typed Spec attributes. Currently, either a null type
+  /// or NoneType is passed during parsing.
+  if (type && !type.isa<mlir::NoneType>()) {
     parser.emitError(parser.getCurrentLocation(),
-                     "spec attribute cannot have a type");
+                     "spec attribute cannot have a type: ") << type;
     return Attribute{};
   }
   StringRef attrName;
