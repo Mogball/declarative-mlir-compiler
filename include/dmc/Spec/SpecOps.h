@@ -15,6 +15,7 @@ class DialectTerminatorOp;
 class OperationOp;
 class TypeOp;
 class AttributeOp;
+class AliasOp;
 
 /// Top-level Op in the SpecDialect which defines a dialect:
 ///
@@ -31,7 +32,8 @@ class DialectOp
           mlir::OpTrait::SingleBlockImplicitTerminator<DialectTerminatorOp>::Impl,
           mlir::SymbolOpInterface::Trait,
           dmc::OpTrait::HasOnlyChildren<
-              DialectTerminatorOp, OperationOp, TypeOp, AttributeOp>::Impl> {
+              DialectTerminatorOp, OperationOp, TypeOp, AttributeOp,
+              AliasOp>::Impl> {
 public:
   using Op::Op;
 
@@ -82,9 +84,7 @@ class DialectTerminatorOp
                       mlir::OpTrait::IsTerminator> {
 public:
   using Op::Op;
-  static llvm::StringRef getOperationName() {
-    return "dmc.DialectTerminator";
-  }
+  static llvm::StringRef getOperationName() { return "dmc.DialectTerminator"; }
   static inline void build(mlir::OpBuilder &, mlir::OperationState &) {}
 };
 
@@ -127,11 +127,6 @@ public:
   bool isCommutative();
   bool isIsolatedFromAbove();
 
-  /// Replace the Op type.
-  void setOpType(mlir::FunctionType opTy);
-  /// Replace the Op attributes.
-  void setOpAttrs(mlir::DictionaryAttr opAttrs);
-
   /// Reparse types and attributes.
   mlir::ParseResult reparse();
 
@@ -141,6 +136,11 @@ private:
   unsigned getNumFuncArguments() { return getType().getInputs().size(); }
   unsigned getNumFuncResults() { return getType().getResults().size(); }
   mlir::LogicalResult verifyType();
+
+  /// Replace the Op type.
+  void setOpType(mlir::FunctionType opTy);
+  /// Replace the Op attributes.
+  void setOpAttrs(mlir::DictionaryAttr opAttrs);
 
   /// Attributes.
   static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
@@ -221,6 +221,44 @@ public:
 
   /// Reparse nested types and attributes.
   mlir::ParseResult reparse();
+};
+
+/// An alias to a type or attribute.
+class AliasOp
+    : public mlir::Op<AliasOp,
+                      mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
+                      mlir::OpTrait::IsIsolatedFromAbove,
+                      mlir::OpTrait::HasParent<DialectOp>::Impl,
+                      mlir::SymbolOpInterface::Trait,
+                      mlir::dmc::ReparseOpInterface::Trait> {
+public:
+  using Op::Op;
+
+  static llvm::StringRef getOperationName() { return "dmc.Alias"; }
+
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
+                    llvm::StringRef name, mlir::Type type);
+  static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
+                    llvm::StringRef name, mlir::Attribute attr);
+
+  /// Operation hooks.
+  static mlir::ParseResult parse(mlir::OpAsmParser &parser,
+                                 mlir::OperationState &result);
+  void print(mlir::OpAsmPrinter &printer);
+
+  /// Either one of the type or attribute must be present.
+  mlir::LogicalResult verify();
+
+  /// Reparse the type or attribute.
+  mlir::ParseResult reparse();
+
+  /// Getters.
+  mlir::Type getAliasedType();
+  mlir::Attribute getAliasedAttr();
+
+private:
+  static llvm::StringRef getAliasedTypeAttrName() { return "type"; }
+  static llvm::StringRef getAliasedAttributeAttrName() { return "attr"; }
 };
 
 } // end namespace dmc

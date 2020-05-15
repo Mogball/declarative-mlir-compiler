@@ -10,6 +10,7 @@ add_library(DMCSpec
   ParameterList.cpp
   ReparseOpInterface.cpp
   OpReparsing.cpp
+  Parsing.cpp
   )
 target_link_libraries(DMCSpec
   MLIRIR

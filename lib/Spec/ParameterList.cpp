@@ -1,5 +1,6 @@
 #include "dmc/Spec/ParameterList.h"
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/Parsing.h"
 
 using namespace dmc;
 
@@ -21,13 +22,6 @@ LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   return success();
 }
 
-/// Parse a single attribute. OpAsmPrinter provides only an API to parse
-/// a NamedAttribute into a list.
-ParseResult parseParameter(OpAsmParser &parser, Attribute &attr) {
-  NamedAttrList attrList;
-  return parser.parseAttribute(attr, "single", attrList);
-}
-
 void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
   if (!params.empty()) {
     auto it = std::begin(params);
@@ -44,7 +38,7 @@ ParseResult ParameterList::parse(OpAsmParser &parser, NamedAttrList &attrList) {
   if (!parser.parseOptionalLess()) {
     do {
       Attribute param;
-      if (impl::parseParameter(parser, param))
+      if (::dmc::impl::parseSingleAttribute(parser, param))
         return failure();
       /// If a type attribute was provided, wrap in a SpecAttr.
       if (auto tyAttr = param.dyn_cast<mlir::TypeAttr>())

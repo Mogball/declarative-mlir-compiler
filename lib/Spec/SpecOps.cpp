@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/Parsing.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Traits/Registry.h"
 
@@ -308,6 +309,80 @@ void AttributeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
   printParameterList(printer);
+}
+
+/// AliasOp.
+void AliasOp::build(OpBuilder &builder, OperationState &result,
+                    StringRef name, Type type) {
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  /// Store the attribute in a TypeAttr.
+  result.addAttribute(getAliasedTypeAttrName(), mlir::TypeAttr::get(type));
+}
+
+void AliasOp::build(OpBuilder &builder, OperationState &result,
+                    StringRef name, Attribute attr) {
+  result.addAttribute(SymbolTable::getSymbolAttrName(),
+                      builder.getStringAttr(name));
+  /// Store the attribute directly.
+  result.addAttribute(getAliasedAttributeAttrName(), attr);
+
+}
+
+ParseResult AliasOp::parse(mlir::OpAsmParser &parser,
+                           mlir::OperationState &result) {
+  // alias-op ::= `dmc.Alias` `@`symbolname `->` (type|attribute)
+  mlir::StringAttr nameAttr;
+  if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
+                             result.attributes) ||
+      parser.parseArrow())
+    return failure();
+
+  /// Try to parse a type alias.
+  Type type;
+  auto ret = parser.parseOptionalType(type); // tri-state parsing
+  if (ret.hasValue()) {
+    if (*ret) // found type but failed to parse
+      return failure();
+    result.addAttribute(getAliasedTypeAttrName(), mlir::TypeAttr::get(type));
+    return success(); // found type and parse succeeded
+  }
+
+  /// Parse an attribute alias.
+  Attribute attr;
+  if (impl::parseSingleAttribute(parser, attr))
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected a type or an attribute");
+  result.addAttribute(getAliasedAttributeAttrName(), attr);
+  return success();
+}
+
+void AliasOp::print(OpAsmPrinter &printer) {
+  printer << getOperationName() << ' ';
+  printer.printSymbolName(getName());
+  printer << " -> ";
+  if (auto type = getAliasedType()) {
+    printer.printType(type);
+  } else {
+    printer.printAttribute(getAliasedAttr());
+  }
+}
+
+LogicalResult AliasOp::verify() {
+  if (!getAliasedType() && !getAliasedAttr())
+    return emitOpError("is neither an alias to a type nor an attribute");
+  if (getAliasedType() && getAliasedAttr())
+    return emitOpError("cannot be an alias to both a type and an attribute");
+  return success();
+}
+
+Type AliasOp::getAliasedType() {
+  auto typeAlias = getAttrOfType<mlir::TypeAttr>(getAliasedTypeAttrName());
+  return typeAlias ? typeAlias.getValue() : Type{};
+}
+
+Attribute AliasOp::getAliasedAttr() {
+  return getAttr(getAliasedAttributeAttrName()); // returns null if DNE
 }
 
 } // end namespace dmc

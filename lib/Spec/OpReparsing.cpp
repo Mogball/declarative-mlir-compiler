@@ -123,4 +123,23 @@ ParseResult AttributeOp::reparse() {
   return reparseParameterList(cast<ParameterList>(getOperation()));
 }
 
+/// AliasOp reparsing.
+ParseResult AliasOp::reparse() {
+  /// Reparse either the aliased type or attribute.
+  if (auto type = getAliasedType()) {
+    if (auto newType = impl::reparseType(type)) {
+      setAttr(getAliasedTypeAttrName(), mlir::TypeAttr::get(newType));
+    } else {
+      return emitOpError("failed to parse aliased type");
+    }
+  } else {
+    if (auto newAttr = impl::reparseAttr(getAliasedAttr())) {
+      setAttr(getAliasedAttributeAttrName(), newAttr);
+    } else {
+      return emitOpError("failed to parse aliased attribute");
+    }
+  }
+  return success();
+}
+
 } // end namespace dmc
