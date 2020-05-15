@@ -16,4 +16,5 @@ target_link_libraries(DMCSpec
   )
 add_dependencies(DMCSpec
   DMCParameterListIncGen
+  DMCReparseOpInterfaceIncGen
   )
