@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ParameterList.h"
+#include "HasChildren.h"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/SymbolTable.h>
@@ -10,6 +11,9 @@ namespace dmc {
 
 /// Forward declarations.
 class DialectTerminatorOp;
+class OperationOp;
+class TypeOp;
+class AttributeOp;
 
 /// Top-level Op in the SpecDialect which defines a dialect:
 ///
@@ -24,7 +28,9 @@ class DialectOp
           DialectOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
           mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::SymbolTable,
           mlir::OpTrait::SingleBlockImplicitTerminator<DialectTerminatorOp>::Impl,
-          mlir::SymbolOpInterface::Trait> {
+          mlir::SymbolOpInterface::Trait,
+          dmc::OpTrait::HasOnlyChildren<
+              DialectTerminatorOp, OperationOp, TypeOp, AttributeOp>::Impl> {
 public:
   using Op::Op;
 
@@ -38,16 +44,21 @@ public:
   void print(mlir::OpAsmPrinter &printer);
   mlir::LogicalResult verify();
 
-  /// Getters
+  /// Getters.
   bool allowsUnknownOps();
   bool allowsUnknownTypes();
 
   mlir::Region &getBodyRegion();
   mlir::Block *getBody();
 
+  /// Get children ops of the given kind.
   template <typename T> auto getOps() {
     return getBody()->getOps<T>();
   }
+
+  /// Iteration.
+  mlir::Block::iterator begin() { return getBody()->begin(); }
+  mlir::Block::iterator end() { return getBody()->end(); }
 
 private:
   /// Attributes.

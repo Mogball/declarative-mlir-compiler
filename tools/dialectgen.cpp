@@ -7,30 +7,15 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Parser.h>
+#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Verifier.h>
 
 using namespace mlir;
+using namespace llvm;
 using namespace dmc;
 
 static DialectRegistration<SpecDialect> specDialectRegistration;
 static DialectRegistration<TraitRegistry> registerTraits;
-
-int loadModule(StringRef inFile, MLIRContext *ctx, OwningModuleRef &module) {
-  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> fileOrErr =
-      llvm::MemoryBuffer::getFileOrSTDIN(inFile);
-  if (auto ec = fileOrErr.getError()) {
-    llvm::errs() << "Could not open input file: " << ec.message() << "\n";
-    return -1;
-  }
-  llvm::SourceMgr sourceMgr;
-  sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc{});
-  module = mlir::parseSourceFile(sourceMgr, ctx);
-  if (!module) {
-    llvm::errs() << "Failed to load file: " << inFile << "\n";
-    return -1;
-  }
-  return 0;
-}
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -41,13 +26,17 @@ int main(int argc, char *argv[]) {
   MLIRContext ctx;
   DynamicContext dynCtx{&ctx};
 
-  OwningModuleRef dialectModule;
-  StringRef dialectInFile{argv[1]};
-  if (auto err = loadModule(dialectInFile, &ctx, dialectModule))
-    return err;
+  SourceMgr dialectSrcMgr;
+  SourceMgrDiagnosticHandler dialectDiag{dialectSrcMgr, &ctx};
+  auto dialectModule = mlir::parseSourceFile(argv[1], dialectSrcMgr, &ctx);
+  if (!dialectModule) {
+    llvm::errs() << "Failed to load dialect module: "
+        << argv[1] << "\n";
+    return -1;
+  }
   if (failed(verify(*dialectModule))) {
     llvm::errs() << "Failed to verify dialect module: "
-        << dialectInFile << "\n";
+        << argv[1] << "\n";
     return -1;
   }
 
@@ -56,13 +45,17 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  OwningModuleRef mlirModule;
-  StringRef mlirInFile{argv[2]};
-  if (auto err = loadModule(mlirInFile, &ctx, mlirModule))
-    return err;
+  SourceMgr mlirSrcMgr;
+  SourceMgrDiagnosticHandler mlirDiag{mlirSrcMgr, &ctx};
+  auto mlirModule = mlir::parseSourceFile(argv[2], mlirSrcMgr, &ctx);
+  if (!mlirModule) {
+    llvm::errs() << "Failed to load MLIR module: "
+        << argv[2] << "\n";
+    return -1;
+  }
   if (failed(verify(*mlirModule))) {
     llvm::errs() << "Failed to verify MLIR module: "
-        << mlirInFile << "\n";
+        << argv[2] << "\n";
     return -1;
   }
 

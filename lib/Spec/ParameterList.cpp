@@ -9,6 +9,7 @@ namespace dmc {
 #include "dmc/Spec/ParameterList.cpp.inc"
 
 namespace impl {
+/// Check that all parameters are SpecAttr.
 LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   unsigned idx = 0;
   for (auto &param : params) {
@@ -57,7 +58,6 @@ ParseResult ParameterList::parse(OpAsmParser &parser, NamedAttrList &attrList) {
                   parser.getBuilder().getArrayAttr(params));
   return success();
 }
-
 
 } // end namespace dmc
 } // end namespace mlir
