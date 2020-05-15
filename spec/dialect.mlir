@@ -20,4 +20,7 @@ dmc.Dialect @test {
 
   dmc.Attr @Box<#dmc.Any>
   dmc.Attr @CustomPair<#dmc.Isa<@test::@Box>, #dmc.Isa<@test::@Box>>
+
+  dmc.Type @BoxType<#dmc.Isa<@test::@Box>>
+  dmc.Op @op_e(!test.BoxType<#test.Box<6>>) -> ()
 }

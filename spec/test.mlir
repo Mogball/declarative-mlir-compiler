@@ -21,6 +21,8 @@ module {
   func @test3() -> i32 {
     %0 = "test.get_value"() : () -> i32
     "test.op_d"() { attr3 = #test.Pair<1, 2>, attr4 = #test.CustomAttr } : () -> ()
+    %1 = "test.get_value"() : () -> !test.BoxType<#test.Box<6>>
+    "test.op_e"(%1) : (!test.BoxType<#test.Box<6>>) -> ()
     "test.my_ret"(%0)
       { attrUnknown = #test.CustomPair<#test.Box<3>, #test.Box<400>> }
       : (i32) -> ()
