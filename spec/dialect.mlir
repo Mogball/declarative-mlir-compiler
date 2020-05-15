@@ -17,4 +17,7 @@ dmc.Dialect @test {
   dmc.Attr @Pair<#dmc.Any, #dmc.Any>
   dmc.Op @op_d() -> () { attr3 = #dmc.Isa<@test::@Pair>,
                          attr4 = #dmc.Isa<@test::@CustomAttr> }
+
+  dmc.Attr @Box<#dmc.Any>
+  dmc.Attr @CustomPair<#dmc.Isa<@test::@Box>, #dmc.Isa<@test::@Box>>
 }
