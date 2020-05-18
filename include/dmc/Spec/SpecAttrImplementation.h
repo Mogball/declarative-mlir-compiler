@@ -41,6 +41,9 @@ enum Kinds {
 
   Isa,
 
+  /// Non-attribute-constraint kinds.
+  OpTrait,
+
   NUM_ATTRS
 };
 

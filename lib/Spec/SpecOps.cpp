@@ -248,7 +248,7 @@ LogicalResult OperationOp::verify() {
 
   /// Verify that the remaining traits exist
   auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
-  assert(registry != nullptr && "TraitRegistry dialect was not registered");
+  assert(registry && "TraitRegistry dialect was not registered");
   for (auto trait : opTraits.getAsRange<mlir::FlatSymbolRefAttr>()) {
     if (!registry->lookupTrait(trait.getValue()))
       return emitOpError("trait '") << trait.getValue() << "' not found";
