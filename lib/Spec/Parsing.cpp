@@ -141,7 +141,7 @@ void printOptionalOpTraitList(OpAsmPrinter &printer, OpTraitsAttr traitArr) {
   if (traits.empty())
     return;
   auto it = std::begin(traits);
-  printer << "traits [";
+  printer << " traits [";
   printOpTrait(printer, *it++);
   for (auto e = std::end(traits); it != e; ++it) {
     printer << ',';

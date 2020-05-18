@@ -167,7 +167,6 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printer.printType(getType());
   printer << ' ';
   printer.printAttribute(getOpAttrs());
-  printer << ' ';
   impl::printOptionalOpTraitList(printer, getOpTraits());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
