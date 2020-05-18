@@ -74,7 +74,7 @@ ParseResult parseOptionalParameterList(DialectAsmParser &parser,
 /// Print a parameter list for any printer.
 namespace detail {
 template <typename PrinterT, typename AttrRange>
-void printParameterList(PrinterT &printer, AttrRange params) {
+void printOptionalParameterList(PrinterT &printer, AttrRange params) {
   if (!params.empty()) {
     auto it = std::begin(params);
     printer << '<' << *it++;
@@ -85,13 +85,14 @@ void printParameterList(PrinterT &printer, AttrRange params) {
 }
 } // end namespace detail
 
-void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
-  return detail::printParameterList(printer, params);
+void printOptionalParameterList(OpAsmPrinter &printer,
+                                ArrayRef<Attribute> params) {
+  return detail::printOptionalParameterList(printer, params);
 }
 
-void printParameterList(DialectAsmPrinter &printer,
+void printOptionalParameterList(DialectAsmPrinter &printer,
                         ArrayRef<Attribute> params) {
-  return detail::printParameterList(printer, params);
+  return detail::printOptionalParameterList(printer, params);
 }
 
 } // end namespace impl

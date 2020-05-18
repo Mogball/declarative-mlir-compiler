@@ -76,6 +76,24 @@ LogicalResult OpTraitAttr::verifyConstructionInvariants(
   return success();
 }
 
+OpTraitAttr OpTraitAttr::parse(DialectAsmParser &parser) {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::FlatSymbolRefAttr nameAttr;
+  mlir::ArrayAttr paramAttr;
+  if (parser.parseLess() || parser.parseAttribute(nameAttr) ||
+      impl::parseOptionalParameterList(parser, paramAttr) ||
+      parser.parseGreater())
+    return {};
+  return getChecked(loc, nameAttr, paramAttr);
+}
+
+void OpTraitAttr::print(DialectAsmPrinter &printer) {
+  printer << "OpTrait<";
+  printer.printAttribute(getImpl()->name);
+  impl::printOptionalParameterList(printer, getImpl()->params.getValue());
+  printer << '>';
+}
+
 StringRef OpTraitAttr::getName() {
   return getImpl()->name.getValue();
 }
@@ -103,6 +121,21 @@ LogicalResult OpTraitsAttr::verifyConstructionInvariants(
   return success();
 }
 
+OpTraitsAttr OpTraitsAttr::parse(DialectAsmParser &parser) {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::ArrayAttr traitArr;
+  if (parser.parseLess() || parser.parseAttribute(traitArr) ||
+      parser.parseGreater())
+    return {};
+  return getChecked(loc, traitArr);
+}
+
+void OpTraitsAttr::print(DialectAsmPrinter &printer) {
+  printer << "OpTraits<";
+  printer.printAttribute(getImpl()->traits);
+  printer << '>';
+}
+
 ArrayRef<Attribute> OpTraitsAttr::getUnderlyingValue() {
   return getImpl()->traits.getValue();
 }
@@ -124,22 +157,10 @@ Attribute TraitRegistry::parseAttribute(DialectAsmParser &parser,
       .Default(TraitAttr::NUM_ATTRS);
 
   switch (kind) {
-  case TraitAttr::OpTrait: {
-    /// Parse OpTrait attribute.
-    mlir::FlatSymbolRefAttr nameAttr;
-    mlir::ArrayAttr paramAttr;
-    if (parser.parseAttribute(nameAttr) ||
-        impl::parseOptionalParameterList(parser, paramAttr))
-      return {};
-    return OpTraitAttr::getChecked(loc, nameAttr, paramAttr);
-  }
-  case TraitAttr::OpTraits: {
-    /// Parse OpTraits attribute.
-    mlir::ArrayAttr traitArr;
-    if (parser.parseAttribute(traitArr))
-      return {};
-    return OpTraitsAttr::getChecked(loc, traitArr);
-  }
+  case TraitAttr::OpTrait:
+    return OpTraitAttr::parse(parser);
+  case TraitAttr::OpTraits:
+    return OpTraitsAttr::parse(parser);
   default:
     emitError(loc, "unknown attribute name");
     return {};
@@ -150,8 +171,10 @@ void TraitRegistry::printAttribute(Attribute attr,
                                    DialectAsmPrinter &printer) const {
   switch (attr.getKind()) {
   case TraitAttr::OpTrait:
+    attr.cast<OpTraitAttr>().print(printer);
     break;
   case TraitAttr::OpTraits:
+    attr.cast<OpTraitsAttr>().print(printer);
     break;
   default:
     llvm_unreachable("Unknown TraitRegistry attribute kind");

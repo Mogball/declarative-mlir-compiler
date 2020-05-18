@@ -1,4 +1,5 @@
 #include "dmc/Traits/Registry.h"
+#include "dmc/Traits/OpTrait.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
 
@@ -8,6 +9,9 @@ namespace dmc {
 
 TraitRegistry::TraitRegistry(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
+  addAttributes<
+      OpTraitAttr, OpTraitsAttr
+    >();
   registerTraits<
       IsTerminator, IsCommutative, IsIsolatedFromAbove,
       OperandsAreFloatLike, OperandsAreSignlessIntegerLike,

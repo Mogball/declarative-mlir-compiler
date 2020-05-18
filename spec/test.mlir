@@ -24,7 +24,8 @@ module {
     %1 = "test.get_value"() : () -> !test.BoxType<#test.Box<6>>
     "test.op_e"(%1) : (!test.BoxType<#test.Box<6>>) -> ()
     "test.my_ret"(%0)
-      { attrUnknown = #test.CustomPair<#test.Box<3>, #test.Box<400>> }
+      { attrUnknown = #test.CustomPair<#test.Box<3>, #test.Box<400>>,
+        attrTraits = #trait.OpTraits<[#trait.OpTrait<@IsTerminator<1,2>>]>}
       : (i32) -> ()
   }
 }

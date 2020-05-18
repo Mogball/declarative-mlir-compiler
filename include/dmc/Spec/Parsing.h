@@ -22,10 +22,10 @@ mlir::ParseResult parseOptionalParameterList(
     mlir::Attribute (modifier)(mlir::Attribute));
 
 /// Print a parameter list.
-void printParameterList(mlir::OpAsmPrinter &printer,
-                        llvm::ArrayRef<mlir::Attribute> params);
-void printParameterList(mlir::DialectAsmPrinter &printer,
-                        llvm::ArrayRef<mlir::Attribute> params);
+void printOptionalParameterList(mlir::OpAsmPrinter &printer,
+                                llvm::ArrayRef<mlir::Attribute> params);
+void printOptionalParameterList(mlir::DialectAsmPrinter &printer,
+                                llvm::ArrayRef<mlir::Attribute> params);
 
 } // end namespace impl
 } // end namespace dmc
