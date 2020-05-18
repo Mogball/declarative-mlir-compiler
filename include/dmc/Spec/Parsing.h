@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dmc/Traits/OpTrait.h"
+
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/DialectImplementation.h>
 
@@ -26,6 +28,12 @@ void printOptionalParameterList(mlir::OpAsmPrinter &printer,
                                 llvm::ArrayRef<mlir::Attribute> params);
 void printOptionalParameterList(mlir::DialectAsmPrinter &printer,
                                 llvm::ArrayRef<mlir::Attribute> params);
+
+/// Parse and print an op trait list attribute in pretty form.
+mlir::ParseResult parseOptionalOpTraitList(mlir::OpAsmParser &parser,
+                                           OpTraitsAttr &traitArr);
+void printOptionalOpTraitList(mlir::OpAsmPrinter &printer,
+                              OpTraitsAttr traitArr);
 
 } // end namespace impl
 } // end namespace dmc

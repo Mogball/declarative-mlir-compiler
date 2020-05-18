@@ -95,5 +95,60 @@ void printOptionalParameterList(DialectAsmPrinter &printer,
   return detail::printOptionalParameterList(printer, params);
 }
 
+/// Op trait parsing.
+ParseResult parseOpTrait(OpAsmParser &parser, OpTraitAttr &traitAttr) {
+  // op-trait ::= `@`trait-name parameter-list?
+  mlir::StringAttr nameAttr;
+  mlir::ArrayAttr paramAttr;
+  NamedAttrList attrList; // dummy list
+  if (parser.parseSymbolName(nameAttr, "name", attrList) ||
+      parseOptionalParameterList(parser, paramAttr))
+    return failure();
+  /// TODO getChecked, but OpAsmParser cannot convert SMLoc to Location
+  traitAttr = OpTraitAttr::get(
+      parser.getBuilder().getSymbolRefAttr(nameAttr.getValue()), paramAttr);
+  return success();
+}
+
+ParseResult parseOptionalOpTraitList(OpAsmParser &parser,
+                                     OpTraitsAttr &traitArr) {
+  // trait-list ::= `traits` `[` op-trait (`,` op-trait)* `]`
+  if (parser.parseOptionalKeyword("traits"))
+    return success();
+  if (parser.parseLSquare())
+    return failure();
+  SmallVector<Attribute, 2> opTraits;
+  do {
+    OpTraitAttr traitAttr;
+    if (parseOpTrait(parser, traitAttr))
+      return failure();
+    opTraits.push_back(traitAttr);
+  } while (!parser.parseOptionalComma());
+  if (parser.parseRSquare())
+    return failure();
+  /// TODO getChecked, but OpAsmParser cannot convert SMLoc to Location
+  traitArr = OpTraitsAttr::get(parser.getBuilder().getArrayAttr(opTraits));
+  return success();
+}
+
+void printOpTrait(OpAsmPrinter &printer, OpTraitAttr traitAttr) {
+  printer.printSymbolName(traitAttr.getName());
+  printOptionalParameterList(printer, traitAttr.getParameters());
+}
+
+void printOptionalOpTraitList(OpAsmPrinter &printer, OpTraitsAttr traitArr) {
+  auto traits = traitArr.getValue();
+  if (traits.empty())
+    return;
+  auto it = std::begin(traits);
+  printer << "traits [";
+  printOpTrait(printer, *it++);
+  for (auto e = std::end(traits); it != e; ++it) {
+    printer << ',';
+    printOpTrait(printer, *it);
+  }
+  printer << ']';
+}
+
 } // end namespace impl
 } // end namespace dmc
