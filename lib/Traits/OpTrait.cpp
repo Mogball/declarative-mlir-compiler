@@ -1,7 +1,9 @@
 #include "dmc/Traits/OpTrait.h"
 #include "dmc/Traits/Registry.h"
+#include "dmc/Spec/Parsing.h"
 
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/DialectImplementation.h>
 
 using namespace mlir;
 
@@ -9,7 +11,7 @@ namespace dmc {
 
 namespace detail {
 struct OpTraitStorage : public AttributeStorage {
-  using KeyTy = std::pair<mlir::StringAttr, mlir::ArrayAttr>;
+  using KeyTy = std::pair<mlir::FlatSymbolRefAttr, mlir::ArrayAttr>;
 
   explicit OpTraitStorage(const KeyTy &key)
       : name{key.first},
@@ -27,7 +29,7 @@ struct OpTraitStorage : public AttributeStorage {
     return new (alloc.allocate<OpTraitStorage>()) OpTraitStorage{key};
   }
 
-  mlir::StringAttr name;
+  mlir::FlatSymbolRefAttr name;
   mlir::ArrayAttr params;
 };
 
@@ -47,19 +49,21 @@ struct OpTraitsStorage : public AttributeStorage {
 };
 } // end namespace detail
 
-OpTraitAttr OpTraitAttr::get(mlir::StringAttr nameAttr,
+OpTraitAttr OpTraitAttr::get(mlir::FlatSymbolRefAttr nameAttr,
                              mlir::ArrayAttr paramAttr) {
   return Base::get(nameAttr.getContext(), TraitAttr::OpTrait, nameAttr,
                    paramAttr);
 }
 
 OpTraitAttr OpTraitAttr::getChecked(
-    mlir::Location loc, mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
+    mlir::Location loc, mlir::FlatSymbolRefAttr nameAttr,
+    mlir::ArrayAttr paramAttr) {
   return Base::getChecked(loc, TraitAttr::OpTrait, nameAttr, paramAttr);
 }
 
 LogicalResult OpTraitAttr::verifyConstructionInvariants(
-    mlir::Location loc, mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
+    mlir::Location loc, mlir::FlatSymbolRefAttr nameAttr,
+    mlir::ArrayAttr paramAttr) {
   if (!nameAttr)
     return emitError(loc) << "op trait name cannot be null";
   if (!paramAttr)
@@ -101,6 +105,58 @@ LogicalResult OpTraitsAttr::verifyConstructionInvariants(
 
 ArrayRef<Attribute> OpTraitsAttr::getUnderlyingValue() {
   return getImpl()->traits.getValue();
+}
+
+Attribute TraitRegistry::parseAttribute(DialectAsmParser &parser,
+                                        Type type) const {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (type) {
+    emitError(loc, "unexpected attribute type");
+    return {};
+  }
+
+  StringRef attrName;
+  if (parser.parseKeyword(&attrName))
+    return {};
+  auto kind = llvm::StringSwitch<TraitAttr::Kinds>(attrName)
+      .Case("OpTrait", TraitAttr::OpTrait)
+      .Case("OpTraits", TraitAttr::OpTraits)
+      .Default(TraitAttr::NUM_ATTRS);
+
+  switch (kind) {
+  case TraitAttr::OpTrait: {
+    /// Parse OpTrait attribute.
+    mlir::FlatSymbolRefAttr nameAttr;
+    mlir::ArrayAttr paramAttr;
+    if (parser.parseAttribute(nameAttr) ||
+        impl::parseOptionalParameterList(parser, paramAttr))
+      return {};
+    return OpTraitAttr::getChecked(loc, nameAttr, paramAttr);
+  }
+  case TraitAttr::OpTraits: {
+    /// Parse OpTraits attribute.
+    mlir::ArrayAttr traitArr;
+    if (parser.parseAttribute(traitArr))
+      return {};
+    return OpTraitsAttr::getChecked(loc, traitArr);
+  }
+  default:
+    emitError(loc, "unknown attribute name");
+    return {};
+  }
+}
+
+void TraitRegistry::printAttribute(Attribute attr,
+                                   DialectAsmPrinter &printer) const {
+  switch (attr.getKind()) {
+  case TraitAttr::OpTrait:
+    break;
+  case TraitAttr::OpTraits:
+    break;
+  default:
+    llvm_unreachable("Unknown TraitRegistry attribute kind");
+    break;
+  }
 }
 
 } // end namespace dmc

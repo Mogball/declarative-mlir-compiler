@@ -20,9 +20,14 @@ public:
 
   /// Register a stateless trait.
   void registerTrait(llvm::StringRef name, TraitConstructor getter);
-
   /// Lookup a stateless trait.
   Trait lookupTrait(llvm::StringRef name);
+
+  /// OpTrait attribute parsing and printing.
+  mlir::Attribute parseAttribute(mlir::DialectAsmParser &parser,
+                                 mlir::Type type) const override;
+  void printAttribute(mlir::Attribute attr,
+                      mlir::DialectAsmPrinter &printer) const override;
 
 private:
   llvm::StringMap<TraitConstructor> traitRegistry;

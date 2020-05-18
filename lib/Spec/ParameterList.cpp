@@ -21,16 +21,6 @@ LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   }
   return success();
 }
-
-void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
-  if (!params.empty()) {
-    auto it = std::begin(params);
-    printer << '<' << *it++;
-    for (auto e = std::end(params); it != e; ++it)
-      printer << ',' << *it;
-    printer << '>';
-  }
-}
 } // end namespace impl
 
 ParseResult ParameterList::parse(OpAsmParser &parser,

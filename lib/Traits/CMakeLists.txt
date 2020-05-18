@@ -5,5 +5,6 @@ add_library(DMCTraits
   )
 target_link_libraries(DMCTraits
   DMCDynamic
+  DMCSpec
   MLIRIR
   )

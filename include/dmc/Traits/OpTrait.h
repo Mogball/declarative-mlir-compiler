@@ -17,11 +17,13 @@ public:
 
   static bool kindof(unsigned kind) { return kind == TraitAttr::OpTrait; }
 
-  static OpTraitAttr get(mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr);
-  static OpTraitAttr getChecked(mlir::Location loc, mlir::StringAttr nameAttr,
-                            mlir::ArrayAttr paramAttr);
+  static OpTraitAttr get(mlir::FlatSymbolRefAttr nameAttr,
+                         mlir::ArrayAttr paramAttr);
+  static OpTraitAttr getChecked(
+      mlir::Location loc, mlir::FlatSymbolRefAttr nameAttr,
+      mlir::ArrayAttr paramAttr);
   static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, mlir::StringAttr nameAttr,
+      mlir::Location loc, mlir::FlatSymbolRefAttr nameAttr,
       mlir::ArrayAttr paramAttr);
 
 

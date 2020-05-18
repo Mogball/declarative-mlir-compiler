@@ -33,7 +33,7 @@ def ParameterList : OpInterface<"ParameterList"> {
       }],
       "void", "printParameterList", (ins "OpAsmPrinter &":$printer), [{}], [{
         auto op = dyn_cast<ConcreteOp>(this->getOperation());
-        impl::printParameterList(printer, op.getParameters());
+        ::dmc::impl::printParameterList(printer, op.getParameters());
       }]
      >,
   ];
