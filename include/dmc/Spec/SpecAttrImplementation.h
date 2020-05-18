@@ -43,6 +43,7 @@ enum Kinds {
 
   /// Non-attribute-constraint kinds.
   OpTrait,
+  OpTraits,
 
   NUM_ATTRS
 };

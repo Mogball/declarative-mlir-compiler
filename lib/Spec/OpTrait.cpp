@@ -20,13 +20,28 @@ struct OpTraitStorage : public AttributeStorage {
     return llvm::hash_combine(key.first, key.second);
   }
 
-  static OpTraitStorage *construct(
-      AttributeStorageAllocator &alloc, const KeyTy &key) {
+  static OpTraitStorage *construct(AttributeStorageAllocator &alloc,
+                                   const KeyTy &key) {
     return new (alloc.allocate<OpTraitStorage>()) OpTraitStorage{key};
   }
 
   mlir::StringAttr name;
   mlir::ArrayAttr params;
+};
+
+struct OpTraitsStorage : public AttributeStorage {
+  using KeyTy = mlir::ArrayAttr;
+
+  explicit OpTraitsStorage(KeyTy key) : traits{key} {}
+  bool operator==(const KeyTy &key) const { return key == traits; }
+  static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }
+
+  static OpTraitsStorage *construct(AttributeStorageAllocator &alloc,
+                                    KeyTy key) {
+    return new (alloc.allocate<OpTraitsStorage>()) OpTraitsStorage{key};
+  }
+
+  KeyTy traits;
 };
 } // end namespace detail
 
@@ -61,6 +76,29 @@ StringRef OpTraitAttr::getName() {
 
 ArrayRef<Attribute> OpTraitAttr::getParameters() {
   return getImpl()->params.getValue();
+}
+
+OpTraitsAttr OpTraitsAttr::get(mlir::ArrayAttr traits){
+  return Base::get(traits.getContext(), SpecAttrs::OpTraits, traits);
+}
+
+OpTraitsAttr OpTraitsAttr::getChecked(Location loc, mlir::ArrayAttr traits) {
+  return Base::getChecked(loc, SpecAttrs::OpTraits, traits);
+}
+
+LogicalResult OpTraitsAttr::verifyConstructionInvariants(
+    Location loc, mlir::ArrayAttr traits) {
+  if (!traits)
+    return emitError(loc) << "op traits list cannot be null";
+  for (auto trait : traits) {
+    if (!trait.isa<OpTraitAttr>())
+      return emitError(loc) << "op traits list must only contain op traits";
+  }
+  return success();
+}
+
+ArrayRef<Attribute> OpTraitsAttr::getUnderlyingValue() {
+  return getImpl()->traits.getValue();
 }
 
 } // end namespace dmc
