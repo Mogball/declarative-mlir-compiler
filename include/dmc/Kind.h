@@ -16,5 +16,8 @@ constexpr auto FIRST_DYNAMIC_TYPE =
 constexpr auto FIRST_DYNAMIC_ATTR =
     mlir::Attribute::Kind::FIRST_PRIVATE_EXPERIMENTAL_1_ATTR;
 
+constexpr auto FIRST_TRAIT_ATTR =
+    mlir::Attribute::Kind::FIRST_PRIVATE_EXPERIMENTAL_2_ATTR;
+
 } // end namespace Kind
 } // end namespace dmc

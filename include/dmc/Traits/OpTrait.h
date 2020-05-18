@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SpecAttrs.h"
+#include "Kinds.h"
 
 namespace dmc {
 
@@ -15,7 +15,7 @@ class OpTraitAttr : public mlir::Attribute::AttrBase<
 public:
   using Base::Base;
 
-  static bool kindof(unsigned kind) { return kind == SpecAttrs::OpTrait; }
+  static bool kindof(unsigned kind) { return kind == TraitAttr::OpTrait; }
 
   static OpTraitAttr get(mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr);
   static OpTraitAttr getChecked(mlir::Location loc, mlir::StringAttr nameAttr,
@@ -35,7 +35,7 @@ class OpTraitsAttr : public mlir::Attribute::AttrBase<
 public:
   using Base::Base;
 
-  static bool kindof(unsigned kind) { return kind == SpecAttrs::OpTraits; }
+  static bool kindof(unsigned kind) { return kind == TraitAttr::OpTraits; }
 
   static OpTraitsAttr get(mlir::ArrayAttr traits);
   static OpTraitsAttr getChecked(mlir::Location loc, mlir::ArrayAttr traits);

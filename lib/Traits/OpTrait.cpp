@@ -1,5 +1,7 @@
-#include "dmc/Spec/OpTrait.h"
+#include "dmc/Traits/OpTrait.h"
 #include "dmc/Traits/Registry.h"
+
+#include <mlir/IR/Diagnostics.h>
 
 using namespace mlir;
 
@@ -47,13 +49,13 @@ struct OpTraitsStorage : public AttributeStorage {
 
 OpTraitAttr OpTraitAttr::get(mlir::StringAttr nameAttr,
                              mlir::ArrayAttr paramAttr) {
-  return Base::get(nameAttr.getContext(), SpecAttrs::OpTrait, nameAttr,
+  return Base::get(nameAttr.getContext(), TraitAttr::OpTrait, nameAttr,
                    paramAttr);
 }
 
 OpTraitAttr OpTraitAttr::getChecked(
     mlir::Location loc, mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
-  return Base::getChecked(loc, SpecAttrs::OpTrait, nameAttr, paramAttr);
+  return Base::getChecked(loc, TraitAttr::OpTrait, nameAttr, paramAttr);
 }
 
 LogicalResult OpTraitAttr::verifyConstructionInvariants(
@@ -79,11 +81,11 @@ ArrayRef<Attribute> OpTraitAttr::getParameters() {
 }
 
 OpTraitsAttr OpTraitsAttr::get(mlir::ArrayAttr traits){
-  return Base::get(traits.getContext(), SpecAttrs::OpTraits, traits);
+  return Base::get(traits.getContext(), TraitAttr::OpTraits, traits);
 }
 
 OpTraitsAttr OpTraitsAttr::getChecked(Location loc, mlir::ArrayAttr traits) {
-  return Base::getChecked(loc, SpecAttrs::OpTraits, traits);
+  return Base::getChecked(loc, TraitAttr::OpTraits, traits);
 }
 
 LogicalResult OpTraitsAttr::verifyConstructionInvariants(

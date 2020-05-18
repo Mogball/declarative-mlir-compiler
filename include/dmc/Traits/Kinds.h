@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dmc/Kind.h"
+
 namespace dmc {
 namespace Traits {
 enum Kind {
@@ -39,4 +41,13 @@ enum Kind {
   NUM_TRAITS
 };
 } // end namespace Traits
+
+namespace TraitAttr {
+enum Kinds {
+  OpTrait = Kind::FIRST_TRAIT_ATTR,
+  OpTraits,
+
+  NUM_ATTRS
+};
+} // end namespace TraitAttr
 } // end namespace dmc
