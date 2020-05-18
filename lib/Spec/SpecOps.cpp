@@ -130,8 +130,13 @@ void OperationOp::build(OpBuilder &builder, OperationState &result,
   buildDefaultValuedAttrs(builder, result);
 }
 
-// op ::= `dmc.Op` `@`opName type-list `->` type-list `attributes` attr-list
-//        `config` attr-list
+// op ::= `dmc.Op` `@`op-name func-type (attr-dict)?
+//        (`traits` trait-list)?
+//        (`config` attr-dict)?
+//
+// func-type ::= type-list `->` type-list
+// trait-list ::= `[` trait (`,` trait)* `]`
+// trait ::= `@`trait-name param-list?
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   mlir::TypeAttr funcTypeAttr;

@@ -33,23 +33,23 @@ void printParameterList(OpAsmPrinter &printer, ArrayRef<Attribute> params) {
 }
 } // end namespace impl
 
-ParseResult ParameterList::parse(OpAsmParser &parser, NamedAttrList &attrList) {
-  SmallVector<Attribute, 2> params;
-  if (!parser.parseOptionalLess()) {
-    do {
-      Attribute param;
-      if (::dmc::impl::parseSingleAttribute(parser, param))
-        return failure();
-      /// If a type attribute was provided, wrap in a SpecAttr.
-      if (auto tyAttr = param.dyn_cast<mlir::TypeAttr>())
-        param = OfTypeAttr::get(tyAttr.getValue());
-      params.push_back(param);
-    } while (!parser.parseOptionalComma());
-    if (parser.parseGreater())
-      return failure();
-  }
-  attrList.append(Trait<int>::getParametersAttrName(),
-                  parser.getBuilder().getArrayAttr(params));
+ParseResult ParameterList::parse(OpAsmParser &parser,
+                                 NamedAttrList &attrList) {
+  /// TypeOp and AttributeOp parameter lists can use type attributes to specify
+  /// an OfTypeAttr constraint:
+  ///
+  ///   <..., i32, ...> => <..., #dmc.OfType<i32>, ...>
+  ///
+  mlir::ArrayAttr paramAttr;
+  auto ofTypeModifier = [](Attribute attr) -> Attribute {
+    if (auto tyAttr = attr.dyn_cast<mlir::TypeAttr>())
+      return OfTypeAttr::get(tyAttr.getValue());
+    return attr;
+  };
+  if (failed(::dmc::impl::parseOptionalParameterList(parser, paramAttr,
+                                                     ofTypeModifier)))
+    return failure();
+  attrList.append(Trait<int>::getParametersAttrName(), paramAttr);
   return success();
 }
 

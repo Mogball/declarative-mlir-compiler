@@ -17,7 +17,7 @@ dmc.Dialect @test {
   dmc.Op @get_value() -> !dmc.Any
 
   dmc.Attr @CustomAttr
-  dmc.Attr @Pair<#dmc.Any, #dmc.Any>
+  dmc.Attr @Pair<#dmc.APInt, #dmc.APInt>
   dmc.Alias @IsPair -> #dmc.Isa<@test::@Pair>
   dmc.Alias @IsCustomAttr -> #dmc.Isa<@test::@CustomAttr>
   dmc.Op @op_d() -> () { attr3 = #test.IsPair,
