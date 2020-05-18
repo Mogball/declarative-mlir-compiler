@@ -11,6 +11,8 @@ class DynamicContext;
 class DynamicOperation;
 class DynamicTypeImpl;
 class DynamicAttributeImpl;
+class TypeAlias;
+class AttributeAlias;
 
 /// Dynamic dialect underlying class. This class hooks Dialect methods
 /// into user-specified functions.
@@ -57,21 +59,33 @@ public:
   /// Register a DynamicOperation with this dialect so its config
   /// is stored for later use. The dialect takes ownership.
   mlir::LogicalResult registerDynamicOp(std::unique_ptr<DynamicOperation> op);
-  /// Lookup the DynamicOperation belonging to an Operation.
+  /// Lookup the DynamicOperation belonging to an Operation. Returns null if
+  /// not found.
   DynamicOperation *lookupOp(llvm::StringRef name) const;
 
   /// Register a DynamicType with the dialect. The dialect takes ownership.
   mlir::LogicalResult
   registerDynamicType(std::unique_ptr<DynamicTypeImpl> type);
-  /// Lookup a DynamicType with the given name.
+  /// Lookup a DynamicType with the given name. Returns nullptr if none is
+  /// found.
   DynamicTypeImpl *lookupType(llvm::StringRef name) const;
 
   /// Register a DynamicAttribute with the dialect. The dialect takes
   /// ownership.
   mlir::LogicalResult
   registerDynamicAttr(std::unique_ptr<DynamicAttributeImpl> attr);
-  /// Lookup a DynamicAttribute with the given name.
+  /// Lookup a DynamicAttribute with the given name. Returns nullptr if none
+  /// is found.
   DynamicAttributeImpl *lookupAttr(llvm::StringRef name) const;
+
+  /// Register a type alias.
+  mlir::LogicalResult registerTypeAlias(TypeAlias typeAlias);
+  /// Lookup a type alias. Returns nullptr if not found.
+  TypeAlias *lookupTypeAlias(llvm::StringRef name) const;
+  /// Register an attribute alias.
+  mlir::LogicalResult registerAttrAlias(AttributeAlias attrAlias);
+  /// Lookup an attribute alias. Returns nullptr if not found.
+  AttributeAlias *lookupAttrAlias(llvm::StringRef name) const;
 
 private:
   class Impl;

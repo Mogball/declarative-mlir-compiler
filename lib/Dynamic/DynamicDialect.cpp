@@ -1,8 +1,11 @@
+#include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicAttribute.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicOperation.h"
+
+#include <mlir/IR/StandardTypes.h>
 
 using namespace mlir;
 
@@ -29,9 +32,17 @@ LogicalResult DynamicDialect::createDynamicAttr(
 
 Type DynamicDialect::parseType(DialectAsmParser &parser) const {
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  /// Get the type name.
   StringRef name;
   if (parser.parseKeyword(&name))
     return {};
+
+  /// Return a type alias if one is found.
+  auto *typeAlias = lookupTypeAlias(name);
+  if (typeAlias)
+    return typeAlias->getAliasedType();
+
+  /// Lookup a dynamic type and call its parser.
   auto *typeImpl = lookupType(name);
   if (!typeImpl) {
     emitError(loc) << "Unknown type name: " << name;
@@ -50,15 +61,24 @@ void DynamicDialect::printType(Type type, DialectAsmPrinter &printer) const {
 /// language is incorporated.
 Attribute DynamicDialect::parseAttribute(DialectAsmParser &parser,
                                          Type type) const {
-  if (type) {
+  if (type && !type.isa<mlir::NoneType>()) {
     parser.emitError(parser.getCurrentLocation(),
                      "typed custom attributes currently unsupported");
     return {};
   }
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+
+  /// Get the attribute name.
   StringRef name;
   if (parser.parseKeyword(&name))
     return {};
+
+  /// Return an attribute alias if one is found.
+  auto *attrAlias = lookupAttrAlias(name);
+  if (attrAlias)
+    return attrAlias->getAliasedAttr();
+
+  /// Lookup a dynamic attribute and call its parser.
   auto *attrImpl = lookupAttr(name);
   if (!attrImpl) {
     emitError(loc) << "Unknown attribute name: " << name;

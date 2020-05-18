@@ -8,15 +8,20 @@ dmc.Dialect @test {
       config { is_terminator = true, traits = [@SameVariadicOperandSizes] }
 
   dmc.Type @CustomType
-  dmc.Type @Array2D<i64, i64>
   dmc.Op @op_c(!test.CustomType) -> !test.CustomType
-  dmc.Op @transpose(!dmc.Isa<@test::@Array2D>) -> !dmc.Isa<@test::@Array2D>
+
+  dmc.Type @Array2D<i64, i64>
+  dmc.Alias @IsArray2D -> !dmc.Isa<@test::@Array2D>
+  dmc.Op @transpose(!test.IsArray2D) -> !test.IsArray2D
+
   dmc.Op @get_value() -> !dmc.Any
 
   dmc.Attr @CustomAttr
   dmc.Attr @Pair<#dmc.Any, #dmc.Any>
-  dmc.Op @op_d() -> () { attr3 = #dmc.Isa<@test::@Pair>,
-                         attr4 = #dmc.Isa<@test::@CustomAttr> }
+  dmc.Alias @IsPair -> #dmc.Isa<@test::@Pair>
+  dmc.Alias @IsCustomAttr -> #dmc.Isa<@test::@CustomAttr>
+  dmc.Op @op_d() -> () { attr3 = #test.IsPair,
+                         attr4 = #test.IsCustomAttr }
 
   dmc.Attr @Box<#dmc.Any>
   dmc.Attr @CustomPair<#dmc.Isa<@test::@Box>, #dmc.Isa<@test::@Box>>

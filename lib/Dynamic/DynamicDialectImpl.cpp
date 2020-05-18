@@ -1,3 +1,4 @@
+#include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicAttribute.h"
@@ -18,6 +19,8 @@ class DynamicDialect::Impl {
   StringMap<std::unique_ptr<DynamicOperation>> dynOps;
   StringMap<std::unique_ptr<DynamicTypeImpl>> dynTys;
   StringMap<std::unique_ptr<DynamicAttributeImpl>> dynAttrs;
+  StringMap<TypeAlias> typeAliases;
+  StringMap<AttributeAlias> attrAliases;
 };
 
 DynamicDialect::~DynamicDialect() = default;
@@ -61,6 +64,28 @@ LogicalResult DynamicDialect
 DynamicAttributeImpl *DynamicDialect::lookupAttr(StringRef name) const {
   auto it = impl->dynAttrs.find(name);
   return it == std::end(impl->dynAttrs) ? nullptr : it->second.get();
+}
+
+LogicalResult DynamicDialect::registerTypeAlias(TypeAlias typeAlias) {
+  auto [it, inserted] = impl->typeAliases.try_emplace(typeAlias.getName(),
+                                                      typeAlias);
+  return success(inserted);
+}
+
+TypeAlias *DynamicDialect::lookupTypeAlias(StringRef name) const {
+  auto it = impl->typeAliases.find(name);
+  return it == std::end(impl->typeAliases) ? nullptr : &it->second;
+}
+
+LogicalResult DynamicDialect::registerAttrAlias(AttributeAlias attrAlias) {
+  auto [it, inserted] = impl->attrAliases.try_emplace(attrAlias.getName(),
+                                                      attrAlias);
+  return success(inserted);
+}
+
+AttributeAlias *DynamicDialect::lookupAttrAlias(StringRef name) const {
+  auto it = impl->attrAliases.find(name);
+  return it == std::end(impl->attrAliases) ? nullptr : &it->second;
 }
 
 } // end namespace dmc

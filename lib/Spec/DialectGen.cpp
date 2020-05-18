@@ -1,3 +1,4 @@
+#include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
@@ -66,6 +67,24 @@ LogicalResult registerAttr(AttributeOp attrOp, DynamicDialect *dialect) {
   return success();
 }
 
+LogicalResult registerAlias(AliasOp aliasOp, DynamicDialect *dialect) {
+  /// Need to check that a type with the alias name does not already exist.
+  if (auto type = aliasOp.getAliasedType()) {
+    if (dialect->lookupType(aliasOp.getName()))
+      return aliasOp.emitOpError("a type with this name already exists");
+    if (failed(dialect->registerTypeAlias({aliasOp.getName(), type})))
+      return aliasOp.emitOpError("a type alias with this name already exists");
+  } else {
+    if (dialect->lookupAttr(aliasOp.getName()))
+      return aliasOp.emitOpError("an attribute with this name already exists");
+    if (failed(dialect->registerAttrAlias({aliasOp.getName(),
+                                          aliasOp.getAliasedAttr()})))
+      return aliasOp.emitOpError(
+          "an attribute alias with  this name already exists");
+  }
+  return success();
+}
+
 LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
@@ -87,6 +106,9 @@ LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
         return failure();
     } else if (auto attrOp = dyn_cast<AttributeOp>(&specOp)) {
       if (failed(registerAttr(attrOp, dialect)))
+        return failure();
+    } else if (auto aliasOp = dyn_cast<AliasOp>(&specOp)) {
+      if (failed(registerAlias(aliasOp, dialect)))
         return failure();
     }
   }
