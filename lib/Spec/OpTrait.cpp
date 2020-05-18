@@ -30,17 +30,18 @@ struct OpTraitStorage : public AttributeStorage {
 };
 } // end namespace detail
 
-OpTrait OpTrait::get(mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
+OpTraitAttr OpTraitAttr::get(mlir::StringAttr nameAttr,
+                             mlir::ArrayAttr paramAttr) {
   return Base::get(nameAttr.getContext(), SpecAttrs::OpTrait, nameAttr,
                    paramAttr);
 }
 
-OpTrait OpTrait::getChecked(mlir::Location loc, mlir::StringAttr nameAttr,
-                            mlir::ArrayAttr paramAttr) {
+OpTraitAttr OpTraitAttr::getChecked(
+    mlir::Location loc, mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
   return Base::getChecked(loc, SpecAttrs::OpTrait, nameAttr, paramAttr);
 }
 
-LogicalResult OpTrait::verifyConstructionInvariants(
+LogicalResult OpTraitAttr::verifyConstructionInvariants(
     mlir::Location loc, mlir::StringAttr nameAttr, mlir::ArrayAttr paramAttr) {
   if (!nameAttr)
     return emitError(loc) << "op trait name cannot be null";
@@ -54,11 +55,11 @@ LogicalResult OpTrait::verifyConstructionInvariants(
   return success();
 }
 
-StringRef OpTrait::getName() {
+StringRef OpTraitAttr::getName() {
   return getImpl()->name.getValue();
 }
 
-ArrayRef<Attribute> OpTrait::getParameters() {
+ArrayRef<Attribute> OpTraitAttr::getParameters() {
   return getImpl()->params.getValue();
 }
 
