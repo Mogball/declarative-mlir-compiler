@@ -37,8 +37,10 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Process the remaining traits.
   auto *registry = dialect->getContext()
       ->getRegisteredDialect<TraitRegistry>();
-  for (auto traitSym : opOp.getOpTraits().getAsRange<FlatSymbolRefAttr>()) {
-    auto traitName = traitSym.getValue();
+  for (auto traitSym : opOp.getOpTraits().getValue()) {
+    if (!traitSym.getParameters().empty())
+      return opOp.emitOpError("parameterized op traits currently unsupported");
+    auto traitName = traitSym.getName();
     op->addOpTrait(traitName, registry->lookupTrait(traitName));
   }
 

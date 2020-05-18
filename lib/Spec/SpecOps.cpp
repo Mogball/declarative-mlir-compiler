@@ -141,14 +141,17 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   mlir::TypeAttr funcTypeAttr;
   NamedAttrList opAttrs;
+  OpTraitsAttr traitArr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       parser.parseAttribute(funcTypeAttr, getTypeAttrName(),
                             result.attributes) ||
-      parser.parseOptionalAttrDict(opAttrs))
+      parser.parseOptionalAttrDict(opAttrs) ||
+      impl::parseOptionalOpTraitList(parser, traitArr))
     return failure();
   result.addAttribute(getOpAttrDictAttrName(),
                       mlir::DictionaryAttr::get(opAttrs, result.getContext()));
+  result.addAttribute(getOpTraitsAttrName(), traitArr);
   if (!parser.parseOptionalKeyword("config") &&
       parser.parseOptionalAttrDict(result.attributes))
     return failure();
@@ -164,18 +167,20 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printer.printType(getType());
   printer << ' ';
   printer.printAttribute(getOpAttrs());
+  printer << ' ';
+  impl::printOptionalOpTraitList(printer, getOpTraits());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
       SymbolTable::getSymbolAttrName(), getTypeAttrName(),
-      getOpAttrDictAttrName()});
+      getOpAttrDictAttrName(), getOpTraitsAttrName()});
 }
 
 mlir::DictionaryAttr OperationOp::getOpAttrs() {
   return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
 }
 
-mlir::ArrayAttr OperationOp::getOpTraits() {
-  return getAttrOfType<mlir::ArrayAttr>(getOpTraitsAttrName());
+OpTraitsAttr OperationOp::getOpTraits() {
+  return getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
 }
 
 bool OperationOp::isTerminator() {
@@ -194,11 +199,9 @@ bool OperationOp::isIsolatedFromAbove() {
 /// Trait array manipulation helpers.
 namespace impl {
 template <typename TraitT>
-bool hasTrait(mlir::ArrayAttr opTraits) {
-  return llvm::count_if(opTraits.getAsRange<mlir::FlatSymbolRefAttr>(),
-      [](mlir::FlatSymbolRefAttr sym) {
-          return sym.getValue() == TraitT::getName();
-      });
+bool hasTrait(OpTraitsAttr opTraits) {
+  return llvm::count_if(opTraits.getValue(), [](OpTraitAttr sym)
+                        { return sym.getName() == TraitT::getName(); });
 }
 } // end namespace impl
 
@@ -212,16 +215,10 @@ LogicalResult OperationOp::verify() {
   if (!getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
-  auto opTraits = getAttrOfType<mlir::ArrayAttr>(getOpTraitsAttrName());
+  auto opTraits = getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
   if (!opTraits)
-    return emitOpError("expected ArrayAttr named: ")
+    return emitOpError("expected OpTraitsAttr named: ")
         << getOpTraitsAttrName();
-  /// TODO support full SymbolRefAttr to refer to dynamic traits, e.g.
-  /// `@Python.MyOpTrait`
-  else if (llvm::count_if(opTraits,
-        [](Attribute attr) { return !attr.isa<mlir::FlatSymbolRefAttr>(); }))
-    return emitOpError("expected ArrayAttr '") << getOpTraitsAttrName()
-        << "' of only FlatSymbolRefAttr";
 
   /// If there is are variadic values, there must be a size specifier.
   /// More than size specifier is prohobited. Having a size specifier without
@@ -246,13 +243,6 @@ LogicalResult OperationOp::verify() {
     return emitOpError("more than one variadic result requires a ")
         << "variadic size specifier";
 
-  /// Verify that the remaining traits exist
-  auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
-  assert(registry && "TraitRegistry dialect was not registered");
-  for (auto trait : opTraits.getAsRange<mlir::FlatSymbolRefAttr>()) {
-    if (!registry->lookupTrait(trait.getValue()))
-      return emitOpError("trait '") << trait.getValue() << "' not found";
-  }
   return success();
 }
 

@@ -113,19 +113,19 @@ ParseResult parseOpTrait(OpAsmParser &parser, OpTraitAttr &traitAttr) {
 ParseResult parseOptionalOpTraitList(OpAsmParser &parser,
                                      OpTraitsAttr &traitArr) {
   // trait-list ::= `traits` `[` op-trait (`,` op-trait)* `]`
-  if (parser.parseOptionalKeyword("traits"))
-    return success();
-  if (parser.parseLSquare())
-    return failure();
   SmallVector<Attribute, 2> opTraits;
-  do {
-    OpTraitAttr traitAttr;
-    if (parseOpTrait(parser, traitAttr))
+  if (!parser.parseOptionalKeyword("traits")) {
+    if (parser.parseLSquare())
       return failure();
-    opTraits.push_back(traitAttr);
-  } while (!parser.parseOptionalComma());
-  if (parser.parseRSquare())
-    return failure();
+    do {
+      OpTraitAttr traitAttr;
+      if (parseOpTrait(parser, traitAttr))
+        return failure();
+      opTraits.push_back(traitAttr);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseRSquare())
+      return failure();
+  }
   /// TODO getChecked, but OpAsmParser cannot convert SMLoc to Location
   traitArr = OpTraitsAttr::get(parser.getBuilder().getArrayAttr(opTraits));
   return success();

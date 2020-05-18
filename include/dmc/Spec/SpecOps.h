@@ -3,6 +3,7 @@
 #include "ParameterList.h"
 #include "HasChildren.h"
 #include "ReparseOpInterface.h"
+#include "dmc/Traits/OpTrait.h"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/SymbolTable.h>
@@ -121,7 +122,7 @@ public:
 
   /// Getters.
   mlir::DictionaryAttr getOpAttrs();
-  mlir::ArrayAttr getOpTraits();
+  OpTraitsAttr getOpTraits();
 
   bool isTerminator();
   bool isCommutative();

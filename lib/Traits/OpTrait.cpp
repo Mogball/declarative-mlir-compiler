@@ -78,6 +78,8 @@ LogicalResult OpTraitAttr::verifyConstructionInvariants(
 
 OpTraitAttr OpTraitAttr::parse(DialectAsmParser &parser) {
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  /// TODO support full SymbolRefAttr to refer to dynamic traits, e.g.
+  /// `@Python.MyOpTrait`
   mlir::FlatSymbolRefAttr nameAttr;
   mlir::ArrayAttr paramAttr;
   if (parser.parseLess() || parser.parseAttribute(nameAttr) ||
