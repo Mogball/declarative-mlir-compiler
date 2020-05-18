@@ -336,6 +336,7 @@ static DynamicAttributeImpl *lookupAttrReference(
         << "' is not a dynamic dialect";
     return nullptr;
   }
+  /// TODO attribute alias?
   /// Resolve the attribute reference.
   auto *attrImpl = dynDialect->lookupAttr(attrName);
   if (!attrImpl) {

@@ -391,6 +391,7 @@ static DynamicTypeImpl *lookupTypeReference(
         << "' is not a dynamic dialect";
     return nullptr;
   }
+  /// TODO type alias?
   /// Resolve the type reference.
   auto *typeImpl = dynDialect->lookupType(typeName);
   if (!typeImpl) {
