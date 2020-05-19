@@ -1,4 +1,3 @@
-#include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Traits/Registry.h"

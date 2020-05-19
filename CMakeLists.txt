@@ -40,7 +40,7 @@ find_package(PythonLibs 3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS python38)
 
 # Global options
-add_compile_options(-Wall -Werror -fdiagnostics-color)
+add_compile_options(-Wall -Werror -fdiagnostics-color -fPIC)
 
 # Global includes
 include_directories(
