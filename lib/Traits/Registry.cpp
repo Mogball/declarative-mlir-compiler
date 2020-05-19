@@ -7,6 +7,37 @@ using namespace mlir;
 
 namespace dmc {
 
+namespace detail {
+
+template <typename ArgT, unsigned I>
+auto unpackArg(ArrayRef<Attribute> args) {
+  return args[I].cast<ArgT>();
+}
+
+template <typename... ArgsT, typename ConstructorT, unsigned... Is>
+auto callCtor(ConstructorT ctor, ArrayRef<Attribute> args,
+              std::integer_sequence<unsigned, Is...>) {
+  return ctor(unpackArg<ArgsT, Is>(args)...);
+}
+
+} // end namespace detail
+
+template <typename... ArgsT>
+class Constructor {
+public:
+  using ConstructorT = TraitRegistry::Trait (*)(ArgsT...);
+
+  Constructor(ConstructorT ctor) : ctor(ctor) {}
+
+  TraitRegistry::Trait operator()(ArrayRef<Attribute> args) {
+    using Indices = std::make_integer_sequence<unsigned, sizeof...(ArgsT)>;
+    return detail::callCtor<ArgsT...>(ctor, args, Indices{});
+  }
+
+private:
+  ConstructorT ctor;
+};
+
 TraitRegistry::TraitRegistry(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
   addAttributes<

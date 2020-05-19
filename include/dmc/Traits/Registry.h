@@ -7,6 +7,19 @@
 
 namespace dmc {
 
+/// The trait constructor leverages MLIR's attribute system to store generic
+/// values to pass to a "trait constructor". This is used to generically create
+/// parameterized traits, such as @NSuccessors<2>.
+///
+/// The constructor stores the expected signature of attribute arguments.
+class TraitConstructor {
+public:
+
+private:
+  /// The expected constructor signature.
+  std::vector<unsigned> signature;
+};
+
 /// The trait registry is a Dialect so that it can be stored inside the
 /// MLIRContext for later lookup.
 class TraitRegistry : public mlir::Dialect {

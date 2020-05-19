@@ -26,3 +26,9 @@ target_link_libraries(gen
   LLVMSupport
   MLIRParser
   )
+
+add_executable(kind statickind.cpp)
+target_link_libraries(kind
+  MLIRIR
+  LLVMSupport
+  )
