@@ -1,3 +1,4 @@
+#include "GenericConstructor.h"
 #include "dmc/Traits/Registry.h"
 #include "dmc/Traits/OpTrait.h"
 #include "dmc/Traits/StandardTraits.h"
@@ -7,43 +8,38 @@ using namespace mlir;
 
 namespace dmc {
 
-namespace detail {
+namespace {
 
-template <typename ArgT, unsigned I>
-auto unpackArg(ArrayRef<Attribute> args) {
-  return args[I].cast<ArgT>();
+template <typename TraitT>
+void registerStatelessTrait(TraitRegistry *reg) {
+  GenericConstructor<> ctorObj{[]() -> Trait {
+    return std::make_unique<TraitT>();
+  }};
+  TraitConstructor traitCtor{
+    [ctorObj](Location loc, ArrayRef<Attribute> args) {
+      return ctorObj.verifySignature(loc, args);
+    },
+    [ctorObj](ArrayRef<Attribute> args) {
+      return ctorObj.callConstructor(args);
+    }
+  };
+  reg->registerTrait(TraitT::getName(), std::move(traitCtor));
 }
 
-template <typename... ArgsT, typename ConstructorT, unsigned... Is>
-auto callCtor(ConstructorT ctor, ArrayRef<Attribute> args,
-              std::integer_sequence<unsigned, Is...>) {
-  return ctor(unpackArg<ArgsT, Is>(args)...);
+template <typename... TraitTs>
+void registerStatelessTraits(TraitRegistry *reg) {
+  (void) std::initializer_list<int>{0,
+      (registerStatelessTrait<TraitTs>(reg), 0)...};
 }
 
-} // end namespace detail
-
-template <typename... ArgsT>
-class Constructor {
-public:
-  using ConstructorT = TraitRegistry::Trait (*)(ArgsT...);
-
-  Constructor(ConstructorT ctor) : ctor(ctor) {}
-
-  TraitRegistry::Trait operator()(ArrayRef<Attribute> args) {
-    using Indices = std::make_integer_sequence<unsigned, sizeof...(ArgsT)>;
-    return detail::callCtor<ArgsT...>(ctor, args, Indices{});
-  }
-
-private:
-  ConstructorT ctor;
-};
+} // end anonymous namespace
 
 TraitRegistry::TraitRegistry(MLIRContext *ctx)
     : Dialect{getDialectNamespace(), ctx} {
   addAttributes<
       OpTraitAttr, OpTraitsAttr
     >();
-  registerTraits<
+  registerStatelessTraits<
       IsTerminator, IsCommutative, IsIsolatedFromAbove,
       OperandsAreFloatLike, OperandsAreSignlessIntegerLike,
       ResultsAreBoolLike, ResultsAreFloatLike,
@@ -54,19 +50,20 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
 
       SameVariadicOperandSizes, SameVariadicResultSizes,
       SizedOperandSegments, SizedResultSegments
-    >();
+    >(this);
 }
 
-void TraitRegistry::registerTrait(StringRef name, TraitConstructor getter) {
-  auto [it, inserted] = traitRegistry.try_emplace(name, getter);
+void TraitRegistry::registerTrait(StringRef name, TraitConstructor &&getter) {
+  auto [it, inserted] = traitRegistry.try_emplace(
+      name, std::forward<TraitConstructor>(getter));
   assert(inserted && "Trait has already been registered");
 }
 
-TraitRegistry::Trait TraitRegistry::lookupTrait(StringRef name) {
+TraitConstructor TraitRegistry::lookupTrait(StringRef name) {
   auto it = traitRegistry.find(name);
   if (it == std::end(traitRegistry))
     return nullptr;
-  return it->second();
+  return it->second;
 }
 
 } // end namespace dmc

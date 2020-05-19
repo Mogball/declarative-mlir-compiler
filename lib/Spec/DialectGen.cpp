@@ -41,7 +41,7 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     if (!traitSym.getParameters().empty())
       return opOp.emitOpError("parameterized op traits currently unsupported");
     auto traitName = traitSym.getName();
-    op->addOpTrait(traitName, registry->lookupTrait(traitName));
+    op->addOpTrait(traitName, registry->lookupTrait(traitName).call({}));
   }
 
   /// Add type and attribute constraint traits last.
