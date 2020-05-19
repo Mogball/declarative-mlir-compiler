@@ -265,7 +265,6 @@ void TypeOp::build(OpBuilder &builder, OperationState &result,
 // param-list ::= `<` param (`,` param)* `>`
 ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
-  mlir::ArrayAttr paramAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       ParameterList::parse(parser, result.attributes))
@@ -291,7 +290,6 @@ void AttributeOp::build(OpBuilder &builder, OperationState &result,
 /// attr ::= `dmc.Attr` `@`attr-name param-list?
 ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
-  mlir::ArrayAttr paramAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       ParameterList::parse(parser, result.attributes))

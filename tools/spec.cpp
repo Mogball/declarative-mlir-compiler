@@ -1,4 +1,5 @@
 #include "dmc/Spec/SpecDialect.h"
+#include "dmc/Spec/DialectGen.h"
 #include "dmc/Traits/Registry.h"
 
 #include <llvm/ADT/StringRef.h>
@@ -38,4 +39,10 @@ int main(int argc, char *argv[]) {
   }
   mlirModule->print(llvm::outs());
   llvm::outs() << "\n";
+
+  DynamicContext dynCtx{&ctx};
+  if (failed(registerAllDialects(*mlirModule, &dynCtx))) {
+    llvm::errs() << "Failed to register dynamic dialects\n";
+    return -1;
+  }
 }
