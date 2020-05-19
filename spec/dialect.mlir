@@ -10,6 +10,7 @@ dmc.Dialect @test {
 
   dmc.Type @CustomType
   dmc.Op @op_c(!test.CustomType) -> !test.CustomType
+      traits [@HasParent<"func">]
 
   dmc.Type @Array2D<i64, i64>
   dmc.Alias @IsArray2D -> !dmc.Isa<@test::@Array2D>

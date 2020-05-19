@@ -149,6 +149,17 @@ struct AtLeastNSuccessors : public BindArgTrait<unsigned> {
       : BindArgTrait(mlir::OpTrait::impl::verifyAtLeastNSuccessors, num) {}
 };
 
+/// Non-trivial stateful traits.
+class HasParent : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "HasParent"; }
+  explicit HasParent(llvm::StringRef parentName) : parentName{parentName} {}
+  mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
+
+private:
+  llvm::StringRef parentName;
+};
+
 /// TODO Some standard traits not rebound (complexity/API restrictions):
 /// - HasParent<>
 /// - SingleBlockImplicitTerminator

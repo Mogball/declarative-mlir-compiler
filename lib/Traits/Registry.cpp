@@ -74,7 +74,9 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
       NOperands(IntegerAttr), AtLeastNOperands(IntegerAttr),
       NRegions(IntegerAttr), AtLeastNRegions(IntegerAttr),
       NResults(IntegerAttr), AtLeastNResults(IntegerAttr),
-      NSuccessors(IntegerAttr), AtLeastNSuccessors(IntegerAttr)
+      NSuccessors(IntegerAttr), AtLeastNSuccessors(IntegerAttr),
+
+      HasParent(StringAttr)
     >(this);
 }
 
