@@ -4,9 +4,17 @@
 
 ## Build Requirements
 
-- `cmake>=3.10`
+- `cmake >= 3.10`
+- `python >= 3.6`
+- `boost >= 1.7`
 
-Build with `cmake --build . --target DMC<lib>`.
+Build with `cmake --build . --target gen`.
+
+### Arch Linux
+
+```
+sudo pacman -Sy cmake python boost
+```
 
 ## Short-Term TODOs
 

@@ -7,8 +7,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(declarative-compiler)
 
-# Enable RTTI
+# Enable RTTI and exceptions, as required by Boost
 set(LLVM_ENABLE_RTTI ON CACHE INTERNAL "")
+set(LLVM_ENABLE_EH   ON CACHE INTERNAL "")
 # Configure LLVM and MLIR directories
 set(LLVM_PROJECT_DIR llvm-project)
 set(LLVM_DIR ${LLVM_PROJECT_DIR}/llvm)
@@ -33,8 +34,13 @@ message(STATUS "MLIR directory: ${MLIR_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 include(AddDMC)
 
+# Boost::Python
+find_package(PythonLibs 3 REQUIRED)
+## Explicitly specify `python38` as `python` gives a Python 2 warning
+find_package(Boost REQUIRED COMPONENTS python38)
+
 # Global options
-add_compile_options(-fno-exceptions -Wall -Werror -fdiagnostics-color)
+add_compile_options(-Wall -Werror -fdiagnostics-color)
 
 # Global includes
 include_directories(
@@ -47,3 +53,9 @@ include_directories(
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
+
+
+### TEST
+python_add_module(hello hello.cpp)
+target_include_directories(hello PUBLIC ${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(hello ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
