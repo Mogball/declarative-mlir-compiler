@@ -53,9 +53,3 @@ include_directories(
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
-
-
-### TEST
-python_add_module(hello hello.cpp)
-target_include_directories(hello PUBLIC ${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(hello ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
