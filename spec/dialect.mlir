@@ -5,7 +5,7 @@ dmc.Dialect @test {
       { attr1 = #dmc.Bool }
   dmc.Op @my_ret(!dmc.AnyInteger, !dmc.Variadic<!dmc.Any>) -> ()
       { attr2 = #dmc.Optional<#dmc.Bool> }
-      traits [@SameVariadicOperandSizes]
+      traits [@SameVariadicOperandSizes, @AtLeastNOperands<1>]
       config { is_terminator = true }
 
   dmc.Type @CustomType

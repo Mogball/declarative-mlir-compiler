@@ -26,21 +26,29 @@ auto callFcn(FcnT fcn, llvm::ArrayRef<mlir::Attribute> args,
 
 /// Check that an argument at an index is the correct type.
 template <typename ArgT, unsigned I>
-bool checkArgType(llvm::ArrayRef<mlir::Attribute> args) {
-  return args[I].isa<ArgT>();
+mlir::LogicalResult checkArgType(mlir::Location loc,
+                                 llvm::ArrayRef<mlir::Attribute> args) {
+  if (!args[I].isa<ArgT>())
+    return mlir::emitError(loc) << "trait constructor expected "
+        << typeid(ArgT).name() << " for argument #" << I << " but got "
+        << args[I];
+  return mlir::success();
 }
 
 /// AND a variadic list.
-bool andFold() { return true; }
+mlir::LogicalResult andFold() { return mlir::success(); }
 
 template <typename... BoolT>
-bool andFold(bool first, BoolT... vals) { return first && andFold(vals...); }
+mlir::LogicalResult andFold(mlir::LogicalResult first, BoolT... vals) {
+  return mlir::success(mlir::succeeded(first) &&
+                       mlir::succeeded(andFold(vals...)));
+}
 
 /// Check that the provided argument array has the correct signature.
 template <typename... ArgTs, unsigned... Is>
-auto checkFcnSignature(llvm::ArrayRef<mlir::Attribute> args,
+auto checkFcnSignature(mlir::Location loc, llvm::ArrayRef<mlir::Attribute> args,
                        std::integer_sequence<unsigned, Is...>) {
-  return andFold(checkArgType<ArgTs, Is>(args)...);
+  return andFold(checkArgType<ArgTs, Is>(loc, args)...);
 }
 
 } // end namespace detail
@@ -56,9 +64,9 @@ public:
   mlir::LogicalResult verifySignature(
       mlir::Location loc, llvm::ArrayRef<mlir::Attribute> args) const {
     if (llvm::size(args) != sizeof...(ArgTs))
-      return emitError(loc) << "expected " << sizeof...(ArgTs)
+      return mlir::emitError(loc) << "expected " << sizeof...(ArgTs)
           << " arguments to trait constructor but got " << llvm::size(args);
-    return mlir::success(detail::checkFcnSignature<ArgTs...>(args, Indices{}));
+    return detail::checkFcnSignature<ArgTs...>(loc, args, Indices{});
   }
 
   Trait callConstructor(llvm::ArrayRef<mlir::Attribute> args) const {
@@ -70,4 +78,3 @@ private:
 };
 
 } // end namespace dmc
-

@@ -7,13 +7,27 @@
 using namespace mlir;
 
 namespace dmc {
-
 namespace {
 
-template <typename TraitT>
-void registerStatelessTrait(TraitRegistry *reg) {
-  GenericConstructor<> ctorObj{[]() -> Trait {
-    return std::make_unique<TraitT>();
+/// Unwrap values stored inside attributes.
+template <typename T> struct unwrap {
+  auto operator()(const T &t) { return t.getValue(); }
+};
+
+template <> struct unwrap<IntegerAttr> {
+  auto operator()(IntegerAttr val) { return val.getValue().getZExtValue(); }
+};
+
+/// Get a trait constructor's signature from a function type.
+template <typename> struct TraitSignature;
+template <typename TraitT, typename... ArgTs>
+struct TraitSignature<TraitT(ArgTs...)> {};
+
+/// Generic trait constructor registration.
+template <typename TraitT, typename... ArgTs>
+void registerTrait(TraitRegistry *reg, TraitSignature<TraitT(ArgTs...)>) {
+  GenericConstructor<ArgTs...> ctorObj{[](ArgTs... args) -> Trait {
+    return std::make_unique<TraitT>(unwrap<ArgTs>{}(args)...);
   }};
   TraitConstructor traitCtor{
     [ctorObj](Location loc, ArrayRef<Attribute> args) {
@@ -26,10 +40,14 @@ void registerStatelessTrait(TraitRegistry *reg) {
   reg->registerTrait(TraitT::getName(), std::move(traitCtor));
 }
 
-template <typename... TraitTs>
-void registerStatelessTraits(TraitRegistry *reg) {
-  (void) std::initializer_list<int>{0,
-      (registerStatelessTrait<TraitTs>(reg), 0)...};
+template <typename TraitCtorT>
+void registerTrait(TraitRegistry *reg) {
+  registerTrait(reg, TraitSignature<TraitCtorT>{});
+}
+
+template <typename... TraitCtorTs>
+void registerTraits(TraitRegistry *reg) {
+  (void) std::initializer_list<int>{0, (registerTrait<TraitCtorTs>(reg), 0)...};
 }
 
 } // end anonymous namespace
@@ -39,17 +57,24 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
   addAttributes<
       OpTraitAttr, OpTraitsAttr
     >();
-  registerStatelessTraits<
-      IsTerminator, IsCommutative, IsIsolatedFromAbove,
-      OperandsAreFloatLike, OperandsAreSignlessIntegerLike,
-      ResultsAreBoolLike, ResultsAreFloatLike,
-      ResultsAreSignlessIntegerLike,
-      SameOperandsShape, SameOperandsAndResultShape,
-      SameOperandsElementType, SameOperandsAndResultElementType,
-      SameOperandsAndResultType, SameTypeOperands,
+  registerTraits<
+      IsTerminator(), IsCommutative(), IsIsolatedFromAbove(),
 
-      SameVariadicOperandSizes, SameVariadicResultSizes,
-      SizedOperandSegments, SizedResultSegments
+      OperandsAreFloatLike(), OperandsAreSignlessIntegerLike(),
+      ResultsAreBoolLike(), ResultsAreFloatLike(),
+      ResultsAreSignlessIntegerLike(),
+
+      SameOperandsShape(), SameOperandsAndResultShape(),
+      SameOperandsElementType(), SameOperandsAndResultElementType(),
+      SameOperandsAndResultType(), SameTypeOperands(),
+
+      SameVariadicOperandSizes(), SameVariadicResultSizes(),
+      SizedOperandSegments(), SizedResultSegments(),
+
+      NOperands(IntegerAttr), AtLeastNOperands(IntegerAttr),
+      NRegions(IntegerAttr), AtLeastNRegions(IntegerAttr),
+      NResults(IntegerAttr), AtLeastNResults(IntegerAttr),
+      NSuccessors(IntegerAttr), AtLeastNSuccessors(IntegerAttr)
     >(this);
 }
 
