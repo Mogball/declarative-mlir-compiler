@@ -19,6 +19,7 @@ sudo pacman -Sy cmake python boost
 ## Short-Term TODOs
 
 - Region and successor specifiers
+- Parsing/printing format for dynamic operations, attributes, and types
 
 ## Long-Term TODOs
 
