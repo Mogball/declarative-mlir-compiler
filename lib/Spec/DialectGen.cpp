@@ -12,6 +12,11 @@ using namespace mlir::dmc;
 
 namespace dmc {
 
+template <typename TypeRange>
+unsigned countNonVariadicValues(TypeRange tys) {
+  return llvm::count_if(tys, [](Type ty) { return !ty.isa<VariadicType>(); });
+}
+
 LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
   auto op = dialect->createDynamicOp(opOp.getName());
@@ -24,17 +29,7 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   if (opOp.isIsolatedFromAbove())
     op->addOpTrait<IsIsolatedFromAbove>();
 
-  /// Add number of operands, results, successors, and regions traits.
-  /// TODO support for successors and regions.
-  op->addOpTrait<NRegions>(0);
-  op->addOpTrait<NSuccessors>(0);
-  // Add operand/result counts if none are variadic.
-  if (!hasVariadicValues(opOp.getType().getInputs()))
-    op->addOpTrait<NOperands>(llvm::size(opOp.getType().getInputs()));
-  if (!hasVariadicValues(opOp.getType().getResults()))
-    op->addOpTrait<NResults>(llvm::size(opOp.getType().getResults()));
-
-  /// Process the remaining traits.
+  /// Process user-defined traits.
   auto *registry = dialect->getContext()
       ->getRegisteredDialect<TraitRegistry>();
   for (auto trait : opOp.getOpTraits().getValue()) {
@@ -42,6 +37,32 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     if (failed(ctor.verify(opOp.getLoc(), trait.getParameters())))
       return failure();
     op->addOpTrait(trait.getName(), ctor.call(trait.getParameters()));
+  }
+
+  /// Default to 0 regions if no trait is specified.
+  if (!op->getTrait<NRegions>())
+    op->addOpTrait<NRegions>(0);
+  /// Default to 0 successors if no trait is specified.
+  if (!op->getTrait<NSuccessors>())
+    op->addOpTrait<NSuccessors>(0);
+  /// Add operand and result count op traits if none exist. For variadic
+  /// values, apply an AtLeast op trait.
+  auto opTy = opOp.getType();
+  if (!hasVariadicValues(opTy.getInputs())) {
+    if (!op->getTrait<NOperands>())
+      op->addOpTrait<NOperands>(llvm::size(opTy.getInputs()));
+  } else {
+    if (!op->getTrait<AtLeastNOperands>())
+      op->addOpTrait<AtLeastNOperands>(
+          countNonVariadicValues(opTy.getResults()));
+  }
+  if (!hasVariadicValues(opTy.getResults())) {
+    if (!op->getTrait<NResults>())
+      op->addOpTrait<NResults>(llvm::size(opTy.getResults()));
+  } else {
+    if (!op->getTrait<AtLeastNResults>())
+      op->addOpTrait<AtLeastNResults>(
+          countNonVariadicValues(opTy.getResults()));
   }
 
   /// Add type and attribute constraint traits last.
