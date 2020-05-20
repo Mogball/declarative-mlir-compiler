@@ -7,10 +7,14 @@ Python3_add_library(mlir
   Parser.h
   Module.cpp
   Module.h
+  Location.cpp
+  Location.h
 
+  ExposeParser.cpp
+  ExposeModule.cpp
+  ExposeLocation.cpp
   Expose.cpp
   Expose.h
-  ExposeParser.cpp
   )
 
 target_include_directories(mlir PUBLIC
