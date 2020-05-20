@@ -10,7 +10,5 @@ namespace py {
 /// users will not need to pass a context handle to all function calls.
 MLIRContext *getMLIRContext();
 
-void exposeParser();
-
 } // end namespace py
 } // end namespace mlir

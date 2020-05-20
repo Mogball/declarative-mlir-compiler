@@ -1,4 +1,4 @@
-#include "dmc/Python/Expose.h"
+#include "Expose.h"
 
 #include <boost/python.hpp>
 

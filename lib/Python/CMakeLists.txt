@@ -1,7 +1,16 @@
 Python3_add_library(mlir
   Context.cpp
+  Context.h
+  OwningModuleRef.cpp
+  OwningModuleRef.h
   Parser.cpp
+  Parser.h
+  Module.cpp
+  Module.h
+
   Expose.cpp
+  Expose.h
+  ExposeParser.cpp
   )
 
 target_include_directories(mlir PUBLIC
