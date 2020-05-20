@@ -1,5 +1,4 @@
 #include "Context.h"
-#include "Exception.h"
 
 #include <mlir/IR/Identifier.h>
 
@@ -8,9 +7,9 @@ namespace py {
 
 Identifier getIdentifierChecked(std::string id){
   if (id.empty())
-    throw std::runtime_error{"Identifier cannot be an empty string."};
+    throw std::invalid_argument{"Identifier cannot be an empty string."};
   if (id.find('\0') != std::string::npos)
-    throw std::runtime_error{"Identifier cannot contain null characters."};
+    throw std::invalid_argument{"Identifier cannot contain null characters."};
   return Identifier::get(id, getMLIRContext());
 }
 

@@ -1,15 +1,14 @@
 #include "Parser.h"
 
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
+
+using namespace pybind11;
 
 namespace mlir {
 namespace py {
 
-void exposeParser() {
-  using namespace boost;
-  using namespace boost::python;
-  def("parseSourceFile", parseSourceFile,
-      return_value_policy<manage_new_object>{});
+void exposeParser(module &m) {
+  m.def("parseSourceFile", &parseSourceFile);
 }
 
 } // end namespace py

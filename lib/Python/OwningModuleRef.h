@@ -3,11 +3,9 @@
 #include <mlir/IR/Module.h>
 
 namespace mlir {
-
-std::ostream &operator<<(std::ostream &os, const OwningModuleRef &moduleRef);
-
 namespace py {
 
+std::string printModuleRef(OwningModuleRef &moduleRef);
 ModuleOp getOwnedModule(OwningModuleRef &moduleRef);
 
 } // end namespace py

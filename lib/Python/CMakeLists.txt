@@ -1,4 +1,4 @@
-Python3_add_library(mlir
+pybind11_add_module(mlir
   Context.cpp
   Context.h
   OwningModuleRef.cpp
@@ -23,11 +23,9 @@ Python3_add_library(mlir
   )
 
 target_include_directories(mlir PUBLIC
-  ${Boost_INCLUDE_DIRS}
   ${Python3_INCLUDE_DIRS}
   )
 target_link_libraries(mlir PUBLIC
-  ${Boost_LIBRARIES}
   ${Python3_LIBRARIES}
   MLIRIR
   MLIRParser

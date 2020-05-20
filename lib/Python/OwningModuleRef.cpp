@@ -1,15 +1,15 @@
-#include "Module.h"
+#include "Support.h"
 
-using namespace llvm;
+#include <mlir/IR/Module.h>
 
 namespace mlir {
-
-/// Print a ModuleOp held by an OwningModuleRef.
-std::ostream &operator<<(std::ostream &os, const OwningModuleRef &moduleRef) {
-  return os << *moduleRef;
-}
-
 namespace py {
+
+std::string printModuleRef(OwningModuleRef &moduleRef) {
+  if (!moduleRef)
+    throw std::invalid_argument{"ModuleOp is null"};
+  return StringPrinter<ModuleOp>{}(*moduleRef);
+}
 
 ModuleOp getOwnedModule(OwningModuleRef &moduleRef) {
   return *moduleRef;

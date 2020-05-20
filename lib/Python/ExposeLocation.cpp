@@ -1,42 +1,43 @@
 #include "Support.h"
 #include "Location.h"
 
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
 
 using namespace llvm;
+using namespace pybind11;
 
 namespace mlir {
 namespace py {
 
-void exposeLocation() {
-  using namespace boost;
-  using namespace boost::python;
-  class_<Location>("Location", no_init)
-      .def(self_ns::repr(self_ns::self))
+void exposeLocation(module &m) {
+  class_<Location>(m, "Location")
+      .def(init<const Location &>())
       .def(self == self)
       .def(self != self)
+      .def("__repr__", StringPrinter<Location>{})
       .def("__hash__", overload<hash_code(Location)>(&hash_value))
       .def("isUnknownLoc", &isUnknownLoc)
       .def("isCallSiteLoc", &isCallSiteLoc)
-      .add_property("callee", &getCallee)
-      .add_property("caller", &getCaller)
+      .def_property_readonly("callee", &getCallee)
+      .def_property_readonly("caller", &getCaller)
       .def("isFileLineColLoc", &isFileLineColLoc)
-      .add_property("filename", &getFilename)
-      .add_property("line", &getLine)
-      .add_property("col", &getColumn)
+      .def_property_readonly("filename", &getFilename)
+      .def_property_readonly("line", &getLine)
+      .def_property_readonly("col", &getColumn)
       .def("isFusedLoc", &isFusedLoc)
-      .add_property("locs", &getLocations)
+      .def_property_readonly("locs", &getLocations)
       .def("isNameLoc", &isNameLoc)
-      .add_property("name", &getName)
-      .add_property("child", &getChildLoc);
+      .def_property_readonly("name", &getName)
+      .def_property_readonly("child", &getChildLoc);
   /// Getters.
-  def("UnknownLoc", &getUnknownLoc);
-  def("CallSiteLoc",
+  m.def("UnknownLoc", &getUnknownLoc);
+  m.def("CallSiteLoc",
       overload<Location(Location, Location)>(&CallSiteLoc::get));
-  def("FileLineColLoc", &getFileLineColLoc);
-  def("FusedLoc", &getFusedLoc);
-  def("NameLoc", overload<Location(std::string, Location)>(&getNameLoc));
-  def("NameLoc", overload<Location(std::string)>(&getNameLoc));
+  m.def("FileLineColLoc", &getFileLineColLoc);
+  m.def("FusedLoc", &getFusedLoc);
+  m.def("NameLoc", overload<Location(std::string, Location)>(&getNameLoc));
+  m.def("NameLoc", overload<Location(std::string)>(&getNameLoc));
 }
 
 } // end namespace py

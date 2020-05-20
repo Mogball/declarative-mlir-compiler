@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 project(declarative-compiler)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Enable RTTI and exceptions, as required by Boost
+# Enable RTTI and exceptions.
 set(LLVM_ENABLE_RTTI ON CACHE INTERNAL "")
 set(LLVM_ENABLE_EH   ON CACHE INTERNAL "")
 # Configure LLVM and MLIR directories
@@ -35,12 +35,14 @@ message(STATUS "MLIR directory: ${MLIR_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 include(AddDMC)
 
-# Boost::Python
+# Python bindings.
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
-find_package(Boost REQUIRED COMPONENTS python38)
+add_subdirectory(pybind11)
 
 # Global options
-add_compile_options(-Wall -Werror -fdiagnostics-color)
+add_compile_options(-Wall -Wextra
+  -Wno-unused-parameter -Wno-unused-but-set-parameter
+  -fdiagnostics-color)
 
 # Global includes
 include_directories(

@@ -3,17 +3,11 @@
 
 #include <mlir/IR/Module.h>
 #include <llvm/Support/raw_os_ostream.h>
-#include <boost/python.hpp>
 
 using namespace llvm;
-using namespace boost::python;
+using namespace pybind11;
 
 namespace mlir {
-
-std::ostream &operator<<(std::ostream &os, ModuleOp moduleOp) {
-  return printToOs(os, moduleOp);
-}
-
 namespace py {
 
 ModuleOp getModuleOp() {
@@ -32,10 +26,11 @@ ModuleOp getModuleOp(Location loc, std::string name) {
   return ModuleOp::create(loc, StringRef{name});
 }
 
-object getName(ModuleOp moduleOp) {
-  if (!moduleOp) throw std::runtime_error{"ModuleOp is null"};
+std::optional<std::string> getName(ModuleOp moduleOp) {
+  if (!moduleOp)
+    throw std::invalid_argument{"ModuleOp is null"};
   if (auto name = moduleOp.getName())
-    return str(name->str());
+    return name->str();
   return {};
 }
 

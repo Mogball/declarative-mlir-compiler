@@ -1,17 +1,21 @@
 #include "Type.h"
 #include "Support.h"
 
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/operators.h>
+
+using namespace pybind11;
 
 namespace mlir {
 namespace py {
 
-void exposeType() {
-  using namespace boost::python;
-  class_<Type>("Type", init<>())
-      .def(self_ns::repr(self_ns::self))
+void exposeType(module &m) {
+  class_<Type>(m, "Type")
+      .def(init<>())
+      .def(init<const Type &>())
       .def(self == self)
       .def(self != self)
+      .def("__repr__", StringPrinter<Type>{})
       .def("__bool__", &Type::operator bool)
       .def("__invert__", &Type::operator!)
       .def("isIndex", &Type::isIndex)

@@ -6,23 +6,20 @@
 
 - `cmake >= 3.10`
 - `python >= 3.6`
-- `boost >= 1.7`
 
 Build with `cmake --build . --target gen`.
 
 ### Arch Linux
 
 ```
-sudo pacman -Sy cmake python boost
+sudo pacman -Sy cmake python
 ```
 
 ### MacOS
 
 ```
-brew install cmake python3 boost-python3
+brew install cmake python3
 ```
-
-The Python shared library has linker issues on MacOS.
 
 ## Short-Term TODOs
 

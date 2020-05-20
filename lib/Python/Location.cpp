@@ -1,16 +1,10 @@
 #include "Context.h"
 #include "Support.h"
-#include "Exception.h"
 #include "Identifier.h"
 
 #include <mlir/IR/Location.h>
 
 namespace mlir {
-
-std::ostream &operator<<(std::ostream &os, Location loc) {
-  return printToOs(os, loc);
-}
-
 namespace py {
 
 /// UnknownLoc.
@@ -29,7 +23,7 @@ bool isCallSiteLoc(Location loc) {
 
 CallSiteLoc toCallSiteLoc(Location loc) {
   if (!isCallSiteLoc(loc))
-    throw invalid_cast{
+    throw std::invalid_argument{
         "Location is not a CallSiteLoc. Check with `isCallSiteLoc`."};
   return loc.cast<CallSiteLoc>();
 }
@@ -53,7 +47,7 @@ bool isFileLineColLoc(Location loc) {
 
 FileLineColLoc toFileLineColLoc(Location loc) {
   if (!isFileLineColLoc(loc))
-    throw invalid_cast{
+    throw std::invalid_argument{
         "Location is not a FileLineColLoc. Check with `isFileLineColLoc`."};
   return loc.cast<FileLineColLoc>();
 }
@@ -81,7 +75,7 @@ bool isFusedLoc(Location loc) {
 
 std::vector<Location> getLocations(Location loc) {
   if (!isFusedLoc(loc))
-    throw invalid_cast{
+    throw std::invalid_argument{
         "Location is not a FusedLoc. Check with `isFusedLoc`."};
   return loc.cast<FusedLoc>().getLocations();
 }
@@ -101,7 +95,7 @@ bool isNameLoc(Location loc) {
 
 NameLoc toNameLoc(Location loc) {
   if (!isNameLoc(loc))
-    throw invalid_cast{
+    throw std::invalid_argument{
         "Location is not a NameLoc. Check with `isNameLoc`."};
   return loc.cast<NameLoc>();
 }

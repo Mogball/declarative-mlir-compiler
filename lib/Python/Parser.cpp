@@ -16,13 +16,13 @@ namespace py {
 /// OwningModuleRef is a smart pointer to ModuleOp and does not support copy
 /// construction or assignment. Allocate it to a pointer and tell Python to
 /// manage its lifespan.
-OwningModuleRef *parseSourceFile(std::string filename) {
+std::unique_ptr<OwningModuleRef> parseSourceFile(std::string filename) {
   SourceMgr sourceMgr;
   SourceMgrDiagnosticHandler diagnosticHandler{sourceMgr, getMLIRContext()};
   auto ret = parseSourceFile(filename, sourceMgr, getMLIRContext());
   if (ret)
     return moveToHeap(std::move(ret));
-  return nullptr; // return None if failed
+  return nullptr;
 }
 
 } // end namespace py

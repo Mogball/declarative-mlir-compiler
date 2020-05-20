@@ -2,26 +2,29 @@
 #include "Support.h"
 #include "OwningModuleRef.h"
 
-#include <boost/python.hpp>
+#include <pybind11/pybind11.h>
+
+using namespace pybind11;
 
 namespace mlir {
 namespace py {
 
-void exposeModule() {
-  using namespace boost;
-  using namespace boost::python;
-  class_<OwningModuleRef, noncopyable>("OwningModuleRef", no_init)
-      .def(self_ns::repr(self_ns::self))
+void exposeModule(module &m) {
+  class_<OwningModuleRef>(m, "OwningModuleRef")
+      .def(init<>())
       .def("get", &getOwnedModule)
       .def("release", &OwningModuleRef::release)
+      .def("__repr__", &printModuleRef)
       .def("__bool__", &OwningModuleRef::operator bool);
-  class_<ModuleOp>("ModuleOp", no_init)
-      .def(self_ns::repr(self_ns::self))
-      .add_property("name", &getName);
-  def("Module", overload<ModuleOp()>(&getModuleOp));
-  def("Module", overload<ModuleOp(Location)>(&getModuleOp));
-  def("Module", overload<ModuleOp(std::string)>(&getModuleOp));
-  def("Module", overload<ModuleOp(Location, std::string)>(&getModuleOp));
+  class_<ModuleOp>(m, "ModuleOp")
+      .def(init<>())
+      .def(init<const ModuleOp &>())
+      .def("__repr__", nullcheck(StringPrinter<ModuleOp>{}, "ModuleOp"))
+      .def_property_readonly("name", &getName);
+  m.def("Module", overload<ModuleOp()>(&getModuleOp));
+  m.def("Module", overload<ModuleOp(Location)>(&getModuleOp));
+  m.def("Module", overload<ModuleOp(std::string)>(&getModuleOp));
+  m.def("Module", overload<ModuleOp(Location, std::string)>(&getModuleOp));
 }
 
 } // end namespace py

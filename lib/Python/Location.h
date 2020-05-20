@@ -3,9 +3,6 @@
 #include <mlir/IR/Location.h>
 
 namespace mlir {
-
-std::ostream &operator<<(std::ostream &os, Location loc);
-
 namespace py {
 
 /// UnknownLoc.
