@@ -1,4 +1,4 @@
-python_add_module(mlir
+Python3_add_library(mlir
   Context.cpp
   Parser.cpp
   Expose.cpp
@@ -6,11 +6,11 @@ python_add_module(mlir
 
 target_include_directories(mlir PUBLIC
   ${Boost_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIRS}
+  ${Python3_INCLUDE_DIRS}
   )
 target_link_libraries(mlir PUBLIC
   ${Boost_LIBRARIES}
-  ${PYTHON_LIBRARIES}
+  ${Python3_LIBRARIES}
   MLIRIR
   MLIRParser
   DMCDynamic

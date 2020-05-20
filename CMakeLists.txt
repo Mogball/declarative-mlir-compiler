@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(declarative-compiler)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Enable RTTI and exceptions, as required by Boost
 set(LLVM_ENABLE_RTTI ON CACHE INTERNAL "")
@@ -35,12 +36,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/module")
 include(AddDMC)
 
 # Boost::Python
-find_package(PythonLibs 3 REQUIRED)
-## Explicitly specify `python38` as `python` gives a Python 2 warning
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(Boost REQUIRED COMPONENTS python38)
 
 # Global options
-add_compile_options(-Wall -Werror -fdiagnostics-color -fPIC)
+add_compile_options(-Wall -Werror -fdiagnostics-color)
 
 # Global includes
 include_directories(

@@ -16,6 +16,14 @@ Build with `cmake --build . --target gen`.
 sudo pacman -Sy cmake python boost
 ```
 
+### MacOS
+
+```
+brew install cmake python3 boost-python3
+```
+
+The Python shared library has linker issues on MacOS.
+
 ## Short-Term TODOs
 
 - Region and successor specifiers
