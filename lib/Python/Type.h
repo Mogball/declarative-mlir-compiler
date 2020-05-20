@@ -4,5 +4,8 @@
 
 namespace mlir {
 namespace py {
+
+unsigned getIntOrFloatBitWidth(Type ty);
+
 } // end namespace py
 } // end namespace mlir

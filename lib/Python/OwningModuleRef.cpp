@@ -7,7 +7,7 @@ namespace py {
 
 std::string printModuleRef(OwningModuleRef &moduleRef) {
   if (!moduleRef)
-    throw std::invalid_argument{"ModuleOp is null"};
+    throw std::invalid_argument{"module is null"};
   return StringPrinter<ModuleOp>{}(*moduleRef);
 }
 

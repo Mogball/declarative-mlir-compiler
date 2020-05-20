@@ -27,8 +27,6 @@ ModuleOp getModuleOp(Location loc, std::string name) {
 }
 
 std::optional<std::string> getName(ModuleOp moduleOp) {
-  if (!moduleOp)
-    throw std::invalid_argument{"ModuleOp is null"};
   if (auto name = moduleOp.getName())
     return name->str();
   return {};
