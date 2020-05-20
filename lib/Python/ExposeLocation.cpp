@@ -18,17 +18,17 @@ void exposeLocation() {
       .def("__hash__", overload<hash_code(Location)>(&hash_value))
       .def("isUnknownLoc", &isUnknownLoc)
       .def("isCallSiteLoc", &isCallSiteLoc)
-      .def("getCallee", &getCallee)
-      .def("getCaller", &getCaller)
+      .add_property("callee", &getCallee)
+      .add_property("caller", &getCaller)
       .def("isFileLineColLoc", &isFileLineColLoc)
-      .def("getFilename", &getFilename)
-      .def("getLine", &getLine)
-      .def("getColumn", &getColumn)
+      .add_property("filename", &getFilename)
+      .add_property("line", &getLine)
+      .add_property("col", &getColumn)
       .def("isFusedLoc", &isFusedLoc)
-      .def("getLocations", &getLocations)
+      .add_property("locs", &getLocations)
       .def("isNameLoc", &isNameLoc)
-      .def("getName", &getName)
-      .def("getChildLoc", &getChildLoc);
+      .add_property("name", &getName)
+      .add_property("child", &getChildLoc);
   /// Getters.
   def("UnknownLoc", &getUnknownLoc);
   def("CallSiteLoc",

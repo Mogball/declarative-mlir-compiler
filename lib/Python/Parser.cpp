@@ -1,4 +1,5 @@
 #include "Context.h"
+#include "Support.h"
 
 #include <mlir/Parser.h>
 #include <mlir/IR/Module.h>
@@ -9,17 +10,12 @@ using namespace llvm;
 namespace mlir {
 namespace py {
 
+/// Parse a source file from a given filename. Provide a source manager and
+/// a diagnostic handler for the parse.
+///
 /// OwningModuleRef is a smart pointer to ModuleOp and does not support copy
 /// construction or assignment. Allocate it to a pointer and tell Python to
 /// manage its lifespan.
-OwningModuleRef *moveToHeap(OwningModuleRef &&moduleRef) {
-  auto *ret = new OwningModuleRef;
-  *ret = std::move(moduleRef);
-  return ret;
-}
-
-/// Parse a source file from a given filename. Provide a source manager and
-/// a diagnostic handler for the parse.
 OwningModuleRef *parseSourceFile(std::string filename) {
   SourceMgr sourceMgr;
   SourceMgrDiagnosticHandler diagnosticHandler{sourceMgr, getMLIRContext()};

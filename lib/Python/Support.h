@@ -9,3 +9,10 @@ std::ostream &printToOs(std::ostream &os, T &&t) {
 
 template <typename FcnT>
 auto overload(FcnT fcn) { return fcn; }
+
+template <typename T>
+T *moveToHeap(T &&t) {
+  auto *ptr = new T;
+  *ptr = std::move(t);
+  return ptr;
+}

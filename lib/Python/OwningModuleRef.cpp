@@ -9,4 +9,11 @@ std::ostream &operator<<(std::ostream &os, const OwningModuleRef &moduleRef) {
   return os << *moduleRef;
 }
 
+namespace py {
+
+ModuleOp getOwnedModule(OwningModuleRef &moduleRef) {
+  return *moduleRef;
+}
+
+} // end namespace py
 } // end namespace mlir

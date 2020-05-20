@@ -15,4 +15,5 @@ BOOST_PYTHON_MODULE(mlir) {
   exposeParser();
   exposeModule();
   exposeLocation();
+  exposeType();
 }
