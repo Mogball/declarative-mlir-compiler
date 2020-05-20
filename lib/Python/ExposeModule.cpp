@@ -24,6 +24,7 @@ void exposeModule(module &m) {
       .def(init<>())
       .def(init<const ModuleOp &>())
       .def("__repr__", nullcheck(StringPrinter<ModuleOp>{}))
+      .def("__bool__", &ModuleOp::operator bool)
       .def_property_readonly("name", nullcheck(&getName));
   m.def("Module", overload<ModuleOp()>(&getModuleOp));
   m.def("Module", overload<ModuleOp(Location)>(&getModuleOp));
