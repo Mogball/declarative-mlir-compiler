@@ -16,18 +16,27 @@ void exposeLocation() {
       .def(self == self)
       .def(self != self)
       .def("__hash__", overload<hash_code(Location)>(&hash_value))
+      .def("isUnknownLoc", &isUnknownLoc)
       .def("isCallSiteLoc", &isCallSiteLoc)
       .def("getCallee", &getCallee)
       .def("getCaller", &getCaller)
       .def("isFileLineColLoc", &isFileLineColLoc)
       .def("getFilename", &getFilename)
       .def("getLine", &getLine)
-      .def("getColumn", &getColumn);
+      .def("getColumn", &getColumn)
+      .def("isFusedLoc", &isFusedLoc)
+      .def("getLocations", &getLocations)
+      .def("isNameLoc", &isNameLoc)
+      .def("getName", &getName)
+      .def("getChildLoc", &getChildLoc);
   /// Getters.
-  def("getUnknownLoc", &getUnknownLoc);
-  def("getCallSiteLoc",
+  def("UnknownLoc", &getUnknownLoc);
+  def("CallSiteLoc",
       overload<Location(Location, Location)>(&CallSiteLoc::get));
-  def("getFileLineColLoc", &getFileLineColLoc);
+  def("FileLineColLoc", &getFileLineColLoc);
+  def("FusedLoc", &getFusedLoc);
+  def("NameLoc", overload<Location(std::string, Location)>(&getNameLoc));
+  def("NameLoc", overload<Location(std::string)>(&getNameLoc));
 }
 
 } // end namespace py

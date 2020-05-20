@@ -9,6 +9,8 @@ Python3_add_library(mlir
   Module.h
   Location.cpp
   Location.h
+  Identifier.cpp
+  Identifier.h
 
   ExposeParser.cpp
   ExposeModule.cpp
