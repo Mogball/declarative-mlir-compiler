@@ -1,5 +1,6 @@
 #include <llvm/Support/raw_ostream.h>
 #include <pybind11/detail/common.h>
+#include <pybind11/pybind11.h>
 
 /// Create a printer for MLIR objects to std::string.
 template <typename T>
@@ -31,7 +32,7 @@ nullcheck(FcnT fcn, std::string name,
           std::enable_if_t<!std::is_member_function_pointer_v<FcnT>> * = 0) {
   return [fcn, name](auto t, auto ...ts) {
     if (!t)
-      throw std::invalid_argument{(name + " is null").c_str()};
+      throw std::invalid_argument{name + " is null"};
     return fcn(t, ts...);
   };
 }
@@ -42,7 +43,7 @@ std::function<RetT(ObjT, ArgTs...)>
 nullcheck(RetT(ObjT::*fcn)(ArgTs...), std::string name) {
   return [fcn, name](auto t, ArgTs ...args) -> RetT {
     if (!t)
-      throw std::invalid_argument{(name + " is null").c_str()};
+      throw std::invalid_argument{name + " is null"};
     return (t.*fcn)(args...);
   };
 }
@@ -53,7 +54,44 @@ std::function<RetT(const ObjT, ArgTs...)>
 nullcheck(RetT(ObjT::*fcn)(ArgTs...) const, std::string name) {
   return [fcn, name](auto t, ArgTs ...args) -> RetT {
     if (!t)
-      throw std::invalid_argument{(name + " is null").c_str()};
+      throw std::invalid_argument{name + " is null"};
     return (t.*fcn)(args...);
   };
+}
+
+/// Create an isa<> check.
+template <typename From, typename To>
+auto isa() {
+  return [](From f) { return f.template isa<To>(); };
+}
+
+/// Automatically generate implicit conversions to parent class with
+/// LLVM polymorphism: implicit conversion statements and constuctors.
+namespace detail {
+
+template <typename, typename...>
+struct implicitly_convertible_from_all_helper;
+
+template <typename BaseT, typename FirstT>
+struct implicitly_convertible_from_all_helper<BaseT, FirstT> {
+  static void doit(pybind11::class_<BaseT> &cls) {
+    cls.def(pybind11::init<FirstT>());
+    pybind11::implicitly_convertible<FirstT, BaseT>();
+  }
+};
+
+template <typename BaseT, typename FirstT, typename... DerivedTs>
+struct implicitly_convertible_from_all_helper<BaseT, FirstT, DerivedTs...> {
+  static void doit(pybind11::class_<BaseT> &cls) {
+    implicitly_convertible_from_all_helper<BaseT, FirstT>::doit(cls);
+    implicitly_convertible_from_all_helper<BaseT, DerivedTs...>::doit(cls);
+  }
+};
+
+} // end namespace detail
+
+template <typename BaseT, typename... DerivedTs>
+void implicitly_convertible_from_all(pybind11::class_<BaseT> &cls) {
+  detail::implicitly_convertible_from_all_helper<
+      BaseT, DerivedTs...>::doit(cls);
 }

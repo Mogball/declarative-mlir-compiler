@@ -16,6 +16,11 @@ pybind11_add_module(mlir
   Attribute.cpp
   Attribute.h
 
+  ExposeElementsAttr.cpp
+  ExposeSymbolRefAttr.cpp
+  ExposeIntFPAttr.cpp
+  ExposeDictAttr.cpp
+  ExposeArrayAttr.cpp
   ExposeAttribute.cpp
   ExposeParser.cpp
   ExposeModule.cpp

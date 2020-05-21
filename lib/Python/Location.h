@@ -5,12 +5,6 @@
 namespace mlir {
 namespace py {
 
-bool isUnknownLoc(Location loc);
-bool isCallSiteLoc(Location loc);
-bool isFileLineColLoc(Location loc);
-bool isFusedLoc(Location loc);
-bool isNameLoc(Location loc);
-
 /// UnknownLoc.
 UnknownLoc getUnknownLoc();
 
