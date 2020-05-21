@@ -7,18 +7,20 @@
 namespace mlir {
 namespace py {
 
-/// UnknownLoc.
-Location getUnknownLoc() {
-  return UnknownLoc::get(getMLIRContext());
-}
+bool isUnknownLoc(Location loc) { return loc.isa<UnknownLoc>(); }
+bool isCallSiteLoc(Location loc) { return loc.isa<CallSiteLoc>(); }
+bool isFileLineColLoc(Location loc) { return loc.isa<FileLineColLoc>(); }
+bool isFusedLoc(Location loc) { return loc.isa<FusedLoc>(); }
+bool isNameLoc(Location loc) { return loc.isa<NameLoc>(); }
 
-bool isUnknownLoc(Location loc) {
-  return loc.isa<UnknownLoc>();
+/// UnknownLoc.
+UnknownLoc getUnknownLoc() {
+  return UnknownLoc::get(getMLIRContext()).cast<UnknownLoc>();
 }
 
 /// CallSiteLoc.
-bool isCallSiteLoc(Location loc) {
-  return loc.isa<CallSiteLoc>();
+CallSiteLoc getCallSiteLoc(Location callee, Location caller) {
+  return CallSiteLoc::get(callee, caller).cast<CallSiteLoc>();
 }
 
 CallSiteLoc toCallSiteLoc(Location loc) {
@@ -28,21 +30,19 @@ CallSiteLoc toCallSiteLoc(Location loc) {
   return loc.cast<CallSiteLoc>();
 }
 
-Location getCallee(Location loc) {
-  return toCallSiteLoc(loc).getCallee();
+Location getCallee(CallSiteLoc loc) {
+  return loc.getCallee();
 }
 
-Location getCaller(Location loc) {
-  return toCallSiteLoc(loc).getCaller();
+Location getCaller(CallSiteLoc loc) {
+  return loc.getCaller();
 }
 
 /// FileLineColLoc.
-Location getFileLineColLoc(std::string filename, unsigned line, unsigned col) {
-  return FileLineColLoc::get(filename, line, col, getMLIRContext());
-}
-
-bool isFileLineColLoc(Location loc) {
-  return loc.isa<FileLineColLoc>();
+FileLineColLoc getFileLineColLoc(std::string filename, unsigned line,
+                                 unsigned col) {
+  return FileLineColLoc::get(filename, line, col, getMLIRContext())
+      .cast<FileLineColLoc>();
 }
 
 FileLineColLoc toFileLineColLoc(Location loc) {
@@ -52,45 +52,35 @@ FileLineColLoc toFileLineColLoc(Location loc) {
   return loc.cast<FileLineColLoc>();
 }
 
-std::string getFilename(Location loc) {
-  return toFileLineColLoc(loc).getFilename().str();
+std::string getFilename(FileLineColLoc loc) {
+  return loc.getFilename().str();
 }
 
-unsigned getLine(Location loc) {
-  return toFileLineColLoc(loc).getLine();
+unsigned getLine(FileLineColLoc loc) {
+  return loc.getLine();
 }
 
-unsigned getColumn(Location loc) {
-  return toFileLineColLoc(loc).getColumn();
+unsigned getColumn(FileLineColLoc loc) {
+  return loc.getColumn();
 }
 
 /// FusedLoc.
-Location getFusedLoc(std::vector<Location> locs) {
-  return FusedLoc::get(locs, getMLIRContext());
+FusedLoc getFusedLoc(const std::vector<Location> &locs) {
+  return FusedLoc::get(locs, getMLIRContext()).cast<FusedLoc>();
 }
 
-bool isFusedLoc(Location loc) {
-  return loc.isa<FusedLoc>();
-}
-
-std::vector<Location> getLocations(Location loc) {
-  if (!isFusedLoc(loc))
-    throw std::invalid_argument{
-        "Location is not a FusedLoc. Check with `isFusedLoc`."};
-  return loc.cast<FusedLoc>().getLocations();
+std::vector<Location> *getLocations(FusedLoc loc) {
+  return new std::vector<Location>{loc.getLocations()};
 }
 
 /// NameLoc.
-Location getNameLoc(std::string name, Location child) {
-  return NameLoc::get(getIdentifierChecked(name), child);
+NameLoc getNameLoc(std::string name, Location child) {
+  return NameLoc::get(getIdentifierChecked(name), child).cast<NameLoc>();
 }
 
-Location getNameLoc(std::string name) {
-  return NameLoc::get(getIdentifierChecked(name), getMLIRContext());
-}
-
-bool isNameLoc(Location loc) {
-  return loc.isa<NameLoc>();
+NameLoc getNameLoc(std::string name) {
+  return NameLoc::get(getIdentifierChecked(name), getMLIRContext())
+      .cast<NameLoc>();
 }
 
 NameLoc toNameLoc(Location loc) {
@@ -100,12 +90,12 @@ NameLoc toNameLoc(Location loc) {
   return loc.cast<NameLoc>();
 }
 
-std::string getName(Location loc) {
-  return toNameLoc(loc).getName().str();
+std::string getName(NameLoc loc) {
+  return loc.getName().str();
 }
 
-Location getChildLoc(Location loc) {
-  return toNameLoc(loc).getChildLoc();
+Location getChildLoc(NameLoc loc) {
+  return loc.getChildLoc();
 }
 
 } // end namespace py

@@ -5,33 +5,36 @@
 namespace mlir {
 namespace py {
 
-/// UnknownLoc.
-Location getUnknownLoc();
 bool isUnknownLoc(Location loc);
+bool isCallSiteLoc(Location loc);
+bool isFileLineColLoc(Location loc);
+bool isFusedLoc(Location loc);
+bool isNameLoc(Location loc);
+
+/// UnknownLoc.
+UnknownLoc getUnknownLoc();
 
 /// CallSiteLoc.
-bool isCallSiteLoc(Location loc);
-Location getCallee(Location loc);
-Location getCaller(Location loc);
+CallSiteLoc getCallSiteLoc(Location callee, Location caller);
+Location getCallee(CallSiteLoc loc);
+Location getCaller(CallSiteLoc loc);
 
 /// FileLineColLoc.
-Location getFileLineColLoc(std::string filename, unsigned line, unsigned col);
-bool isFileLineColLoc(Location loc);
-std::string getFilename(Location loc);
-unsigned getLine(Location loc);
-unsigned getColumn(Location loc);
+FileLineColLoc getFileLineColLoc(std::string filename, unsigned line,
+                                 unsigned col);
+std::string getFilename(FileLineColLoc loc);
+unsigned getLine(FileLineColLoc loc);
+unsigned getColumn(FileLineColLoc loc);
 
 /// FusedLoc.
-Location getFusedLoc(std::vector<Location> locs);
-bool isFusedLoc(Location loc);
-std::vector<Location> getLocations(Location loc);
+FusedLoc getFusedLoc(const std::vector<Location> &locs);
+std::vector<Location> *getLocations(FusedLoc loc);
 
 /// NameLoc.
-Location getNameLoc(std::string name, Location child);
-Location getNameLoc(std::string name);
-bool isNameLoc(Location loc);
-std::string getName(Location loc);
-Location getChildLoc(Location loc);
+NameLoc getNameLoc(std::string name, Location child);
+NameLoc getNameLoc(std::string name);
+std::string getName(NameLoc loc);
+Location getChildLoc(NameLoc loc);
 
 } // end namespace py
 } // end namespace mlir

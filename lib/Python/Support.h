@@ -40,7 +40,18 @@ nullcheck(FcnT fcn, std::string name,
 template <typename RetT, typename ObjT, typename... ArgTs>
 std::function<RetT(ObjT, ArgTs...)>
 nullcheck(RetT(ObjT::*fcn)(ArgTs...), std::string name) {
-  return [fcn, name](auto t, ArgTs ...args) {
+  return [fcn, name](auto t, ArgTs ...args) -> RetT {
+    if (!t)
+      throw std::invalid_argument{(name + " is null").c_str()};
+    return (t.*fcn)(args...);
+  };
+}
+
+/// For const member functions.
+template <typename RetT, typename ObjT, typename... ArgTs>
+std::function<RetT(const ObjT, ArgTs...)>
+nullcheck(RetT(ObjT::*fcn)(ArgTs...) const, std::string name) {
+  return [fcn, name](auto t, ArgTs ...args) -> RetT {
     if (!t)
       throw std::invalid_argument{(name + " is null").c_str()};
     return (t.*fcn)(args...);

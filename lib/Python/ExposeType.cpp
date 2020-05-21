@@ -1,6 +1,8 @@
 #include "Type.h"
 #include "Support.h"
 
+#include <mlir/IR/Dialect.h>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 
@@ -25,6 +27,8 @@ void exposeType(module &m) {
       .def("__invert__", &Type::operator!)
       .def("__hash__", overload<hash_code(Type)>(&hash_value))
       .def_property_readonly("kind", nullcheck(&Type::getKind))
+      .def_property_readonly("dialect", nullcheck(&Type::getDialect),
+                             return_value_policy::reference)
       .def("isIndex", nullcheck(&Type::isIndex))
       .def("isBF16", nullcheck(&Type::isBF16))
       .def("isF16", nullcheck(&Type::isF16))

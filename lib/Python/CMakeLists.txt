@@ -13,7 +13,10 @@ pybind11_add_module(mlir
   Identifier.h
   Type.cpp
   Type.h
+  Attribute.cpp
+  Attribute.h
 
+  ExposeAttribute.cpp
   ExposeParser.cpp
   ExposeModule.cpp
   ExposeLocation.cpp
