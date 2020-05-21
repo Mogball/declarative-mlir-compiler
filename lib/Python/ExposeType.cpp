@@ -24,6 +24,7 @@ void exposeType(module &m) {
       .def("__bool__", &Type::operator bool)
       .def("__invert__", &Type::operator!)
       .def("__hash__", overload<hash_code(Type)>(&hash_value))
+      .def_property_readonly("kind", nullcheck(&Type::getKind))
       .def("isIndex", nullcheck(&Type::isIndex))
       .def("isBF16", nullcheck(&Type::isBF16))
       .def("isF16", nullcheck(&Type::isF16))
