@@ -17,6 +17,7 @@ pybind11_add_module(mlir
   Attribute.h
 
   # Reduce compilation time by splitting the functions
+  ExposeOps.cpp
   ExposeShapedTypes.cpp
   ExposeStandardTypes.cpp
   ExposeOpaqueType.cpp
