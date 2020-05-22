@@ -5,6 +5,7 @@
 #include "Expose.h"
 
 #include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/AffineMap.h>
 
 using namespace mlir;
 using namespace pybind11;
@@ -77,14 +78,77 @@ void exposeShapedTypes(pybind11::module &m, TypeClass &type) {
       .def_static("isDynamicStrideOrOffset", &ShapedType::isDynamicStrideOrOffset);
 
   class_<VectorType>(m, "VectorType", shapedTy)
-      .def(init([](const std::vector<int64_t> &shape, Type elTy) {
-        return VectorType::getChecked(shape, elTy, getUnknownLoc());
-      }))
       .def(init([](const std::vector<int64_t> &shape, Type elTy, Location loc) {
         return VectorType::getChecked(shape, elTy, loc);
-      }))
+      }), "shape"_a, "elementType"_a, "location"_a = getUnknownLoc())
       .def_static("isValidElementType", &VectorType::isValidElementType);
+
+  class_<TensorType> tensorTy{m, "TensorType", shapedTy};
+  tensorTy.def_static("isValidElementType", &TensorType::isValidElementType);
+
+  class_<RankedTensorType>(m, "RankedTensorType", tensorTy)
+      .def(init([](const std::vector<int64_t> &shape, Type elTy, Location loc) {
+        return RankedTensorType::getChecked(shape, elTy, loc);
+      }), "shape"_a, "elementType"_a, "location"_a = getUnknownLoc());
+
+  class_<UnrankedTensorType>(m, "UnrankedTensorType", tensorTy)
+      .def(init(&UnrankedTensorType::getChecked),
+           "elementType"_a, "location"_a = getUnknownLoc());
+
+  class_<BaseMemRefType> baseMemRefTy{m, "BaseMemRefType", shapedTy};
+
+  class_<MemRefType>(m, "MemRefType", baseMemRefTy)
+      .def(init([](const std::vector<int64_t> &shape, Type elTy,
+                   const std::vector<AffineMap> &affineMapComposition,
+                   unsigned memorySpace, Location loc) {
+        return MemRefType::getChecked(shape, elTy, affineMapComposition,
+                                      memorySpace, loc);
+      }), "shape"_a, "elementType"_a,
+          "affineMapComposition"_a = std::vector<AffineMap>{},
+          "memorySpace"_a = 0, "location"_a = getUnknownLoc())
+      .def_property_readonly("affineMaps", nullcheck([](MemRefType ty) {
+        auto affineMaps = ty.getAffineMaps();
+        return new std::vector<AffineMap>{std::begin(affineMaps),
+                                          std::end(affineMaps)};
+      }))
+      .def_property_readonly("memorySpace",
+                             nullcheck(&MemRefType::getMemorySpace));
+
+  class_<UnrankedMemRefType>(m, "UnrankedMemRefType", baseMemRefTy)
+      .def(init(&UnrankedMemRefType::getChecked),
+           "elementType"_a, "memorySpace"_a, "location"_a = getUnknownLoc())
+      .def_property_readonly("memorySpace",
+                             nullcheck(&UnrankedMemRefType::getMemorySpace));
+
+  implicitly_convertible_from_all<TensorType,
+      RankedTensorType, UnrankedTensorType>(tensorTy);
+
+  implicitly_convertible_from_all<BaseMemRefType,
+      MemRefType, UnrankedMemRefType>(baseMemRefTy);
+
+  implicitly_convertible_from_all<ShapedType,
+      VectorType,
+      TensorType, RankedTensorType, UnrankedTensorType,
+      BaseMemRefType, MemRefType, UnrankedMemRefType>(shapedTy);
 }
 
 } // end namespace py
 } // end namespace mlir
+
+namespace pybind11 {
+
+template <> struct polymorphic_type_hook<TensorType>
+    : public polymorphic_type_hooks<TensorType,
+      RankedTensorType, UnrankedTensorType> {};
+
+template <> struct polymorphic_type_hook<BaseMemRefType>
+    : public polymorphic_type_hooks<BaseMemRefType,
+      MemRefType, UnrankedMemRefType> {};
+
+template <> struct polymorphic_type_hook<ShapedType>
+    : public polymorphic_type_hooks<ShapedType,
+      VectorType,
+      TensorType, RankedTensorType, UnrankedTensorType,
+      BaseMemRefType, MemRefType, UnrankedMemRefType> {};
+
+} // end namespace pybind11

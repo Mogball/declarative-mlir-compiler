@@ -21,16 +21,12 @@ AttributeMap *getDictionaryAttrValue(DictionaryAttr attr);
 Attribute dictionaryAttrGetItem(DictionaryAttr attr, const std::string &key);
 
 /// FloatAttr.
-FloatAttr getFloatAttr(Type ty, double val);
 FloatAttr getFloatAttr(Type ty, double val, Location loc);
 
 /// IntegerAttr.
-IntegerAttr getIntegerAttr(Type ty, int64_t val);
 IntegerAttr getIntegerAttr(Type ty, int64_t val, Location loc);
 
 /// OpaqueAttr.
-OpaqueAttr getOpaqueAttr(const std::string &dialect, const std::string &data,
-                         Type type);
 OpaqueAttr getOpaqueAttr(const std::string &dialect, const std::string &data,
                          Type type, Location loc);
 std::string getOpaqueAttrDialect(OpaqueAttr attr);

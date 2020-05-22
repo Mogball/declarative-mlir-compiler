@@ -69,12 +69,6 @@ Attribute dictionaryAttrGetItem(DictionaryAttr attr, const std::string &key) {
   return ret;
 }
 
-FloatAttr getFloatAttr(Type ty, double val) {
-  if (!ty)
-    throw std::invalid_argument{"Float type cannot be null"};
-  return getFloatAttr(ty, val, getUnknownLoc());
-}
-
 FloatAttr getFloatAttr(Type ty, double val, Location loc) {
   if (!ty)
     throw std::invalid_argument{"Float type cannot be null"};
@@ -84,12 +78,6 @@ FloatAttr getFloatAttr(Type ty, double val, Location loc) {
   return FloatAttr::get(ty, val);
 }
 
-IntegerAttr getIntegerAttr(Type ty, int64_t val) {
-  if (!ty)
-    throw std::invalid_argument{"Integer type cannot be null"};
-  return getIntegerAttr(ty, val, getUnknownLoc());
-}
-
 IntegerAttr getIntegerAttr(Type ty, int64_t val, Location loc) {
   if (!ty)
     throw std::invalid_argument{"Integer type cannot be null"};
@@ -97,11 +85,6 @@ IntegerAttr getIntegerAttr(Type ty, int64_t val, Location loc) {
         loc, ty, val)))
     throw std::invalid_argument{"Bad integer representation"};
   return IntegerAttr::get(ty, val);
-}
-
-OpaqueAttr getOpaqueAttr(const std::string &dialect, const std::string &data,
-                         Type type) {
-  return getOpaqueAttr(dialect, data, type, getUnknownLoc());
 }
 
 OpaqueAttr getOpaqueAttr(const std::string &dialect, const std::string &data,

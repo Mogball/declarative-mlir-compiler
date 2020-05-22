@@ -18,10 +18,8 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
 
 void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type) {
   class_<ComplexType>(m, "ComplexType", type)
-      .def(init([](Type elTy) {
-        return ComplexType::getChecked(elTy, getUnknownLoc());
-      }))
-      .def(init(&ComplexType::getChecked))
+      .def(init(&ComplexType::getChecked), "elementType"_a,
+                                           "location"_a = getUnknownLoc())
       .def_property_readonly("elementType",
                              nullcheck(&ComplexType::getElementType));
 
@@ -30,16 +28,11 @@ void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type) {
 
   class_<IntegerType> intType{m, "IntegerType", type};
   intType
-      .def(init([](unsigned width) {
-        return IntegerType::getChecked(width, getUnknownLoc());
-      }))
-      .def(init([](unsigned width, IntegerType::SignednessSemantics signedness) {
-        return IntegerType::getChecked(width, signedness, getUnknownLoc());
-      }))
       .def(init(overload<IntegerType(unsigned, Location)>(
-          &IntegerType::getChecked)))
+          &IntegerType::getChecked)), "width"_a, "location"_a = getUnknownLoc())
       .def(init(overload<IntegerType(unsigned, IntegerType::SignednessSemantics,
-                                     Location)>(&IntegerType::getChecked)))
+                                     Location)>(&IntegerType::getChecked)),
+           "width"_a, "signedness"_a, "location"_a = getUnknownLoc())
       .def_property_readonly("width", nullcheck(&IntegerType::getWidth))
       .def_property_readonly("signedness", nullcheck(&IntegerType::getSignedness))
       .def("isSignless", nullcheck(&IntegerType::isSignless))
@@ -61,8 +54,8 @@ void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type) {
   m.def("F32", []() { return FloatType::getF32(getMLIRContext()); });
   m.def("F64", []() { return FloatType::getF64(getMLIRContext()); });
 
-  class_<NoneType>(m, "NoneType", type)
-      .def(init([]() { return NoneType::get(getMLIRContext()); }));
+  class_<mlir::NoneType>(m, "NoneType", type)
+      .def(init([]() { return mlir::NoneType::get(getMLIRContext()); }));
 }
 
 } // end namespace py

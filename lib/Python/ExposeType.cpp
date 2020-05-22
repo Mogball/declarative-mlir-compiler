@@ -1,8 +1,10 @@
 #include "Type.h"
+#include "Context.h"
 #include "Expose.h"
 #include "Support.h"
 
 #include <mlir/IR/Dialect.h>
+#include <mlir/IR/StandardTypes.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -18,7 +20,7 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
   return ::nullcheck(fcn, "type");
 }
 
-void exposeType(module &m) {
+TypeClass exposeTypeBase(module &m) {
   class_<Type> type{m, "Type"};
   type
       .def(init<>())
@@ -59,13 +61,47 @@ void exposeType(module &m) {
       .def("isIntOrFloat", nullcheck(&Type::isIntOrFloat))
       .def("isIntOrIndexOrFloat", nullcheck(&Type::isIntOrIndexOrFloat));
 
+  return type;
+}
+
+void exposeType(module &m, TypeClass &type) {
   exposeFunctionType(m, type);
   exposeOpaqueType(m, type);
   exposeStandardNumericTypes(m, type);
   exposeShapedTypes(m, type);
 
+  class_<TupleType>(m, "TupleType", type)
+      .def(init([](const std::vector<Type> &elTys) {
+        return TupleType::get(elTys, getMLIRContext());
+      }), "elementTypes"_a = std::vector<Type>{})
+      .def_property_readonly("types", nullcheck([](TupleType ty) {
+        auto elTys = ty.getTypes();
+        return new std::vector<Type>{std::begin(elTys), std::end(elTys)};
+      }))
+      .def("__len__", nullcheck(&TupleType::size))
+      .def("__iter__", nullcheck([](TupleType ty) {
+        return make_iterator(ty.begin(), ty.end());
+      }), keep_alive<0, 1>())
+      .def("__getitem__", nullcheck([](TupleType ty, size_t idx) {
+        if (idx >= ty.size())
+          throw index_error{};
+        return ty.getType(idx);
+      }))
+      .def("getFlattenedTypes", nullcheck([](TupleType ty) {
+        SmallVector<Type, 8> elTys;
+        ty.getFlattenedTypes(elTys);
+        return new std::vector<Type>{std::begin(elTys), std::end(elTys)};
+      }));
+
   implicitly_convertible_from_all<Type,
-      FunctionType, OpaqueType>(type);
+      FunctionType, OpaqueType,
+      ComplexType, IndexType, IntegerType, FloatType, mlir::NoneType,
+
+      VectorType,
+      TensorType, RankedTensorType, UnrankedTensorType,
+      BaseMemRefType, MemRefType, UnrankedMemRefType,
+
+      TupleType>(type);
 }
 
 } // end namespace py
@@ -75,6 +111,13 @@ namespace pybind11 {
 
 template <> struct polymorphic_type_hook<Type>
     : public polymorphic_type_hooks<Type,
-      FunctionType, OpaqueType> {};
+      FunctionType, OpaqueType,
+      ComplexType, IndexType, IntegerType, FloatType, mlir::NoneType,
+
+      VectorType,
+      TensorType, RankedTensorType, UnrankedTensorType,
+      BaseMemRefType, MemRefType, UnrankedMemRefType,
+
+      TupleType> {};
 
 } // end namespace pybind11

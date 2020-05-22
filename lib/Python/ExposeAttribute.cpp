@@ -1,5 +1,6 @@
 #include "Expose.h"
 #include "Attribute.h"
+#include "Location.h"
 #include "Support.h"
 #include "Context.h"
 
@@ -62,6 +63,9 @@ void exposeAttribute(module &m) {
       .def("isSparseElementsAttr", isa<SparseElementsAttr>())
       .def("isSplatElements", isa<SplatElementsAttr>());
 
+  /// Location must be registered early for default arguments.
+  exposeLocation(m, attr);
+
   class_<AffineMapAttr>(m, "AffineMapAttr", attr)
       .def(init(&AffineMapAttr::get))
       .def("getValue", nullcheck(&AffineMapAttr::getValue));
@@ -83,18 +87,17 @@ void exposeAttribute(module &m) {
 
   // TODO OpaqueAttr
   class_<OpaqueAttr>(m, "OpaqueAttr", attr)
-      .def(init(overload<OpaqueAttr(const std::string &, const std::string &,
-                                    Type)>(&getOpaqueAttr)))
-      .def(init(overload<OpaqueAttr(const std::string &, const std::string &,
-                                    Type, Location)>(&getOpaqueAttr)))
+      .def(init(&getOpaqueAttr), "dialect"_a, "data"_a, "type"_a = Type{},
+                                 "location"_a = getUnknownLoc())
       .def_property_readonly("dialect", nullcheck(&getOpaqueAttrDialect))
       .def_property_readonly("data", nullcheck(&getOpaqueAttrData));
 
   class_<StringAttr>(m, "StringAttr", attr)
-      .def(init([](const std::string &bytes)
-                { return StringAttr::get(bytes, getMLIRContext()); }))
-      .def(init([](const std::string &bytes, Type ty)
-                { return StringAttr::get(bytes, ty); }))
+      .def(init([](const std::string &bytes, Type ty) {
+        if (ty)
+          return StringAttr::get(bytes, ty);
+        return StringAttr::get(bytes, getMLIRContext());
+      }), "bytes"_a, "type"_a = Type{})
       .def("getValue", nullcheck([](StringAttr attr) {
                                  return attr.getValue().str(); }));
 
@@ -117,8 +120,6 @@ void exposeAttribute(module &m) {
       ElementsAttr, DenseElementsAttr, DenseStringElementsAttr,
       DenseIntOrFPElementsAttr, DenseFPElementsAttr,
       DenseIntElementsAttr>(attr);
-
-  exposeLocation(m, attr);
 }
 
 } // end namespace py
