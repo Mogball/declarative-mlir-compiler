@@ -61,6 +61,8 @@ void exposeType(module &m) {
 
   exposeFunctionType(m, type);
   exposeOpaqueType(m, type);
+  exposeStandardNumericTypes(m, type);
+  exposeShapedTypes(m, type);
 
   implicitly_convertible_from_all<Type,
       FunctionType, OpaqueType>(type);

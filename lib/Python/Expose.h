@@ -24,6 +24,8 @@ void exposeElementsAttr(pybind11::module &m, AttrClass &attr);
 using TypeClass = pybind11::class_<Type>;
 void exposeFunctionType(pybind11::module &m, TypeClass &type);
 void exposeOpaqueType(pybind11::module &m, TypeClass &type);
+void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type);
+void exposeShapedTypes(pybind11::module &m, TypeClass &type);
 
 } // end namespace py
 } // end namespace mlir
