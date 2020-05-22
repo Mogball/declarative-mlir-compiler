@@ -95,3 +95,45 @@ void implicitly_convertible_from_all(pybind11::class_<BaseT> &cls) {
   detail::implicitly_convertible_from_all_helper<
       BaseT, DerivedTs...>::doit(cls);
 }
+
+/// Shorthand for declaring polymorphic type hooks for MLIR-style RTTI.
+namespace detail {
+
+template <typename, typename...>
+struct polymorphic_type_hooks_impl;
+
+template <typename BaseT, typename DerivedT>
+struct polymorphic_type_hooks_impl<BaseT, DerivedT> {
+  static const void *get(const BaseT *src,
+                         const std::type_info *&type) {
+    if (src->template isa<DerivedT>()) {
+      type = &typeid(DerivedT);
+      return static_cast<const DerivedT *>(src);
+    }
+    return nullptr;
+  }
+};
+
+template <typename BaseT, typename DerivedT, typename... DerivedTs>
+struct polymorphic_type_hooks_impl<BaseT, DerivedT, DerivedTs...> {
+  static const void *get(const BaseT *src,
+                         const std::type_info *&type) {
+    auto ptr = polymorphic_type_hooks_impl<BaseT, DerivedT>::get(src, type);
+    return ptr ? ptr :
+        polymorphic_type_hooks_impl<BaseT, DerivedTs...>::get(src, type);
+  }
+};
+
+} // end namespace detail
+
+template <typename BaseT, typename... DerivedTs>
+struct polymorphic_type_hooks {
+  static const void *get(const BaseT *src,
+                         const std::type_info *&type) {
+    if (!src)
+      return src;
+    return detail::polymorphic_type_hooks_impl<BaseT, DerivedTs...>
+          ::get(src, type);
+  }
+};
+

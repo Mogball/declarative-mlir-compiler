@@ -9,28 +9,9 @@ using namespace mlir;
 using namespace pybind11;
 
 namespace pybind11 {
-template <> struct polymorphic_type_hook<LocationAttr> {
-  static const void *get(const LocationAttr *src,
-                         const std::type_info *&type) {
-    if (src->isa<UnknownLoc>()) {
-      type = &typeid(UnknownLoc);
-      return static_cast<const UnknownLoc *>(src);
-    } else if (src->isa<CallSiteLoc>()) {
-      type = &typeid(CallSiteLoc);
-      return static_cast<const CallSiteLoc *>(src);
-    } else if (src->isa<FileLineColLoc>()) {
-      type = &typeid(FileLineColLoc);
-      return static_cast<const FileLineColLoc *>(src);
-    } else if (src->isa<FusedLoc>()) {
-      type = &typeid(FusedLoc);
-      return static_cast<const FusedLoc *>(src);
-    } else if (src->isa<NameLoc>()) {
-      type = &typeid(NameLoc);
-      return static_cast<const NameLoc *>(src);
-    }
-    return src;
-  }
-};
+template <> struct polymorphic_type_hook<LocationAttr>
+    : public polymorphic_type_hooks<LocationAttr,
+      UnknownLoc, CallSiteLoc, FileLineColLoc, FusedLoc, NameLoc> {};
 
 /// In order to safely downcast from Location to an impl type, we need to
 /// cast the impl pointer directly. Location holds a LocationAttr and we

@@ -13,6 +13,7 @@
 
 using namespace pybind11;
 using namespace llvm;
+using namespace mlir;
 
 namespace mlir {
 namespace py {
@@ -111,10 +112,28 @@ void exposeAttribute(module &m) {
   implicitly_convertible_from_all<Attribute,
       AffineMapAttr, ArrayAttr, BoolAttr, DictionaryAttr, FloatAttr,
       IntegerAttr, IntegerSetAttr, OpaqueAttr, StringAttr, SymbolRefAttr,
-      FlatSymbolRefAttr, TypeAttr>(attr);
+      FlatSymbolRefAttr, TypeAttr,
+
+      ElementsAttr, DenseElementsAttr, DenseStringElementsAttr,
+      DenseIntOrFPElementsAttr, DenseFPElementsAttr,
+      DenseIntElementsAttr>(attr);
 
   exposeLocation(m, attr);
 }
 
 } // end namespace py
 } // end namespace mlir
+
+namespace pybind11 {
+
+template <> struct polymorphic_type_hook<Attribute>
+    : public polymorphic_type_hooks<Attribute,
+      AffineMapAttr, ArrayAttr, BoolAttr, DictionaryAttr, FloatAttr,
+      IntegerAttr, IntegerSetAttr, OpaqueAttr, StringAttr, SymbolRefAttr,
+      FlatSymbolRefAttr, TypeAttr,
+
+      ElementsAttr, DenseElementsAttr, DenseStringElementsAttr,
+      DenseIntOrFPElementsAttr, DenseFPElementsAttr,
+      DenseIntElementsAttr> {};
+
+} // end namespace pybind11
