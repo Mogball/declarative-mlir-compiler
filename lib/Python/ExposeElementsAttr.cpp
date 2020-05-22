@@ -2,6 +2,8 @@
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/StandardTypes.h>
+#include <pybind11/stl.h>
+#include <pybind11/complex.h>
 
 using namespace pybind11;
 using namespace mlir;

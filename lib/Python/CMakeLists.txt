@@ -16,6 +16,8 @@ pybind11_add_module(mlir
   Attribute.cpp
   Attribute.h
 
+  ExposeOpaqueType.cpp
+  ExposeFunctionType.cpp
   ExposeElementsAttr.cpp
   ExposeSymbolRefAttr.cpp
   ExposeIntFPAttr.cpp

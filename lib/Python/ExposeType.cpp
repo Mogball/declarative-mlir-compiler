@@ -1,4 +1,5 @@
 #include "Type.h"
+#include "Expose.h"
 #include "Support.h"
 
 #include <mlir/IR/Dialect.h>
@@ -8,6 +9,7 @@
 
 using namespace pybind11;
 using namespace llvm;
+using namespace mlir;
 
 namespace mlir {
 namespace py {
@@ -17,7 +19,8 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
 }
 
 void exposeType(module &m) {
-  class_<Type>(m, "Type")
+  class_<Type> type{m, "Type"};
+  type
       .def(init<>())
       .def(init<const Type &>())
       .def(self == self)
@@ -55,7 +58,21 @@ void exposeType(module &m) {
       .def("isIntOrIndex", nullcheck(&Type::isIntOrIndex))
       .def("isIntOrFloat", nullcheck(&Type::isIntOrFloat))
       .def("isIntOrIndexOrFloat", nullcheck(&Type::isIntOrIndexOrFloat));
+
+  exposeFunctionType(m, type);
+  exposeOpaqueType(m, type);
+
+  implicitly_convertible_from_all<Type,
+      FunctionType, OpaqueType>(type);
 }
 
 } // end namespace py
 } // end namespace mlir
+
+namespace pybind11 {
+
+template <> struct polymorphic_type_hook<Type>
+    : public polymorphic_type_hooks<Type,
+      FunctionType, OpaqueType> {};
+
+} // end namespace pybind11

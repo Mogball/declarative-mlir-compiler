@@ -1,6 +1,8 @@
 #include "Attribute.h"
 #include "Support.h"
 
+#include <pybind11/stl.h>
+
 using namespace pybind11;
 
 namespace mlir {

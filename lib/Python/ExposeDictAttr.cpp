@@ -2,6 +2,7 @@
 #include "Support.h"
 
 #include <mlir/IR/Identifier.h>
+#include <pybind11/stl.h>
 
 using namespace pybind11;
 
