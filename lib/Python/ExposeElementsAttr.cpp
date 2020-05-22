@@ -27,9 +27,13 @@ Attribute getElementsAttrValue(ElementsAttr attr,
 template <typename T>
 void denseElsCtorFrom(class_<DenseElementsAttr> &cls) {
   cls.def(init([](ShapedType ty, const std::vector<T> &vals) {
+    if (!ty)
+      throw std::invalid_argument{"Shape type cannot be null"};
     return DenseElementsAttr::get(ty, llvm::makeArrayRef(vals));
   }));
   cls.def(init([](ShapedType ty, T val) {
+    if (!ty)
+      throw std::invalid_argument{"Shape type cannot be null"};
     return DenseElementsAttr::get(ty, llvm::makeArrayRef(val));
   }));
 }
@@ -49,6 +53,8 @@ void exposeElementsAttr(module &m, class_<Attribute> &attr) {
   denseElsAttr
       .def(init([](ShapedType ty,
                    const std::vector<std::string> &vals) {
+        if (!ty)
+          throw std::invalid_argument{"Shape type cannot be null"};
         std::vector<StringRef> refs{std::begin(vals), std::end(vals)};
         return DenseElementsAttr::get(ty, refs);
       }));

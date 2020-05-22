@@ -70,10 +70,14 @@ Attribute dictionaryAttrGetItem(DictionaryAttr attr, const std::string &key) {
 }
 
 FloatAttr getFloatAttr(Type ty, double val) {
+  if (!ty)
+    throw std::invalid_argument{"Float type cannot be null"};
   return getFloatAttr(ty, val, getUnknownLoc());
 }
 
 FloatAttr getFloatAttr(Type ty, double val, Location loc) {
+  if (!ty)
+    throw std::invalid_argument{"Float type cannot be null"};
   if (failed(FloatAttr::verifyConstructionInvariants(
         loc, ty, val)))
     throw std::invalid_argument{"Bad float representation"};
@@ -81,10 +85,14 @@ FloatAttr getFloatAttr(Type ty, double val, Location loc) {
 }
 
 IntegerAttr getIntegerAttr(Type ty, int64_t val) {
+  if (!ty)
+    throw std::invalid_argument{"Integer type cannot be null"};
   return getIntegerAttr(ty, val, getUnknownLoc());
 }
 
 IntegerAttr getIntegerAttr(Type ty, int64_t val, Location loc) {
+  if (!ty)
+    throw std::invalid_argument{"Integer type cannot be null"};
   if (failed(IntegerAttr::verifyConstructionInvariants(
         loc, ty, val)))
     throw std::invalid_argument{"Bad integer representation"};
