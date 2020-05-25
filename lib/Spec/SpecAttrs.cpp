@@ -25,8 +25,8 @@ llvm::hash_code TypedAttrStorage::hashKey(const KeyTy &key) {
   return hash_value(key);
 }
 
-TypedAttrStorage *TypedAttrStorage::construct(
-    AttributeStorageAllocator &alloc, const KeyTy &key) {
+TypedAttrStorage *TypedAttrStorage::construct(AttributeStorageAllocator &alloc,
+                                              const KeyTy &key) {
   return new (alloc.allocate<TypedAttrStorage>())
       TypedAttrStorage{key};
 }
@@ -41,8 +41,8 @@ struct ConstantAttrStorage : public AttributeStorage {
     return hash_value(key);
   }
 
-  static ConstantAttrStorage *construct(
-      AttributeStorageAllocator &alloc, const KeyTy &key) {
+  static ConstantAttrStorage *construct(AttributeStorageAllocator &alloc,
+                                        const KeyTy &key) {
     return new (alloc.allocate<ConstantAttrStorage>())
         ConstantAttrStorage{key};
   }
@@ -58,8 +58,8 @@ struct AttrListStorage : public AttributeStorage {
   bool operator==(const KeyTy &key) const { return key == attrs; }
   static llvm::hash_code hashKey(const KeyTy &key) { return key.hash(); }
 
-  static AttrListStorage *construct(
-      AttributeStorageAllocator &alloc, KeyTy key) {
+  static AttrListStorage *construct(AttributeStorageAllocator &alloc,
+                                    KeyTy key) {
     return new (alloc.allocate<AttrListStorage>())
       AttrListStorage{std::move(key)};
   }
@@ -74,8 +74,8 @@ struct OneTypeAttrStorage : public AttributeStorage {
   bool operator==(const KeyTy &key) const { return key == type; }
   static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }
 
-  static OneTypeAttrStorage *construct(
-      AttributeStorageAllocator &alloc, KeyTy key) {
+  static OneTypeAttrStorage *construct(AttributeStorageAllocator &alloc,
+                                       KeyTy key) {
     return new (alloc.allocate<OneTypeAttrStorage>())
         OneTypeAttrStorage{key};
   }
@@ -97,8 +97,8 @@ struct DefaultAttrStorage : public AttributeStorage {
     return llvm::hash_combine(key.first, key.second);
   }
 
-  static DefaultAttrStorage *construct(
-      AttributeStorageAllocator &alloc, const KeyTy &key) {
+  static DefaultAttrStorage *construct(AttributeStorageAllocator &alloc,
+                                       const KeyTy &key) {
     return new (alloc.allocate<DefaultAttrStorage>())
         DefaultAttrStorage{key.first, key.second};
   }

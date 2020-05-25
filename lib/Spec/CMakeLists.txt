@@ -5,6 +5,7 @@ add_library(DMCSpec
   SpecTypeDetail.cpp
   SpecOps.cpp
   SpecAttrs.cpp
+  SpecRegion.cpp
   SpecAttrImplementation.cpp
   DialectGen.cpp
   ParameterList.cpp
