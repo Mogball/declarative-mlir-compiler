@@ -1,10 +1,19 @@
 #include "dmc/Spec/SpecRegion.h"
 
 #include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/Operation.h>
 
 using namespace mlir;
 
 namespace dmc {
+
+namespace SpecRegion {
+
+bool is(Attribute base) {
+  return Any <= base.getKind() && base.getKind() <= NUM_KINDS;
+}
+
+} // end namespace SpecRegion
 
 namespace detail {
 
@@ -84,13 +93,39 @@ VariadicRegion VariadicRegion::getChecked(Location loc,
 
 LogicalResult VariadicRegion::verifyConstructionInvariants(
     Location loc, Attribute regionConstraint) {
-  // TODO
-  return failure();
+  if (!SpecRegion::is(regionConstraint))
+    return emitError(loc) << "expected a valid region constraint";
+  return success();
 }
 
 LogicalResult VariadicRegion::verify(Region *region) {
-  // TODO
-  return failure();
+  return SpecRegion::delegateVerify(getImpl()->constraint, region);
 }
+
+/// Region verification.
+namespace impl {
+LogicalResult verifyRegionConstraints(Operation *op,
+                                      mlir::ArrayAttr opRegions) {
+  auto regions = op->getRegions();
+  auto regionIt = std::begin(regions), regionEnd = std::end(regions);
+  auto attrIt = std::begin(opRegions), attrEnd = std::end(opRegions);
+  for (unsigned idx = 0; regionIt != regionEnd || attrIt != attrEnd;
+       ++attrIt, ++regionIt) {
+    /// There can only be one variadic region, and it will always be the last
+    /// region. Region counts are verified by another trait.
+    assert(attrIt != attrEnd);
+    assert(!attrIt->isa<VariadicRegion>() || attrIt == std::prev(attrEnd));
+    assert(regionIt != regionEnd || attrIt->isa<VariadicRegion>());
+    /// If the current constraint is not variadic, check one region, otherwise,
+    /// iterate over the remaining regions and check the variadic constraint.
+    for (auto it = regionIt; it != regionEnd &&
+         (it == regionIt || attrIt->isa<VariadicRegion>()); ++it, ++idx) {
+      if (failed(SpecRegion::delegateVerify(*attrIt, &*it)))
+        return op->emitOpError("region #") << idx << " expected " << *attrIt;
+    }
+  }
+  return success();
+}
+} // end namespace impl
 
 } // end namespace dmc

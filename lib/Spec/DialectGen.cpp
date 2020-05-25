@@ -65,9 +65,11 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
           countNonVariadicValues(opTy.getResults()));
   }
 
-  /// Add type and attribute constraint traits last.
+  /// Add type and attribute constraint traits last. Type and regions constrints
+  /// depend on count traits to be checked beforehand.
   op->addOpTrait<TypeConstraintTrait>(opOp.getType());
   op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
+  //op->addOpTrait<RegionConstraintTrait>
 
   /// Finally, register the Op.
   if (failed(op->finalize()) ||

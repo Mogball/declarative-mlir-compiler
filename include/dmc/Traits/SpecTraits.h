@@ -4,6 +4,7 @@
 #include "dmc/Dynamic/DynamicOperation.h"
 #include "dmc/Spec/SpecTypeImplementation.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
+#include "dmc/Spec/SpecRegion.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/OpDefinition.h>
@@ -90,7 +91,6 @@ private:
   mlir::FunctionType opTy;
 };
 
-
 class AttrConstraintTrait : public DynamicTrait {
 public:
   static llvm::StringRef getName() { return "AttrConstraintTrait"; }
@@ -109,6 +109,27 @@ public:
 
 private:
   mlir::DictionaryAttr opAttrs;
+};
+
+/// Top-level Region verifier apply the given constraints on an Operation's
+/// regions. Validity of the constraints is verified on the Operation spec.
+class RegionConstraintTrait : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "RegionConstraintTrait"; }
+
+  /// Create a region constraint with constraints in an ArrayAttr.
+  inline explicit RegionConstraintTrait(mlir::ArrayAttr opRegions)
+      : opRegions{opRegions} {}
+
+  /// Check the Op's regions.
+  inline mlir::LogicalResult verifyOp(mlir::Operation *op) const override {
+    return impl::verifyRegionConstraints(op, opRegions);
+  }
+
+  inline auto getOpRegions() { return opRegions; }
+
+private:
+  mlir::ArrayAttr opRegions;
 };
 
 } // end namespace dmc

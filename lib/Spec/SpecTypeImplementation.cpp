@@ -35,14 +35,12 @@ namespace impl {
 template <typename TypeRange>
 LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
                               TypeRange tys, StringRef name) {
-  auto firstTy = std::begin(tys), lastTy = std::end(tys);
+  auto firstTy = std::begin(tys), tyEnd = std::end(tys);
   auto tyIt = firstTy;
   for (auto baseIt = std::begin(baseTys), baseEnd = std::end(baseTys);
-       baseIt != baseEnd || tyIt != lastTy; ++tyIt, ++baseIt) {
-    if (baseIt == baseEnd)
-      return op->emitOpError("too many ") << name << "s";
-    if (tyIt == lastTy)
-      return op->emitOpError("not enough ") << name << "s";
+       baseIt != baseEnd || tyIt != tyEnd; ++tyIt, ++baseIt) {
+    /// Number of operands and results are verified by previous traits.
+    assert(baseIt != baseEnd && tyIt != tyEnd);
     if ((SpecTypes::is(*baseIt) &&
          failed(SpecTypes::delegateVerify(*baseIt, *tyIt))) ||
         (!SpecTypes::is(*baseIt) && *baseIt != *tyIt))
@@ -60,10 +58,8 @@ LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
   for (auto tyIt = std::begin(baseTys), tyEnd = std::end(baseTys);
        tyIt != tyEnd || std::begin(values) != std::end(values);
        ++tyIt, values = getValues(op, ++groupIdx)) {
-    if (tyIt == tyEnd)
-      return op->emitOpError("too many ") << name << 's';
-    if (std::begin(values) == std::end(values) && !tyIt->isa<VariadicType>())
-      return op->emitOpError("not enough ") << name << 's';
+    assert(tyIt != tyEnd);
+    assert(std::begin(values) != std::end(values) || tyIt->isa<VariadicType>());
     for (auto valIt = std::begin(values), valEnd = std::end(values);
          valIt != valEnd; ++valIt, ++valIdx) {
       // TODO custom type descriptions with dynamic types
