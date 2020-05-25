@@ -41,7 +41,9 @@ add_subdirectory(pybind11)
 
 # Global options
 add_compile_options(-Wall -Wextra
-  -Wno-unused-parameter -Wno-unused-but-set-parameter
+  -Wno-unused-parameter
+  -Wno-unused-but-set-parameter
+  -Wno-unknown-warning-option
   -fdiagnostics-color)
 
 # Global includes

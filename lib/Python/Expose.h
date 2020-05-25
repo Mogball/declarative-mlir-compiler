@@ -15,6 +15,7 @@ void exposeModule(pybind11::module &m);
 TypeClass exposeTypeBase(pybind11::module &m);
 void exposeType(pybind11::module &m, TypeClass &type);
 void exposeAttribute(pybind11::module &m);
+void exposeValue(pybind11::module &m);
 void exposeOps(pybind11::module &m);
 
 /// Attribute subclasses.

@@ -10,5 +10,6 @@ PYBIND11_MODULE(mlir, m) {
   auto type = exposeTypeBase(m);
   exposeAttribute(m);
   exposeType(m, type);
+  exposeValue(m);
   exposeOps(m);
 }
