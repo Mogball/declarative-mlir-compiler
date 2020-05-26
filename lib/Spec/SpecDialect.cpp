@@ -1,5 +1,6 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecOps.h"
+#include "dmc/Spec/SpecRegion.h"
 #include "dmc/Spec/SpecTypeSwitch.h"
 #include "dmc/Spec/SpecAttrSwitch.h"
 
@@ -35,7 +36,9 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       DictionaryAttr, ElementsAttr, ArrayAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
       ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr,
-      OptionalAttr, DefaultAttr, IsaAttr
+      OptionalAttr, DefaultAttr, IsaAttr,
+
+      AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion
   >();
 }
 
@@ -62,16 +65,6 @@ Type parseTypeList(DialectAsmParser &parser) {
 } // end anonymous namespace
 
 /// Type parsing.
-template <typename RetT>
-struct ParseAction {
-  DialectAsmParser &parser;
-
-  template <typename ConcreteType>
-  RetT operator()() const {
-    return ConcreteType::parse(parser);
-  }
-};
-
 Type SpecDialect::parseType(DialectAsmParser &parser) const {
   StringRef typeName;
   if (parser.parseKeyword(&typeName))
@@ -110,7 +103,7 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     parser.emitError(parser.getCurrentLocation(), "unknown type constraint");
     return Type{};
   }
-  ParseAction<Type> action{parser};
+  ParseAction<Type, DialectAsmParser> action{parser};
   return SpecTypes::kindSwitch(action, kind);
 }
 
@@ -231,7 +224,7 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
                      "unknown attribute constraint");
     return Attribute{};
   }
-  ParseAction<Attribute> action{parser};
+  ParseAction<Attribute, DialectAsmParser> action{parser};
   return SpecAttrs::kindSwitch(action, kind);
 }
 

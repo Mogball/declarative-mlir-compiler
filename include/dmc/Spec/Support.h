@@ -47,4 +47,36 @@ struct KindActionWrapper {
   }
 };
 
+template <typename RetT, typename ParserT>
+struct ParseAction {
+  ParserT &parser;
+
+  template <typename ConcreteType>
+  RetT operator()() const {
+    return ConcreteType::parse(parser);
+  }
+};
+
+template <typename PrinterT>
+struct PrintAction {
+  PrinterT &printer;
+
+  template <typename ConcreteType>
+  int operator()(ConcreteType base) const {
+    base.print(printer);
+    return 0;
+  }
+};
+
+template <typename ArgT>
+struct VerifyAction {
+  ArgT arg;
+
+  template <typename ConcreteType>
+  mlir::LogicalResult operator()(ConcreteType base) const {
+    return base.verify(arg);
+  }
+};
+
+
 } // end namespace dmc

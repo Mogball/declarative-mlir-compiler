@@ -35,5 +35,15 @@ mlir::ParseResult parseOptionalOpTraitList(mlir::OpAsmParser &parser,
 void printOptionalOpTraitList(mlir::OpAsmPrinter &printer,
                               OpTraitsAttr traitArr);
 
+/// Parse and print an op region attribute list.
+mlir::ParseResult parseOpRegion(mlir::OpAsmParser &parser,
+                                mlir::Attribute &opRegion);
+void printOpRegion(mlir::OpAsmPrinter &printer, mlir::Attribute opRegion);
+void printOpRegion(llvm::raw_ostream &os, mlir::Attribute opRegion);
+mlir::ParseResult parseOptionalRegionList(mlir::OpAsmParser &parser,
+                                          mlir::ArrayAttr &regionsAttr);
+void printOptionalRegionList(mlir::OpAsmPrinter &printer,
+                             mlir::ArrayAttr regionsAttr);
+
 } // end namespace impl
 } // end namespace dmc

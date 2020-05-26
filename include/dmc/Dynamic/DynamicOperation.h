@@ -38,10 +38,10 @@ public:
   /// Add a DynamicTrait to this Op. Traits specify invariants on an
   /// Operation checked under verifyInvariants(). OpTraits should be
   /// added only during Op creation.
-  void addOpTrait(llvm::StringRef name,
-                  std::unique_ptr<DynamicTrait> trait);
+  mlir::LogicalResult addOpTrait(llvm::StringRef name,
+                                 std::unique_ptr<DynamicTrait> trait);
   template <typename TraitT, typename... Args>
-  void addOpTrait(Args &&... args);
+  mlir::LogicalResult addOpTrait(Args &&... args);
 
   /// DynamicOperation creation: define the Base Operation, add properties,
   /// traits, custom functions, hooks, etc, then register with Dialect.
@@ -73,9 +73,9 @@ private:
 
 /// Out-of-line definitions
 template <typename TraitT, typename... Args>
-void DynamicOperation::addOpTrait(Args &&... args) {
-  addOpTrait(TraitT::getName(), std::make_unique<TraitT>(
-        std::forward<Args>(args)...));
+mlir::LogicalResult DynamicOperation::addOpTrait(Args &&... args) {
+  return addOpTrait(TraitT::getName(), std::make_unique<TraitT>(
+      std::forward<Args>(args)...));
 }
 
 template <typename TraitT>

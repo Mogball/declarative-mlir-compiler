@@ -112,6 +112,7 @@ public:
   static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name, mlir::FunctionType type,
                     llvm::ArrayRef<mlir::NamedAttribute> opAttrs,
+                    llvm::ArrayRef<mlir::Attribute> opRegions,
                     llvm::ArrayRef<mlir::NamedAttribute> config);
 
   /// Operation hooks.
@@ -122,6 +123,7 @@ public:
 
   /// Getters.
   mlir::DictionaryAttr getOpAttrs();
+  mlir::ArrayAttr getOpRegions();
   OpTraitsAttr getOpTraits();
 
   bool isTerminator();
@@ -142,6 +144,8 @@ private:
   void setOpType(mlir::FunctionType opTy);
   /// Replace the Op attributes.
   void setOpAttrs(mlir::DictionaryAttr opAttrs);
+  /// Replace the Op regions.
+  void setOpRegions(mlir::ArrayAttr opRegions);
 
   /// Attributes.
   static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
@@ -152,6 +156,9 @@ private:
   }
   static inline llvm::StringRef getOpTraitsAttrName() {
     return "traits";
+  }
+  static inline llvm::StringRef getOpRegionsAttrName() {
+    return "regions";
   }
   static inline llvm::StringRef getIsTerminatorAttrName() {
     return "is_terminator";

@@ -10,17 +10,8 @@ bool is(Attribute base) {
   return Any <= base.getKind() && base.getKind() < NUM_ATTRS;
 }
 
-struct VerifyAction {
-  Attribute argAttr; // attribute to verify
-
-  template <typename ConcreteType>
-  LogicalResult operator()(ConcreteType base) const {
-    return base.verify(argAttr);
-  }
-};
-
 LogicalResult delegateVerify(Attribute base, Attribute attr) {
-  VerifyAction action{attr};
+  VerifyAction<Attribute> action{attr};
   return SpecAttrs::kindSwitch(action, base);
 }
 

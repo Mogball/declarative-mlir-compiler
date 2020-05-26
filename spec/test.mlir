@@ -28,4 +28,22 @@ module {
         attrTraits = #trait.OpTraits<[#trait.OpTrait<@IsTerminator<1,2>>]>}
       : (i32) -> ()
   }
+
+  func @test4() -> () {
+    %0 = "test.get_value"() : () -> i32
+    "test.op_regions"() ({
+      "test.ret"() : () -> ()
+    }, {
+      "test.ret"() : () -> ()
+    ^bb1:
+      "test.ret"() : () -> ()
+    }, {
+      "test.ret"() : () -> ()
+    }, {
+      "test.ret"() : () -> ()
+    ^bb1:
+      "test.ret"() : () -> ()
+    }): () -> ()
+    "test.ret"() : () -> ()
+  }
 }

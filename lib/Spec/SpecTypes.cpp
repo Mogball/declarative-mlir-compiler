@@ -417,18 +417,8 @@ LogicalResult IsaType::verify(Type ty) {
 }
 
 /// Type printing.
-struct PrintAction {
-  DialectAsmPrinter &printer;
-
-  template <typename ConcreteType>
-  int operator()(ConcreteType base) const {
-    base.print(printer);
-    return 0;
-  }
-};
-
 void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  PrintAction action{printer};
+  PrintAction<DialectAsmPrinter> action{printer};
   SpecTypes::kindSwitch(action, type);
 }
 

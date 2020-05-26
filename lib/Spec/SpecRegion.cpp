@@ -1,7 +1,11 @@
 #include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/SpecRegionSwitch.h"
+#include "dmc/Spec/Parsing.h"
 
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Operation.h>
+#include <mlir/IR/OpImplementation.h>
 
 using namespace mlir;
 
@@ -11,6 +15,18 @@ namespace SpecRegion {
 
 bool is(Attribute base) {
   return Any <= base.getKind() && base.getKind() <= NUM_KINDS;
+}
+
+LogicalResult delegateVerify(Attribute base, Region *region) {
+  VerifyAction<Region *> action{region};
+  return SpecRegion::kindSwitch(action, base);
+}
+
+std::string toString(Attribute opRegion) {
+  std::string ret;
+  llvm::raw_string_ostream os{ret};
+  impl::printOpRegion(os, opRegion);
+  return std::move(os.str());
 }
 
 } // end namespace SpecRegion
@@ -65,9 +81,6 @@ SizedRegion SizedRegion::getChecked(Location loc, unsigned size) {
 
 LogicalResult SizedRegion::verifyConstructionInvariants(Location loc,
                                                         unsigned size) {
-  /// numBlocks > 0
-  if (size == 0)
-    return emitError(loc) << "a region cannot have zero blocks";
   return success();
 }
 
@@ -109,11 +122,9 @@ LogicalResult verifyRegionConstraints(Operation *op,
   auto regions = op->getRegions();
   auto regionIt = std::begin(regions), regionEnd = std::end(regions);
   auto attrIt = std::begin(opRegions), attrEnd = std::end(opRegions);
-  for (unsigned idx = 0; regionIt != regionEnd || attrIt != attrEnd;
-       ++attrIt, ++regionIt) {
+  for (unsigned idx = 0; attrIt != attrEnd; ++attrIt, ++regionIt) {
     /// There can only be one variadic region, and it will always be the last
     /// region. Region counts are verified by another trait.
-    assert(attrIt != attrEnd);
     assert(!attrIt->isa<VariadicRegion>() || attrIt == std::prev(attrEnd));
     assert(regionIt != regionEnd || attrIt->isa<VariadicRegion>());
     /// If the current constraint is not variadic, check one region, otherwise,
@@ -121,11 +132,64 @@ LogicalResult verifyRegionConstraints(Operation *op,
     for (auto it = regionIt; it != regionEnd &&
          (it == regionIt || attrIt->isa<VariadicRegion>()); ++it, ++idx) {
       if (failed(SpecRegion::delegateVerify(*attrIt, &*it)))
-        return op->emitOpError("region #") << idx << " expected " << *attrIt;
+        return op->emitOpError("region #") << idx << " expected "
+            << SpecRegion::toString(*attrIt);
     }
   }
   return success();
 }
 } // end namespace impl
+
+Attribute AnyRegion::parse(OpAsmParser &parser) {
+  return get(parser.getBuilder().getContext());
+}
+
+Attribute SizedRegion::parse(OpAsmParser &parser) {
+  if (parser.parseLess())
+    return {};
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  Attribute sizeAttr;
+  if (impl::parseSingleAttribute(parser, sizeAttr))
+    return {};
+  auto intAttr = sizeAttr.dyn_cast<IntegerAttr>();
+  if (!intAttr) {
+    emitError(loc) << "expected an integer size";
+    return {};
+  }
+  if (parser.parseGreater())
+    return {};
+  return getChecked(loc, intAttr.getValue().getZExtValue());
+}
+
+Attribute IsolatedFromAboveRegion::parse(OpAsmParser &parser) {
+  return get(parser.getBuilder().getContext());
+}
+
+Attribute VariadicRegion::parse(OpAsmParser &parser) {
+  Attribute opRegion;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || impl::parseOpRegion(parser, opRegion) ||
+      parser.parseGreater())
+    return {};
+  return getChecked(loc, opRegion);
+}
+
+void AnyRegion::print(llvm::raw_ostream &os) {
+  os << getName();
+}
+
+void SizedRegion::print(llvm::raw_ostream &os) {
+  os << getName() << '<' << getImpl()->numBlocks << '>';
+}
+
+void IsolatedFromAboveRegion::print(llvm::raw_ostream &os) {
+  os << getName();
+}
+
+void VariadicRegion::print(llvm::raw_ostream &os) {
+  os << getName() << '<';
+  impl::printOpRegion(os, getImpl()->constraint);
+  os << '>';
+}
 
 } // end namespace dmc

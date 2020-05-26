@@ -24,6 +24,7 @@ target_link_libraries(gen
   DMCDynamic
   DMCTraits
   LLVMSupport
+  MLIRStandardOps
   MLIRParser
   )
 

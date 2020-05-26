@@ -1,13 +1,21 @@
 #pragma once
 
+#include "dmc/Kind.h"
+
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Region.h>
+
+/// Forward declarations.
+namespace mlir {
+class OpAsmParser;
+class OpAsmPrinter;
+};
 
 namespace dmc {
 
 namespace SpecRegion {
 enum Kinds {
-  Any,
+  Any = Kind::FIRST_SPEC_REGION,
   Sized,
   IsolatedFromAbove,
   Variadic,
@@ -17,6 +25,8 @@ enum Kinds {
 
 bool is(mlir::Attribute base);
 mlir::LogicalResult delegateVerify(mlir::Attribute base, mlir::Region *region);
+/// TODO Instead of avoiding Dialect::printAttribute, use it.
+std::string toString(mlir::Attribute opRegion);
 
 } // end namespace SpecRegion
 
@@ -39,6 +49,9 @@ public:
   inline mlir::LogicalResult verify(mlir::Region *) {
     return mlir::success();
   }
+
+  static Attribute parse(mlir::OpAsmParser &parser);
+  void print(llvm::raw_ostream &os);
 };
 
 /// Match a region with a given number of blocks.
@@ -55,6 +68,9 @@ public:
                                                           unsigned size);
 
   mlir::LogicalResult verify(mlir::Region *region);
+
+  static Attribute parse(mlir::OpAsmParser &parser);
+  void print(llvm::raw_ostream &os);
 };
 
 /// Match a region isolated from above.
@@ -71,6 +87,9 @@ public:
   }
 
   mlir::LogicalResult verify(mlir::Region *region);
+
+  static Attribute parse(mlir::OpAsmParser &parser);
+  void print(llvm::raw_ostream &os);
 };
 
 /// Variadic regions.
@@ -88,6 +107,9 @@ public:
       mlir::Location loc, mlir::Attribute regionConstraint);
 
   mlir::LogicalResult verify(mlir::Region *region);
+
+  static Attribute parse(mlir::OpAsmParser &parser);
+  void print(llvm::raw_ostream &os);
 };
 
 /// Verify Region constraints.

@@ -375,19 +375,9 @@ void printAttrList(const AttrList &attrs, DialectAsmPrinter &printer) {
 
 } // end anonymous namespace
 
-struct PrintAction {
-  DialectAsmPrinter &printer;
-
-  template <typename ConcreteType>
-  int operator()(ConcreteType base) const {
-    base.print(printer);
-    return 0;
-  }
-};
-
 void SpecDialect::printAttribute(
     Attribute attr, DialectAsmPrinter &printer) const {
-  PrintAction action{printer};
+  PrintAction<DialectAsmPrinter> action{printer};
   SpecAttrs::kindSwitch(action, attr);
 }
 

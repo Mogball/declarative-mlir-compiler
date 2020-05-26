@@ -12,18 +12,8 @@ bool is(Type base) {
   return Any <= base.getKind() && base.getKind() < NUM_TYPES;
 }
 
-struct VerifyAction {
-  Type argTy; // type to verify
-
-  template <typename ConcreteType>
-  LogicalResult operator()(ConcreteType base) const {
-    return base.verify(argTy);
-  }
-};
-
-/// Big switch table.
 LogicalResult delegateVerify(Type base, Type ty) {
-  VerifyAction action{ty};
+  VerifyAction<Type> action{ty};
   return SpecTypes::kindSwitch(action, base);
 }
 

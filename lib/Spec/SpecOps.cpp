@@ -105,6 +105,10 @@ void OperationOp::setOpAttrs(mlir::DictionaryAttr opAttrs) {
   setAttr(getOpAttrDictAttrName(), opAttrs);
 }
 
+void OperationOp::setOpRegions(mlir::ArrayAttr opRegions) {
+  setAttr(getOpRegionsAttrName(), opRegions);
+}
+
 void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
                                           OperationState &result) {
   auto falseAttr = builder.getBoolAttr(false);
@@ -116,41 +120,47 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
       result);
 }
 
-void OperationOp::build(OpBuilder &builder, OperationState &result,
-                        StringRef name, mlir::FunctionType type,
-                        ArrayRef<NamedAttribute> opAttrs,
-                        ArrayRef<NamedAttribute> config) {
+void OperationOp::build(
+    OpBuilder &builder, OperationState &result, StringRef name,
+    mlir::FunctionType type, ArrayRef<NamedAttribute> opAttrs,
+    ArrayRef<Attribute> opRegions, ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
   result.addAttribute(getOpAttrDictAttrName(),
                       builder.getDictionaryAttr(opAttrs));
+  result.addAttribute(getOpRegionsAttrName(),
+                      builder.getArrayAttr(opRegions));
   result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
 }
 
-// op ::= `dmc.Op` `@`op-name func-type (attr-dict)?
+// op ::= `dmc.Op` `@`op-name func-type (attr-dict)? (region-list)?
 //        (`traits` trait-list)?
 //        (`config` attr-dict)?
 //
 // func-type ::= type-list `->` type-list
 // trait-list ::= `[` trait (`,` trait)* `]`
 // trait ::= `@`trait-name param-list?
+// region-list ::= `(` region-attr (`,` region-attr)* `)`
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   mlir::TypeAttr funcTypeAttr;
   NamedAttrList opAttrs;
+  mlir::ArrayAttr regionAttr;
   OpTraitsAttr traitArr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       parser.parseAttribute(funcTypeAttr, getTypeAttrName(),
                             result.attributes) ||
       parser.parseOptionalAttrDict(opAttrs) ||
+      impl::parseOptionalRegionList(parser, regionAttr) ||
       impl::parseOptionalOpTraitList(parser, traitArr))
     return failure();
   result.addAttribute(getOpAttrDictAttrName(),
                       mlir::DictionaryAttr::get(opAttrs, result.getContext()));
+  result.addAttribute(getOpRegionsAttrName(), regionAttr);
   result.addAttribute(getOpTraitsAttrName(), traitArr);
   if (!parser.parseOptionalKeyword("config") &&
       parser.parseOptionalAttrDict(result.attributes))
@@ -167,15 +177,20 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printer.printType(getType());
   printer << ' ';
   printer.printAttribute(getOpAttrs());
+  impl::printOptionalRegionList(printer, getOpRegions());
   impl::printOptionalOpTraitList(printer, getOpTraits());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
       SymbolTable::getSymbolAttrName(), getTypeAttrName(),
-      getOpAttrDictAttrName(), getOpTraitsAttrName()});
+      getOpAttrDictAttrName(), getOpRegionsAttrName(), getOpTraitsAttrName()});
 }
 
 mlir::DictionaryAttr OperationOp::getOpAttrs() {
   return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
+}
+
+mlir::ArrayAttr OperationOp::getOpRegions() {
+  return getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
 }
 
 OpTraitsAttr OperationOp::getOpTraits() {
@@ -214,6 +229,13 @@ LogicalResult OperationOp::verify() {
   if (!getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
+  if (!getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName()))
+    return emitOpError("expected DictionaryAttr named: ")
+        << getOpAttrDictAttrName();
+  auto opRegions = getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
+  if (!opRegions)
+    return emitOpError("expected ArrayAttr named: ")
+        << getOpRegionsAttrName();
   auto opTraits = getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
   if (!opTraits)
     return emitOpError("expected OpTraitsAttr named: ")
@@ -241,6 +263,26 @@ LogicalResult OperationOp::verify() {
   if (hasVariadicRets && !hasSameSizedRets && !hasRetSegments)
     return emitOpError("more than one variadic result requires a ")
         << "variadic size specifier";
+
+  /// Ensure that op regions are valid region constraints.
+  unsigned regionIdx = 0;
+  unsigned numVarRegions = 0;
+  for (auto opRegion : opRegions) {
+    if (!SpecRegion::is(opRegion))
+      return emitOpError("expected a valid region constraint for region #")
+          << regionIdx;
+    if (opRegion.isa<VariadicRegion>())
+      ++numVarRegions;
+    ++regionIdx;
+  }
+  /// Check at most one variadic region, which must be the last region
+  /// constraint.
+  if (numVarRegions) {
+    if (numVarRegions > 1)
+      return emitOpError("op can have at most one variadic region specifier");
+    if (!std::prev(std::end(opRegions))->isa<VariadicRegion>())
+      return emitOpError("expected only the last region to be variadic");
+  }
 
   return success();
 }

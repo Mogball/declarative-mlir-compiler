@@ -5,7 +5,7 @@ namespace SpecAttrs {
 
 /// Big switch table.
 template <typename ActionT>
-auto kindSwitch(const ActionT& action, unsigned kind) {
+auto kindSwitch(const ActionT &action, unsigned kind) {
   switch (kind) {
   default:
     return action.template operator()<AnyAttr>();
@@ -57,7 +57,6 @@ auto kindSwitch(const ActionT& action, unsigned kind) {
     return action.template operator()<IsaAttr>();
   }
 }
-
 
 template <typename ActionT>
 auto kindSwitch(const ActionT &action, mlir::Attribute base) {

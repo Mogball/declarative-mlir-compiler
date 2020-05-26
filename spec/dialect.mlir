@@ -30,4 +30,7 @@ dmc.Dialect @test {
 
   dmc.Type @BoxType<#dmc.Isa<@test::@Box>>
   dmc.Op @op_e(!test.BoxType<#test.Box<6>>) -> ()
+
+  dmc.Op @op_regions() -> () {} (Any, Sized<2>, Variadic<IsolatedFromAbove>)
+  dmc.Op @ret() -> () config { is_terminator = true }
 }

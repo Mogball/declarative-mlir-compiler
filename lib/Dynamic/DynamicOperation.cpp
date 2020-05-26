@@ -59,10 +59,10 @@ DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
       name{(dialect->getNamespace() + "." + name).str()},
       dialect{dialect} {}
 
-void DynamicOperation::addOpTrait(
+LogicalResult DynamicOperation::addOpTrait(
     StringRef name, std::unique_ptr<DynamicTrait> trait) {
   auto [it, inserted] = traits.try_emplace(name, std::move(trait));
-  assert(inserted && "Trait already exists");
+  return success(inserted);
 }
 
 LogicalResult DynamicOperation::finalize() {

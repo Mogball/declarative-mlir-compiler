@@ -1,8 +1,13 @@
 #include "dmc/Spec/Parsing.h"
+#include "dmc/Spec/Support.h"
+#include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/SpecRegionSwitch.h"
 
 #include <mlir/IR/Builders.h>
+#include <llvm/ADT/StringSwitch.h>
 
 using namespace mlir;
+using namespace llvm;
 
 namespace dmc {
 namespace impl {
@@ -98,21 +103,22 @@ void printOptionalParameterList(DialectAsmPrinter &printer,
 /// Op trait parsing.
 ParseResult parseOpTrait(OpAsmParser &parser, OpTraitAttr &traitAttr) {
   // op-trait ::= `@`trait-name parameter-list?
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   mlir::StringAttr nameAttr;
   mlir::ArrayAttr paramAttr;
   NamedAttrList attrList; // dummy list
   if (parser.parseSymbolName(nameAttr, "name", attrList) ||
       parseOptionalParameterList(parser, paramAttr))
     return failure();
-  /// TODO getChecked, but OpAsmParser cannot convert SMLoc to Location
-  traitAttr = OpTraitAttr::get(
-      parser.getBuilder().getSymbolRefAttr(nameAttr.getValue()), paramAttr);
+  traitAttr = OpTraitAttr::getChecked(loc, parser.getBuilder().getSymbolRefAttr(
+      nameAttr.getValue()), paramAttr);
   return success();
 }
 
 ParseResult parseOptionalOpTraitList(OpAsmParser &parser,
                                      OpTraitsAttr &traitArr) {
   // trait-list ::= `traits` `[` op-trait (`,` op-trait)* `]`
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   SmallVector<Attribute, 2> opTraits;
   if (!parser.parseOptionalKeyword("traits")) {
     if (parser.parseLSquare())
@@ -126,8 +132,8 @@ ParseResult parseOptionalOpTraitList(OpAsmParser &parser,
     if (parser.parseRSquare())
       return failure();
   }
-  /// TODO getChecked, but OpAsmParser cannot convert SMLoc to Location
-  traitArr = OpTraitsAttr::get(parser.getBuilder().getArrayAttr(opTraits));
+  traitArr = OpTraitsAttr::getChecked(
+      loc, parser.getBuilder().getArrayAttr(opTraits));
   return success();
 }
 
@@ -148,6 +154,66 @@ void printOptionalOpTraitList(OpAsmPrinter &printer, OpTraitsAttr traitArr) {
     printOpTrait(printer, *it);
   }
   printer << ']';
+}
+
+/// Region parsing.
+ParseResult parseOpRegion(OpAsmParser &parser, Attribute &opRegion) {
+  StringRef name;
+  if (parser.parseKeyword(&name))
+    return failure();
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  auto kind = StringSwitch<unsigned>(name)
+      .Case(AnyRegion::getName(), SpecRegion::Any)
+      .Case(SizedRegion::getName(), SpecRegion::Sized)
+      .Case(IsolatedFromAboveRegion::getName(), SpecRegion::IsolatedFromAbove)
+      .Case(VariadicRegion::getName(), SpecRegion::Variadic)
+      .Default(SpecRegion::NUM_KINDS);
+
+  if (kind == SpecRegion::NUM_KINDS)
+    return emitError(loc, "unknown region constraint: '") << name << '\'';
+  ParseAction<Attribute, OpAsmParser> action{parser};
+  opRegion = SpecRegion::kindSwitch(action, kind);
+  return success(static_cast<bool>(opRegion));
+}
+
+void printOpRegion(OpAsmPrinter &printer, Attribute opRegion) {
+  printOpRegion(printer.getStream(), opRegion);
+}
+
+void printOpRegion(llvm::raw_ostream &os, Attribute opRegion) {
+  PrintAction<llvm::raw_ostream> action{os};
+  SpecRegion::kindSwitch(action, opRegion);
+}
+
+ParseResult parseOptionalRegionList(OpAsmParser &parser,
+                                    mlir::ArrayAttr &regionsAttr) {
+  SmallVector<Attribute, 1> opRegions;
+  if (!parser.parseOptionalLParen()) {
+    do {
+      Attribute opRegion;
+      if (parseOpRegion(parser, opRegion))
+        return failure();
+      opRegions.push_back(opRegion);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseRParen())
+      return failure();
+  }
+  regionsAttr = parser.getBuilder().getArrayAttr(opRegions);
+  return success();
+}
+
+void printOptionalRegionList(OpAsmPrinter &printer,
+                             mlir::ArrayAttr regionsAttr) {
+  if (llvm::size(regionsAttr)) {
+    auto it = std::begin(regionsAttr);
+    printer << " (";
+    printOpRegion(printer, *it++);
+    for (auto e = std::end(regionsAttr); it != e; ++it) {
+      printer << ", ";
+      printOpRegion(printer, *it);
+    }
+    printer << ')';
+  }
 }
 
 } // end namespace impl

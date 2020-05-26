@@ -36,40 +36,55 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     auto ctor = registry->lookupTrait(trait.getName());
     if (failed(ctor.verify(opOp.getLoc(), trait.getParameters())))
       return failure();
-    op->addOpTrait(trait.getName(), ctor.call(trait.getParameters()));
+    if (failed(op->addOpTrait(trait.getName(),
+                              ctor.call(trait.getParameters()))))
+      return opOp.emitOpError("duplicate op trait: ") << trait.getName();
   }
 
-  /// Default to 0 regions if no trait is specified.
-  if (!op->getTrait<NRegions>())
-    op->addOpTrait<NRegions>(0);
+  /// Add region counts.
+  auto opRegions = opOp.getOpRegions();
+  auto numVarRegions = llvm::count_if(opRegions, [](Attribute opRegion) {
+                                      return opRegion.isa<VariadicRegion>(); });
+  if (!numVarRegions) {
+    if (failed(op->addOpTrait<NRegions>(llvm::size(opRegions))))
+      return opOp.emitOpError("specified an invalid op trait: ")
+          << NRegions::getName();
+  } else {
+    if (!op->getTrait<AtLeastNRegions>())
+      op->addOpTrait<AtLeastNRegions>(llvm::size(opRegions) - numVarRegions);
+  }
+
   /// Default to 0 successors if no trait is specified.
-  if (!op->getTrait<NSuccessors>())
+  if (!op->getTrait<NSuccessors>() && !op->getTrait<AtLeastNSuccessors>())
     op->addOpTrait<NSuccessors>(0);
+
   /// Add operand and result count op traits if none exist. For variadic
   /// values, apply an AtLeast op trait.
   auto opTy = opOp.getType();
   if (!hasVariadicValues(opTy.getInputs())) {
-    if (!op->getTrait<NOperands>())
-      op->addOpTrait<NOperands>(llvm::size(opTy.getInputs()));
+    if (failed(op->addOpTrait<NOperands>(llvm::size(opTy.getInputs()))))
+      return opOp.emitOpError("specified an invalid op trait: ")
+          << NOperands::getName();
   } else {
     if (!op->getTrait<AtLeastNOperands>())
-      op->addOpTrait<AtLeastNOperands>(
-          countNonVariadicValues(opTy.getResults()));
+      op->addOpTrait<AtLeastNOperands>(countNonVariadicValues(
+          opTy.getResults()));
   }
   if (!hasVariadicValues(opTy.getResults())) {
-    if (!op->getTrait<NResults>())
-      op->addOpTrait<NResults>(llvm::size(opTy.getResults()));
+    if (failed(op->addOpTrait<NResults>(llvm::size(opTy.getResults()))))
+      return opOp.emitOpError("specified an invalid op trait: ")
+          << NResults::getName();
   } else {
     if (!op->getTrait<AtLeastNResults>())
-      op->addOpTrait<AtLeastNResults>(
-          countNonVariadicValues(opTy.getResults()));
+      op->addOpTrait<AtLeastNResults>(countNonVariadicValues(
+          opTy.getResults()));
   }
 
   /// Add type and attribute constraint traits last. Type and regions constrints
   /// depend on count traits to be checked beforehand.
-  op->addOpTrait<TypeConstraintTrait>(opOp.getType());
+  op->addOpTrait<TypeConstraintTrait>(opTy);
   op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
-  //op->addOpTrait<RegionConstraintTrait>
+  op->addOpTrait<RegionConstraintTrait>(opRegions);
 
   /// Finally, register the Op.
   if (failed(op->finalize()) ||

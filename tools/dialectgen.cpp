@@ -2,12 +2,13 @@
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Traits/Registry.h"
 
-#include <llvm/Support/ErrorOr.h>
-#include <llvm/Support/MemoryBuffer.h>
-#include <llvm/Support/SourceMgr.h>
 #include <mlir/Parser.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Verifier.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <llvm/Support/ErrorOr.h>
+#include <llvm/Support/MemoryBuffer.h>
+#include <llvm/Support/SourceMgr.h>
 
 using namespace mlir;
 using namespace llvm;
@@ -15,6 +16,7 @@ using namespace dmc;
 
 static DialectRegistration<SpecDialect> specDialectRegistration;
 static DialectRegistration<TraitRegistry> registerTraits;
+static DialectRegistration<StandardOpsDialect> registerStdOps;
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
