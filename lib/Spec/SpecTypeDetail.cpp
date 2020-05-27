@@ -93,10 +93,10 @@ Optional<WidthList> parseWidthList(DialectAsmParser &parser) {
 }
 
 void printWidthList(DialectAsmPrinter &printer, ArrayRef<unsigned> widths) {
-  auto it = std::begin(widths);
-  printer << '<' << (*it++);
-  for (auto e = std::end(widths); it != e; ++it)
-    printer << ',' << (*it);
+  printer << '<';
+  llvm::interleaveComma(widths, printer,
+                        [&](unsigned width) { printer << width; });
+  printer << '>';
 }
 
 } // end namespace impl

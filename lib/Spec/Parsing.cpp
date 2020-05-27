@@ -81,10 +81,9 @@ namespace detail {
 template <typename PrinterT, typename AttrRange>
 void printOptionalParameterList(PrinterT &printer, AttrRange params) {
   if (!params.empty()) {
-    auto it = std::begin(params);
-    printer << '<' << *it++;
-    for (auto e = std::end(params); it != e; ++it)
-      printer << ',' << *it;
+    printer << '<';
+    llvm::interleaveComma(params, printer,
+                          [&](Attribute attr) { printer << attr; });
     printer << '>';
   }
 }
@@ -146,13 +145,9 @@ void printOptionalOpTraitList(OpAsmPrinter &printer, OpTraitsAttr traitArr) {
   auto traits = traitArr.getValue();
   if (traits.empty())
     return;
-  auto it = std::begin(traits);
   printer << " traits [";
-  printOpTrait(printer, *it++);
-  for (auto e = std::end(traits); it != e; ++it) {
-    printer << ',';
-    printOpTrait(printer, *it);
-  }
+  llvm::interleaveComma(traits, printer,
+                        [&](auto trait) { printOpTrait(printer, trait); });
   printer << ']';
 }
 
@@ -205,13 +200,9 @@ ParseResult parseOptionalRegionList(OpAsmParser &parser,
 void printOptionalRegionList(OpAsmPrinter &printer,
                              mlir::ArrayAttr regionsAttr) {
   if (llvm::size(regionsAttr)) {
-    auto it = std::begin(regionsAttr);
     printer << " (";
-    printOpRegion(printer, *it++);
-    for (auto e = std::end(regionsAttr); it != e; ++it) {
-      printer << ", ";
-      printOpRegion(printer, *it);
-    }
+    llvm::interleaveComma(regionsAttr, printer, [&](Attribute region)
+                          { printOpRegion(printer, region); });
     printer << ')';
   }
 }

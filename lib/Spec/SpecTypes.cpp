@@ -423,13 +423,8 @@ void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
 }
 
 void printTypeList(ArrayRef<Type> tys, DialectAsmPrinter &printer) {
-  auto it = std::begin(tys);
   printer << '<';
-  printer.printType(*it++);
-  for (auto e = std::end(tys); it != e; ++it) {
-    printer << ',';
-    printer.printType(*it);
-  }
+  llvm::interleaveComma(tys, printer, [&](Type ty) { printer << ty; });
   printer << '>';
 }
 

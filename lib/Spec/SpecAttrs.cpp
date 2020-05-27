@@ -364,12 +364,8 @@ namespace {
 template <typename AttrList>
 void printAttrList(const AttrList &attrs, DialectAsmPrinter &printer) {
   printer << '<';
-  auto it = std::begin(attrs);
-  printer.printAttribute(*it++);
-  for (auto e = std::end(attrs); it != e; ++it) {
-    printer << ',';
-    printer.printAttribute(*it);
-  }
+  llvm::interleaveComma(attrs, printer,
+                        [&](auto attr) { printer.printAttribute(attr); });
   printer << '>';
 }
 
