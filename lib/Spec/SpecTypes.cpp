@@ -150,11 +150,6 @@ static auto getSortedTypes(ArrayRef<Type> tys) {
 }
 
 /// AnyOfType implementation.
-AnyOfType AnyOfType::get(ArrayRef<Type> tys) {
-  auto *ctx = tys.front().getContext();
-  return Base::get(ctx, SpecTypes::AnyOf, getSortedTypes(tys));
-}
-
 AnyOfType AnyOfType::getChecked(Location loc, ArrayRef<Type> tys) {
   return Base::getChecked(loc, SpecTypes::AnyOf, getSortedTypes(tys));
 }
@@ -177,11 +172,6 @@ LogicalResult AnyOfType::verify(Type ty) {
 }
 
 /// AllOfType implementation.
-AllOfType AllOfType::get(ArrayRef<Type> tys) {
-  auto *ctx = tys.front().getContext();
-  return Base::get(ctx, SpecTypes::AllOf, getSortedTypes(tys));
-}
-
 AllOfType AllOfType::getChecked(Location loc, ArrayRef<Type> tys) {
   return Base::getChecked(loc, SpecTypes::AllOf, getSortedTypes(tys));
 }
@@ -273,10 +263,6 @@ LogicalResult FloatOfWidthsType::verify(Type ty) {
 }
 
 /// ComplexType implementation.
-ComplexType ComplexType::get(Type elTy) {
-  return Base::get(elTy.getContext(), SpecTypes::Complex, elTy);
-}
-
 ComplexType ComplexType::getChecked(Location loc, Type elTy) {
   return Base::getChecked(loc, SpecTypes::Complex, elTy);
 }
@@ -295,11 +281,6 @@ LogicalResult ComplexType::verify(Type ty) {
 }
 
 /// OpaqueType implementation.
-OpaqueType OpaqueType::get(StringRef dialectName, StringRef typeName,
-                           MLIRContext *ctx) {
-  return Base::get(ctx, SpecTypes::Opaque, dialectName, typeName);
-}
-
 OpaqueType OpaqueType::getChecked(Location loc, StringRef dialectName,
                                   StringRef typeName) {
   return Base::getChecked(loc, SpecTypes::Opaque, dialectName, typeName);
@@ -320,10 +301,6 @@ LogicalResult OpaqueType::verify(Type ty) {
 }
 
 /// VariadicType implementation.
-VariadicType VariadicType::get(Type ty) {
-  return Base::get(ty.getContext(), SpecTypes::Variadic, ty);
-}
-
 VariadicType VariadicType::getChecked(Location loc, Type ty) {
   return Base::getChecked(loc, SpecTypes::Variadic, ty);
 }
@@ -353,10 +330,6 @@ LogicalResult VariadicType::verify(Type ty) {
 }
 
 /// IsaType implementation.
-IsaType IsaType::get(mlir::SymbolRefAttr typeRef) {
-  return Base::get(typeRef.getContext(), SpecTypes::Isa, typeRef);
-}
-
 IsaType IsaType::getChecked(Location loc, mlir::SymbolRefAttr typeRef) {
   return Base::getChecked(loc, SpecTypes::Isa, typeRef);
 }

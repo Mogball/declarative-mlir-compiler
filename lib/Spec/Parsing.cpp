@@ -45,15 +45,14 @@ ParseResult parseOptionalParameterList(
 /// use the modifier to intercept certain parameters without re-traversing the
 /// resultant attribute array.
 ParseResult parseOptionalParameterList(
-    OpAsmParser &parser, mlir::ArrayAttr &attr,
-    Attribute (modifier)(Attribute)) {
+    OpAsmParser &parser, mlir::ArrayAttr &attr, ParameterModifier modifier) {
   return detail::parseOptionalParameterList(parser, attr, parseSingleAttribute,
                                             modifier);
 }
 
 ParseResult parseOptionalParameterList(
     DialectAsmParser &parser, mlir::ArrayAttr &attr,
-    Attribute (modifier)(Attribute)) {
+    ParameterModifier modifier) {
   auto parseAttr = [](DialectAsmParser &parser, Attribute &attr) {
     return parser.parseAttribute(attr);
   };

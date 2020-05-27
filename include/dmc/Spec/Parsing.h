@@ -19,9 +19,10 @@ mlir::ParseResult parseOptionalParameterList(mlir::DialectAsmParser &parser,
                                              mlir::ArrayAttr &attr);
 
 /// Parse an optional parameter list with an on-the-fly parameter modifier.
+using ParameterModifier = std::function<mlir::Attribute(mlir::Attribute)>;
 mlir::ParseResult parseOptionalParameterList(
     mlir::OpAsmParser &parser, mlir::ArrayAttr &attr,
-    mlir::Attribute (modifier)(mlir::Attribute));
+    ParameterModifier modifier);
 
 /// Print a parameter list.
 void printOptionalParameterList(mlir::OpAsmPrinter &printer,

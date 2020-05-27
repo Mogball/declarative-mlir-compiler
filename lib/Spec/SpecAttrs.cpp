@@ -136,10 +136,6 @@ struct AttrComparator {
 } // end namespace detail
 
 /// ElementsOf implementation.
-ElementsOfAttr ElementsOfAttr::get(Type elTy) {
-  return Base::get(elTy.getContext(), SpecAttrs::ElementsOf, elTy);
-}
-
 ElementsOfAttr ElementsOfAttr::getChecked(Location loc, Type elTy) {
   return Base::getChecked(loc, SpecAttrs::ElementsOf, elTy);
 }
@@ -161,10 +157,6 @@ LogicalResult ElementsOfAttr::verify(Attribute attr) {
 }
 
 /// ConstantAttr implementation.
-ConstantAttr ConstantAttr::get(Attribute attr) {
-  return Base::get(attr.getContext(), SpecAttrs::Constant, attr);
-}
-
 ConstantAttr ConstantAttr::getChecked(Location loc, Attribute attr) {
   return Base::getChecked(loc, SpecAttrs::Constant, attr);
 }
@@ -198,11 +190,6 @@ static auto getSortedAttrs(ArrayRef<Attribute> attrs) {
 }
 
 /// AnyOfAttr implementation
-AnyOfAttr AnyOfAttr::get(ArrayRef<Attribute> attrs) {
-  auto *ctx = attrs.front().getContext();
-  return Base::get(ctx, SpecAttrs::AnyOf, getSortedAttrs(attrs));
-}
-
 AnyOfAttr AnyOfAttr::getChecked(Location loc, ArrayRef<Attribute> attrs) {
   return Base::getChecked(loc, SpecAttrs::AnyOf, getSortedAttrs(attrs));
 }
@@ -221,11 +208,6 @@ LogicalResult AnyOfAttr::verify(Attribute attr) {
 }
 
 /// AllOfAttr implementation
-AllOfAttr AllOfAttr::get(ArrayRef<Attribute> attrs) {
-  auto *ctx = attrs.front().getContext();
-  return Base::get(ctx, SpecAttrs::AllOf, getSortedAttrs(attrs));
-}
-
 AllOfAttr AllOfAttr::getChecked(Location loc, ArrayRef<Attribute> attrs) {
   return Base::getChecked(loc, SpecAttrs::AllOf, getSortedAttrs(attrs));
 }
@@ -244,10 +226,6 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
 }
 
 /// OfTypeAttr implementation.
-OfTypeAttr OfTypeAttr::get(Type ty) {
-  return Base::get(ty.getContext(), SpecAttrs::OfType, ty);
-}
-
 OfTypeAttr OfTypeAttr::getChecked(Location loc, Type ty) {
   return Base::getChecked(loc, SpecAttrs::OfType, ty);
 }
@@ -265,10 +243,6 @@ LogicalResult OfTypeAttr::verify(Attribute attr) {
 }
 
 /// OptionalAttr implementation.
-OptionalAttr OptionalAttr::get(Attribute baseAttr) {
-  return Base::get(baseAttr.getContext(), SpecAttrs::Optional, baseAttr);
-}
-
 OptionalAttr OptionalAttr::getChecked(Location loc, Attribute baseAttr) {
   return Base::getChecked(loc, SpecAttrs::Optional, baseAttr);
 }
@@ -288,11 +262,6 @@ LogicalResult OptionalAttr::verify(Attribute attr) {
 }
 
 /// DefaultAttr implementation.
-DefaultAttr DefaultAttr::get(Attribute baseAttr, Attribute defaultAttr) {
-  return Base::get(baseAttr.getContext(), SpecAttrs::Default,
-                   baseAttr, defaultAttr);
-}
-
 DefaultAttr DefaultAttr::getChecked(Location loc, Attribute baseAttr,
                                     Attribute defaultAttr) {
   return Base::getChecked(loc, SpecAttrs::Default, baseAttr, defaultAttr);
@@ -316,10 +285,6 @@ LogicalResult DefaultAttr::verify(Attribute attr) {
 }
 
 /// IsaAttr implementation.
-IsaAttr IsaAttr::get(mlir::SymbolRefAttr attrRef) {
-  return Base::get(attrRef.getContext(), SpecAttrs::Isa, attrRef);
-}
-
 IsaAttr IsaAttr::getChecked(Location loc, mlir::SymbolRefAttr attrRef) {
   return Base::getChecked(loc, SpecAttrs::Isa, attrRef);
 }

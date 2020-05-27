@@ -75,10 +75,6 @@ public:
   using Parent = SpecType<ConcreteType, Kind, detail::WidthStorage>;
   using Parent::Parent;
 
-  static ConcreteType get(unsigned width, mlir::MLIRContext *ctx) {
-    return Parent::get(ctx, Kind, width);
-  }
-
   static ConcreteType getChecked(mlir::Location loc, unsigned width) {
     return Parent::getChecked(loc, Kind, width);
   }
@@ -121,11 +117,6 @@ public:
   using Base = NumericTypeOfWidths<ConcreteType, Kind>;
   using Parent = SpecType<ConcreteType, Kind, detail::WidthListStorage>;
   using Parent::Parent;
-
-  static ConcreteType get(llvm::ArrayRef<unsigned> widths,
-                          mlir::MLIRContext *ctx) {
-    return Parent::get(ctx, Kind, getSortedWidths(widths));
-  }
 
   static ConcreteType getChecked(mlir::Location loc,
                                  llvm::ArrayRef<unsigned> widths) {

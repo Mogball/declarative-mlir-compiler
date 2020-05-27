@@ -33,10 +33,6 @@ public:
   using Underlying = UnderlyingT;
   using Parent::Parent;
 
-  static ConcreteType get(UnderlyingT ty) {
-    return Parent::get(ty.getContext(), Kind, ty);
-  }
-
   static ConcreteType getChecked(
       mlir::Location loc, UnderlyingT ty) {
     return Parent::getChecked(loc, Kind, ty);
@@ -60,7 +56,7 @@ public:
     auto width = impl::parseSingleWidth(parser);
     if (!width)
       return {};
-    return getChecked(loc, UnderlyingT::get(*width, loc.getContext()));
+    return getChecked(loc, UnderlyingT::getChecked(loc, *width));
   }
 
   void print(mlir::DialectAsmPrinter &printer) {

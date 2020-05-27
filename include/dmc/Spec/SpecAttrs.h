@@ -148,7 +148,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "ElementsOf"; }
 
-  static ElementsOfAttr get(mlir::Type elTy);
   static ElementsOfAttr getChecked(mlir::Location loc, mlir::Type elTy);
   static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
                                                           mlir::Type elTy);
@@ -192,7 +191,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Constant"; }
 
-  static ConstantAttr get(Attribute attr);
   static ConstantAttr getChecked(mlir::Location loc, Attribute attr);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, Attribute attr);
@@ -208,7 +206,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "AnyOf"; }
 
-  static AnyOfAttr get(llvm::ArrayRef<Attribute> attrs);
   static AnyOfAttr getChecked(mlir::Location loc,
                                  llvm::ArrayRef<Attribute> attrs);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -225,7 +222,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "AllOf"; }
 
-  static AllOfAttr get(llvm::ArrayRef<Attribute> attrs);
   static AllOfAttr getChecked(mlir::Location loc,
                                  llvm::ArrayRef<Attribute> attrs);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -242,7 +238,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "OfType"; }
 
-  static OfTypeAttr get(mlir::Type ty);
   static OfTypeAttr getChecked(mlir::Location loc, mlir::Type ty);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::Type ty);
@@ -260,7 +255,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Optional"; }
 
-  static OptionalAttr get(Attribute baseAttr);
   static OptionalAttr getChecked(mlir::Location loc, Attribute baseAttr);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, Attribute baseAttr);
@@ -279,7 +273,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Default"; }
 
-  static DefaultAttr get(Attribute baseAttr, Attribute defaultAttr);
   static DefaultAttr getChecked(mlir::Location loc,
       Attribute baseAttr, Attribute defaultAttr);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -299,7 +292,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Isa"; }
 
-  static IsaAttr get(mlir::SymbolRefAttr attrRef);
   static IsaAttr getChecked(mlir::Location loc, mlir::SymbolRefAttr attrRef);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::SymbolRefAttr attrRef);

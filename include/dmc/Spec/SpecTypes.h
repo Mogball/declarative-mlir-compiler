@@ -52,7 +52,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "AnyOf"; }
 
-  static AnyOfType get(llvm::ArrayRef<Type> tys);
   static AnyOfType getChecked(mlir::Location loc, llvm::ArrayRef<Type> tys);
 
   /// Type list cannot be empty.
@@ -72,7 +71,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "AllOf"; }
 
-  static AllOfType get(llvm::ArrayRef<Type> tys);
   static AllOfType getChecked(mlir::Location loc, llvm::ArrayRef<Type> tys);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, llvm::ArrayRef<Type> tys);
@@ -268,7 +266,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "Complex"; }
 
-  static ComplexType get(Type elTy);
   static ComplexType getChecked(mlir::Location loc, Type elTy);
   mlir::LogicalResult verify(Type ty);
 
@@ -283,8 +280,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "Opaque"; }
 
-  static OpaqueType get(llvm::StringRef dialectName, llvm::StringRef typeName,
-                        mlir::MLIRContext *ctx);
   static OpaqueType getChecked(mlir::Location loc, llvm::StringRef dialectName,
                                llvm::StringRef typeName);
   static mlir::LogicalResult verifyConstructionInvariants(
@@ -313,7 +308,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "Variadic"; }
 
-  static VariadicType get(mlir::Type ty);
   static VariadicType getChecked(mlir::Location loc, mlir::Type ty);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::Type ty);
@@ -343,7 +337,6 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "Isa"; }
 
-  static IsaType get(mlir::SymbolRefAttr typeRef);
   static IsaType getChecked(mlir::Location loc, mlir::SymbolRefAttr typeRef);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::SymbolRefAttr typeRef);

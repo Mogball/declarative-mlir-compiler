@@ -31,9 +31,11 @@ ParseResult ParameterList::parse(OpAsmParser &parser,
   ///   <..., i32, ...> => <..., #dmc.OfType<i32>, ...>
   ///
   mlir::ArrayAttr paramAttr;
-  auto ofTypeModifier = [](Attribute attr) -> Attribute {
+  auto ofTypeModifier = [&](Attribute attr) -> Attribute {
     if (auto tyAttr = attr.dyn_cast<mlir::TypeAttr>())
-      return OfTypeAttr::get(tyAttr.getValue());
+      return OfTypeAttr::getChecked(
+          parser.getEncodedSourceLoc(parser.getCurrentLocation()),
+          tyAttr.getValue());
     return attr;
   };
   if (failed(::dmc::impl::parseOptionalParameterList(parser, paramAttr,
