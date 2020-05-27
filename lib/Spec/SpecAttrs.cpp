@@ -158,15 +158,8 @@ struct AttrComparator {
 } // end namespace detail
 
 /// ElementsOf implementation.
-ElementsOfAttr ElementsOfAttr::getChecked(Location loc, Type elTy) {
-  return Base::getChecked(loc, Kind, elTy);
-}
-
-LogicalResult ElementsOfAttr::verifyConstructionInvariants(Location loc,
-                                                           Type elTy) {
-  if (!elTy)
-    return emitError(loc, "Element type cannot be null");
-  return success();
+ElementsOfAttr ElementsOfAttr::get(Type elTy) {
+  return Base::get(elTy.getContext(), Kind, elTy);
 }
 
 LogicalResult ElementsOfAttr::verify(Attribute attr) {
@@ -222,15 +215,8 @@ LogicalResult ArrayOfAttr::verify(Attribute attr) {
 }
 
 /// ConstantAttr implementation.
-ConstantAttr ConstantAttr::getChecked(Location loc, Attribute attr) {
-  return Base::getChecked(loc, Kind, attr);
-}
-
-LogicalResult ConstantAttr::verifyConstructionInvariants(
-    Location loc, Attribute attr) {
-  if (!attr)
-    return emitError(loc) << "Attribute cannot be null";
-  return success();
+ConstantAttr ConstantAttr::get(Attribute attr) {
+  return Base::get(attr.getContext(), Kind, attr);
 }
 
 LogicalResult ConstantAttr::verify(Attribute attr) {
@@ -291,35 +277,20 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
 }
 
 /// OfTypeAttr implementation.
-OfTypeAttr OfTypeAttr::getChecked(Location loc, Type ty) {
-  return Base::getChecked(loc, Kind, ty);
-}
-
-LogicalResult OfTypeAttr::verifyConstructionInvariants(Location loc, Type ty) {
-  if (!ty)
-    return emitError(loc) << "type cannot be null";
-  return success();
+OfTypeAttr OfTypeAttr::get(Type ty) {
+  return Base::get(ty.getContext(), Kind, ty);
 }
 
 LogicalResult OfTypeAttr::verify(Attribute attr) {
-  if (!attr)
-    return failure();
   return SpecTypes::delegateVerify(getImpl()->type, attr.getType());
 }
 
 /// OptionalAttr implementation.
-OptionalAttr OptionalAttr::getChecked(Location loc, Attribute baseAttr) {
-  return Base::getChecked(loc, Kind, baseAttr);
+OptionalAttr OptionalAttr::get(Attribute baseAttr) {
+  return Base::get(baseAttr.getContext(), Kind, baseAttr);
 }
 
-LogicalResult OptionalAttr::verifyConstructionInvariants(
-    Location loc, Attribute baseAttr) {
-  /// TODO assert that this constraint is top-level
-  if (!baseAttr)
-    return emitError(loc) << "base attribute cannot be null";
-  return success();
-}
-
+/// TODO assert that this constraint is top-level
 LogicalResult OptionalAttr::verify(Attribute attr) {
   if (!attr) // null attribute is acceptable
     return success();
@@ -327,21 +298,11 @@ LogicalResult OptionalAttr::verify(Attribute attr) {
 }
 
 /// DefaultAttr implementation.
-DefaultAttr DefaultAttr::getChecked(Location loc, Attribute baseAttr,
-                                    Attribute defaultAttr) {
-  return Base::getChecked(loc, Kind, baseAttr, defaultAttr);
+DefaultAttr DefaultAttr::get(Attribute baseAttr, Attribute defaultAttr) {
+  return Base::get(baseAttr.getContext(), Kind, baseAttr, defaultAttr);
 }
 
-LogicalResult DefaultAttr::verifyConstructionInvariants(
-    Location loc, Attribute baseAttr, Attribute defaultAttr) {
-  /// TODO assert that this constraint is top-level
-  if (!baseAttr)
-    return emitError(loc) << "attribute constraint cannot be null";
-  if (!defaultAttr)
-    return emitError(loc) << "attribute default value cannot be null";
-  return success();
-}
-
+/// TODO assert that this constraint is top-level
 LogicalResult DefaultAttr::verify(Attribute attr) {
   auto baseAttr = getImpl()->baseAttr;
   if (SpecAttrs::is(baseAttr))

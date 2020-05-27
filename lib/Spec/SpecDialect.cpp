@@ -139,12 +139,11 @@ Type OpaqueType::parse(DialectAsmParser &parser) {
 
 Type VariadicType::parse(DialectAsmParser &parser) {
   // `Variadic` `<`type `>`
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   Type baseTy;
   if (parser.parseLess() || parser.parseType(baseTy) ||
       parser.parseGreater())
     return Type{};
-  return VariadicType::getChecked(loc, baseTy);
+  return VariadicType::get(baseTy);
 }
 
 Type IsaType::parse(DialectAsmParser &parser) {
@@ -235,11 +234,10 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
 
 Attribute ElementsOfAttr::parse(DialectAsmParser &parser) {
   Type elTy;
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseType(elTy) ||
       parser.parseGreater())
     return Attribute{};
-  return ElementsOfAttr::getChecked(loc, elTy);
+  return ElementsOfAttr::get(elTy);
 }
 
 Attribute RankedElementsAttr::parse(DialectAsmParser &parser) {
@@ -262,11 +260,10 @@ Attribute ArrayOfAttr::parse(DialectAsmParser &parser) {
 
 Attribute ConstantAttr::parse(DialectAsmParser &parser) {
   Attribute constAttr;
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseAttribute(constAttr) ||
       parser.parseGreater())
     return Attribute{};
-  return ConstantAttr::getChecked(loc, constAttr);
+  return ConstantAttr::get(constAttr);
 }
 
 Attribute AnyOfAttr::parse(DialectAsmParser &parser) {
@@ -279,30 +276,27 @@ Attribute AllOfAttr::parse(DialectAsmParser &parser) {
 
 Attribute OfTypeAttr::parse(DialectAsmParser &parser) {
   Type attrTy;
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseType(attrTy) ||
       parser.parseGreater())
     return Attribute{};
-  return OfTypeAttr::getChecked(loc, attrTy);
+  return OfTypeAttr::get(attrTy);
 }
 
 Attribute OptionalAttr::parse(DialectAsmParser &parser) {
   Attribute baseAttr;
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseAttribute(baseAttr) ||
       parser.parseGreater())
     return Attribute{};
-  return OptionalAttr::getChecked(loc, baseAttr);
+  return OptionalAttr::get(baseAttr);
 }
 
 Attribute DefaultAttr::parse(DialectAsmParser &parser) {
   Attribute baseAttr, defaultAttr;
-  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess() || parser.parseAttribute(baseAttr) ||
       parser.parseComma() || parser.parseAttribute(defaultAttr) ||
       parser.parseGreater())
     return Attribute{};
-  return DefaultAttr::getChecked(loc, baseAttr, defaultAttr);
+  return DefaultAttr::get(baseAttr, defaultAttr);
 }
 
 Attribute IsaAttr::parse(DialectAsmParser &parser) {

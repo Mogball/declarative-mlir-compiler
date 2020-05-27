@@ -308,10 +308,8 @@ public:
   using Base::Base;
   static llvm::StringLiteral getTypeName() { return "Variadic"; }
 
-  static VariadicType getChecked(mlir::Location loc, mlir::Type ty);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, mlir::Type ty);
-  mlir::LogicalResult verify(mlir::Type ty);
+  static VariadicType get(Type ty);
+  mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);
   void print(mlir::DialectAsmPrinter &printer);

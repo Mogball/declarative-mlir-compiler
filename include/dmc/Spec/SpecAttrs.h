@@ -155,9 +155,7 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "ElementsOf"; }
 
-  static ElementsOfAttr getChecked(mlir::Location loc, mlir::Type elTy);
-  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
-                                                          mlir::Type elTy);
+  static ElementsOfAttr get(mlir::Type elTy);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);
@@ -243,9 +241,7 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Constant"; }
 
-  static ConstantAttr getChecked(mlir::Location loc, Attribute attr);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, Attribute attr);
+  static ConstantAttr get(Attribute attr);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);
@@ -290,9 +286,7 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "OfType"; }
 
-  static OfTypeAttr getChecked(mlir::Location loc, mlir::Type ty);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, mlir::Type ty);
+  static OfTypeAttr get(mlir::Type ty);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);
@@ -307,9 +301,7 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Optional"; }
 
-  static OptionalAttr getChecked(mlir::Location loc, Attribute baseAttr);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, Attribute baseAttr);
+  static OptionalAttr get(Attribute baseAttr);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);
@@ -325,10 +317,7 @@ public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Default"; }
 
-  static DefaultAttr getChecked(mlir::Location loc,
-      Attribute baseAttr, Attribute defaultAttr);
-  static mlir::LogicalResult verifyConstructionInvariants(
-      mlir::Location loc, Attribute baseAttr, Attribute defaultAttr);
+  static DefaultAttr get(Attribute baseAttr, Attribute defaultAttr);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);

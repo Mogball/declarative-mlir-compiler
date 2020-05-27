@@ -301,25 +301,18 @@ LogicalResult OpaqueType::verify(Type ty) {
 }
 
 /// VariadicType implementation.
-VariadicType VariadicType::getChecked(Location loc, Type ty) {
-  return Base::getChecked(loc, Kind, ty);
+VariadicType VariadicType::get(Type ty) {
+  return Base::get(ty.getContext(), Kind, ty);
 }
 
-LogicalResult VariadicType::verifyConstructionInvariants(
-    Location loc, Type ty) {
-  /// TODO Need to assert that Variadic is used only as a top-level Type
-  /// constraint, since it is more of a marker than a constraint. This is how
-  /// TableGen does it. Nesting Variadic is illegal but a no-op anyway.
-  ///
-  /// Might be worth looking into argument attributes:
-  ///
-  /// dmc.Op @MyOp(%0 : !dmc.AnyInteger {variadic = true})
-  ///
-  if (!ty)
-    return emitError(loc) << "type cannot be null";
-  return success();
-}
-
+/// TODO Need to assert that Variadic is used only as a top-level Type
+/// constraint, since it is more of a marker than a constraint. This is how
+/// TableGen does it. Nesting Variadic is illegal but a no-op anyway.
+///
+/// Might be worth looking into argument attributes:
+///
+/// dmc.Op @MyOp(%0 : !dmc.AnyInteger {variadic = true})
+///
 LogicalResult VariadicType::verify(Type ty) {
   auto baseTy = getImpl()->type;
   if (SpecTypes::is(baseTy))
@@ -336,8 +329,6 @@ IsaType IsaType::getChecked(Location loc, mlir::SymbolRefAttr typeRef) {
 
 LogicalResult IsaType::verifyConstructionInvariants(
     Location loc, mlir::SymbolRefAttr typeRef) {
-  if (!typeRef)
-    return emitError(loc) << "Null type reference";
   auto nestedRefs = typeRef.getNestedReferences();
   if (llvm::size(nestedRefs) != 1)
     return emitError(loc) << "Expected type reference to have depth 2, "
