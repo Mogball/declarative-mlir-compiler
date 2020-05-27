@@ -63,41 +63,5 @@ LogicalResult verifyWidthList(
   return success();
 }
 
-Optional<unsigned> parseSingleWidth(mlir::DialectAsmParser &parser) {
-  // *i-type ::= `*I` `<` width `>`
-  unsigned width;
-  if (parser.parseLess() || parser.parseInteger(width) ||
-      parser.parseGreater())
-    return {};
-  return width;
-}
-
-void printSingleWidth(mlir::DialectAsmPrinter &printer, unsigned width) {
-  printer << '<' << width << '>';
-}
-
-Optional<WidthList> parseWidthList(DialectAsmParser &parser) {
-  // *int-of-widths-type ::= `*IntOfWidths` `<` width(`,` width)* `>`
-  if (parser.parseLess())
-    return {};
-  SmallVector<unsigned, 2> widths;
-  do {
-    unsigned width;
-    if (parser.parseInteger(width))
-      return {};
-    widths.push_back(width);
-  } while (!parser.parseOptionalComma());
-  if (parser.parseGreater())
-    return {};
-  return widths;
-}
-
-void printWidthList(DialectAsmPrinter &printer, ArrayRef<unsigned> widths) {
-  printer << '<';
-  llvm::interleaveComma(widths, printer,
-                        [&](unsigned width) { printer << width; });
-  printer << '>';
-}
-
 } // end namespace impl
 } // end namespace dmc

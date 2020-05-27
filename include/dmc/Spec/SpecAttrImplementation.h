@@ -28,7 +28,10 @@ enum Kinds {
   Elements,
   DenseElements,
   ElementsOf,
+  RankedElements,
+  StringElements,
   Array,
+  ArrayOf,
 
   SymbolRef,
   FlatSymbolRef,

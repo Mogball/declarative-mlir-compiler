@@ -14,7 +14,7 @@ namespace dmc {
 
 namespace detail {
 
-/// TypedAttrStorage implementation.
+/// TypedAttrStorage implementation. Store a type or type constraint.
 TypedAttrStorage::TypedAttrStorage(KeyTy key) : type{key} {}
 
 bool TypedAttrStorage::operator==(const KeyTy &key) const {
@@ -31,26 +31,25 @@ TypedAttrStorage *TypedAttrStorage::construct(AttributeStorageAllocator &alloc,
       TypedAttrStorage{key};
 }
 
-/// ConstantAttrStorage implementation.
-struct ConstantAttrStorage : public AttributeStorage {
+/// OneAttrStorage implementation. Store one attribute.
+struct OneAttrStorage : public AttributeStorage {
   using KeyTy = Attribute;
 
-  explicit ConstantAttrStorage(KeyTy key) : attr{key} {}
+  explicit OneAttrStorage(KeyTy key) : attr{key} {}
   bool operator==(const KeyTy &key) const { return key == attr; }
   static llvm::hash_code hashKey(const KeyTy &key) {
     return hash_value(key);
   }
 
-  static ConstantAttrStorage *construct(AttributeStorageAllocator &alloc,
+  static OneAttrStorage *construct(AttributeStorageAllocator &alloc,
                                         const KeyTy &key) {
-    return new (alloc.allocate<ConstantAttrStorage>())
-        ConstantAttrStorage{key};
+    return new (alloc.allocate<OneAttrStorage>()) OneAttrStorage{key};
   }
 
   KeyTy attr;
 };
 
-/// AttrListStorage implementation.
+/// AttrListStorage implementation. Store a list of attributes.
 struct AttrListStorage : public AttributeStorage {
   using KeyTy = ImmutableSortedList<Attribute>;
 
@@ -67,6 +66,7 @@ struct AttrListStorage : public AttributeStorage {
   KeyTy attrs;
 };
 
+/// OneTypeAttrStorage implementation. Store one type.
 struct OneTypeAttrStorage : public AttributeStorage {
   using KeyTy = Type;
 
@@ -83,8 +83,30 @@ struct OneTypeAttrStorage : public AttributeStorage {
   KeyTy type;
 };
 
+struct DimensionAttrStorage : public AttributeStorage {
+  using KeyTy = ArrayRef<int64_t>;
+
+  explicit DimensionAttrStorage(KeyTy key) : dims{key} {}
+  static llvm::hash_code hashKey(KeyTy key) { return hash_value(key); }
+
+  bool operator==(KeyTy key) const {
+    return std::size(key) == std::size(dims) &&
+        std::equal(std::begin(key), std::end(key), std::begin(dims));
+  }
+
+  static DimensionAttrStorage *construct(AttributeStorageAllocator &alloc,
+                                         KeyTy key) {
+    auto dims = alloc.copyInto(key);
+    return new (alloc.allocate<DimensionAttrStorage>())
+        DimensionAttrStorage{dims};
+  }
+
+  KeyTy dims;
+};
+
+/// DefaultAttrStorage implementation. Store the base attribute or constraint
+/// and the default value.
 struct DefaultAttrStorage : public AttributeStorage {
-  /// Store the base Attribute constraint and the default value.
   using KeyTy = std::pair<Attribute, Attribute>;
 
   explicit DefaultAttrStorage(Attribute baseAttr, Attribute defaultAttr)
@@ -152,6 +174,49 @@ LogicalResult ElementsOfAttr::verify(Attribute attr) {
     auto baseTy = getImpl()->type;
     auto elTy = elementsAttr.getType().getElementType();
     return SpecTypes::delegateVerify(baseTy, elTy);
+  }
+  return failure();
+}
+
+/// RankedElementsAttr implementation.
+RankedElementsAttr RankedElementsAttr::getChecked(Location loc,
+                                                  ArrayRef<int64_t> dims) {
+  return Base::getChecked(loc, Kind, dims);
+}
+
+LogicalResult RankedElementsAttr::verifyConstructionInvariants(
+    Location loc, ArrayRef<int64_t> dims) {
+  if (llvm::any_of(dims, [](auto i) { return i <= 0; }))
+    return emitError(loc, "dimension list must have positive sizes");
+  return success();
+}
+
+LogicalResult RankedElementsAttr::verify(Attribute attr) {
+  if (auto elementsAttr = attr.dyn_cast<mlir::ElementsAttr>()) {
+    auto shape = elementsAttr.getType();
+    return success(shape.hasRank() && shape.getShape() == getImpl()->dims);
+  }
+  return failure();
+}
+
+/// ArrayOfAttr implementation.
+ArrayOfAttr ArrayOfAttr::getChecked(Location loc, Attribute constraint) {
+  return Base::getChecked(loc, Kind, constraint);
+}
+
+LogicalResult ArrayOfAttr::verifyConstructionInvariants(Location loc,
+                                                        Attribute constraint) {
+  if (!SpecAttrs::is(constraint))
+    return emitError(loc) << "expected an attribute constraint but got a "
+        << "concrete attribute: " << constraint;
+  return success();
+}
+
+LogicalResult ArrayOfAttr::verify(Attribute attr) {
+  if (auto arrAttr = attr.dyn_cast<mlir::ArrayAttr>()) {
+    return success(llvm::all_of(arrAttr, [&](auto val) {
+      return succeeded(SpecAttrs::delegateVerify(getImpl()->attr, val));
+    }));
   }
   return failure();
 }
@@ -358,6 +423,18 @@ void SpecDialect::printAttribute(
 void ElementsOfAttr::print(DialectAsmPrinter &printer) {
   printer << getAttrName() << '<';
   printer.printType(getImpl()->type);
+  printer << '>';
+}
+
+void RankedElementsAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName() << '<';
+  impl::printIntegerList(printer, getImpl()->dims);
+  printer << '>';
+}
+
+void ArrayOfAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName() << '<';
+  printer.printAttribute(getImpl()->attr);
   printer << '>';
 }
 

@@ -53,16 +53,16 @@ public:
 
   static mlir::Attribute parse(mlir::DialectAsmParser &parser) {
     auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-    auto width = impl::parseSingleWidth(parser);
-    if (!width)
+    unsigned width;
+    if (parser.parseLess() || parser.parseInteger(width) ||
+        parser.parseGreater())
       return {};
-    return getChecked(loc, UnderlyingT::getChecked(loc, *width));
+    return getChecked(loc, UnderlyingT::getChecked(loc, width));
   }
 
   void print(mlir::DialectAsmPrinter &printer) {
-    printer << ConcreteType::getAttrName();
-    auto width = this->getImpl()->type.template cast<UnderlyingT>().getWidth();
-    impl::printSingleWidth(printer, width);
+    printer << ConcreteType::getAttrName() << '<'
+        << this->getImpl()->type.template cast<UnderlyingT>().getWidth() << '>';
   }
 };
 

@@ -2,6 +2,7 @@
 
 #include "SpecTypeImplementation.h"
 #include "Support.h"
+#include "Parsing.h"
 
 namespace dmc {
 
@@ -55,15 +56,6 @@ mlir::LogicalResult verifyFloatType(unsigned width, mlir::Type ty);
 mlir::LogicalResult verifyWidthList(
     mlir::Location loc, llvm::ArrayRef<unsigned> widths,
     mlir::LogicalResult (&verifyWidth)(mlir::Location, unsigned));
-
-llvm::Optional<unsigned> parseSingleWidth(mlir::DialectAsmParser &parser);
-void printSingleWidth(mlir::DialectAsmPrinter &printer, unsigned width);
-
-using WidthList = llvm::SmallVector<unsigned, 2>;
-llvm::Optional<WidthList> parseWidthList(
-    mlir::DialectAsmParser &parser);
-void printWidthList(mlir::DialectAsmPrinter &printer,
-                    llvm::ArrayRef<unsigned> widths);
 } // end namespace impl
 
 /// A numeric type with a fixed bit-width.
@@ -81,15 +73,15 @@ public:
 
   static mlir::Type parse(mlir::DialectAsmParser &parser) {
     auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-    auto width = impl::parseSingleWidth(parser);
-    if (!width)
+    unsigned width;
+    if (parser.parseLess() || parser.parseInteger(width) ||
+        parser.parseGreater())
       return {};
-    return getChecked(loc, *width);
+    return getChecked(loc, width);
   }
 
   void print(mlir::DialectAsmPrinter &printer) {
-    printer << ConcreteType::getTypeName();
-    impl::printSingleWidth(printer, this->getImpl()->width);
+    printer << ConcreteType::getTypeName() << '<' << getWidth() << '>';
   }
 
   unsigned getWidth() const { return this->getImpl()->width; }
@@ -125,15 +117,16 @@ public:
 
   static mlir::Type parse(mlir::DialectAsmParser &parser) {
     auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-    auto widths = impl::parseWidthList(parser);
-    if (!widths)
+    llvm::SmallVector<unsigned, 2> widths;
+    if (parser.parseLess() || impl::parseIntegerList(parser, widths) ||
+        parser.parseGreater())
       return {};
-    return getChecked(loc, *widths);
+    return getChecked(loc, widths);
   }
 
   void print(mlir::DialectAsmPrinter &printer) {
     printer << ConcreteType::getTypeName();
-    impl::printWidthList(printer, this->getImpl()->widths);
+    impl::printIntegerList(printer, this->getImpl()->widths);
   }
 
 protected:

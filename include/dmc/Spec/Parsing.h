@@ -46,5 +46,31 @@ mlir::ParseResult parseOptionalRegionList(mlir::OpAsmParser &parser,
 void printOptionalRegionList(mlir::OpAsmPrinter &printer,
                              mlir::ArrayAttr regionsAttr);
 
+/// Parse and print a list of integers, which may be empty.
+/// int-list ::= (int (`,` int)*)?
+template <typename ListT>
+mlir::ParseResult parseIntegerList(mlir::DialectAsmParser &parser,
+                                   ListT &ints) {
+  std::remove_reference_t<decltype(std::declval<ListT>().front())> val;
+  auto ret = parser.parseOptionalInteger(val);
+  if (ret.hasValue()) { // tri-state
+    if (*ret) // failed to parse integer
+      return mlir::failure();
+    ints.push_back(val);
+    while (!parser.parseOptionalComma()) {
+      if (parser.parseInteger(val))
+        return mlir::failure();
+      ints.push_back(val);
+    }
+  }
+  return mlir::success();
+}
+
+template <typename ListT>
+void printIntegerList(mlir::DialectAsmPrinter &printer,
+                      ListT &ints) {
+  llvm::interleaveComma(ints, printer, [&](auto val) { printer << val; });
+}
+
 } // end namespace impl
 } // end namespace dmc

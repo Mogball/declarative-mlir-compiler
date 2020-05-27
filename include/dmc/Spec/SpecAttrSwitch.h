@@ -39,8 +39,14 @@ auto kindSwitch(const ActionT &action, unsigned kind) {
     return action.template operator()<DenseElementsAttr>();
   case ElementsOf:
     return action.template operator()<ElementsOfAttr>();
+  case RankedElements:
+    return action.template operator()<RankedElementsAttr>();
+  case StringElements:
+    return action.template operator()<StringElementsAttr>();
   case Array:
     return action.template operator()<ArrayAttr>();
+  case ArrayOf:
+    return action.template operator()<ArrayOfAttr>();
   case SymbolRef:
     return action.template operator()<SymbolRefAttr>();
   case FlatSymbolRef:

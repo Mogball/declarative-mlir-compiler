@@ -209,7 +209,10 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     .Case(ElementsAttr::getAttrName(), ElementsAttr::Kind)
     .Case(DenseElementsAttr::getAttrName(), DenseElementsAttr::Kind)
     .Case(ElementsOfAttr::getAttrName(), ElementsOfAttr::Kind)
+    .Case(RankedElementsAttr::getAttrName(), RankedElementsAttr::Kind)
+    .Case(StringElementsAttr::getAttrName(), StringElementsAttr::Kind)
     .Case(ArrayAttr::getAttrName(), ArrayAttr::Kind)
+    .Case(ArrayOfAttr::getAttrName(), ArrayOfAttr::Kind)
     .Case(SymbolRefAttr::getAttrName(), SymbolRefAttr::Kind)
     .Case(FlatSymbolRefAttr::getAttrName(), FlatSymbolRefAttr::Kind)
     .Case(ConstantAttr::getAttrName(), ConstantAttr::Kind)
@@ -237,6 +240,24 @@ Attribute ElementsOfAttr::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Attribute{};
   return ElementsOfAttr::getChecked(loc, elTy);
+}
+
+Attribute RankedElementsAttr::parse(DialectAsmParser &parser) {
+  SmallVector<int64_t, 3> dims;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || impl::parseIntegerList(parser, dims) ||
+      parser.parseGreater())
+    return {};
+  return RankedElementsAttr::getChecked(loc, dims);
+}
+
+Attribute ArrayOfAttr::parse(DialectAsmParser &parser) {
+  Attribute constraint;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || parser.parseAttribute(constraint) ||
+      parser.parseGreater())
+    return {};
+  return ArrayOfAttr::getChecked(loc, constraint);
 }
 
 Attribute ConstantAttr::parse(DialectAsmParser &parser) {

@@ -8,9 +8,10 @@
 namespace dmc {
 
 namespace detail {
-struct ConstantAttrStorage;
+struct OneAttrStorage;
 struct AttrListStorage;
 struct OneTypeAttrStorage;
+struct DimensionAttrStorage;
 struct DefaultAttrStorage;
 struct IsaAttrStorage;
 } // end namespace detail
@@ -142,6 +143,12 @@ public:
   }
 };
 
+/// Compose this attribute constraint with type constraints to achieve typed
+/// elements. For example,
+///
+/// Alias @F64ElementsAttr -> #And<#ElementsOf<f64>, #DenseElements>
+/// Alias @RankedI32ElementsAttr -> #And<#ElementsOf<!I<32>>, #DenseElements,
+///                                      #RankedElements<[2, 2]>>
 class ElementsOfAttr : public SpecAttr<ElementsOfAttr, SpecAttrs::ElementsOf,
                                        detail::OneTypeAttrStorage> {
 public:
@@ -157,6 +164,33 @@ public:
   void print(mlir::DialectAsmPrinter &printer);
 };
 
+class RankedElementsAttr : public SpecAttr<
+    RankedElementsAttr, SpecAttrs::RankedElements,
+    detail::DimensionAttrStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "Ranked"; }
+
+  static RankedElementsAttr getChecked(mlir::Location loc,
+                                       llvm::ArrayRef<int64_t> dims);
+  static mlir::LogicalResult verifyConstructionInvariants(
+      mlir::Location loc, llvm::ArrayRef<int64_t> dims);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+class StringElementsAttr : public SimpleAttr<StringElementsAttr,
+                                             SpecAttrs::StringElements> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "StringElements"; }
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::DenseStringElementsAttr>());
+  }
+};
+
 class ArrayAttr : public SimpleAttr<ArrayAttr, SpecAttrs::Array> {
 public:
   using Base::Base;
@@ -164,6 +198,24 @@ public:
   inline mlir::LogicalResult verify(Attribute attr) {
     return mlir::success(attr.isa<mlir::ArrayAttr>());
   }
+};
+
+/// An array attribute with an attribute constraint applied to each value.
+class ArrayOfAttr : public SpecAttr<ArrayOfAttr, SpecAttrs::ArrayOf,
+                                    detail::OneAttrStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "ArrayOf"; }
+
+  /// An array of a constant attribute makes no sense, so assert that the
+  /// attribute is a SpecAttr constraint.
+  static ArrayOfAttr getChecked(mlir::Location loc, Attribute constraint);
+  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location,
+                                                          Attribute constraint);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
 };
 
 class SymbolRefAttr : public SimpleAttr<SymbolRefAttr, SpecAttrs::SymbolRef> {
@@ -186,7 +238,7 @@ public:
 };
 
 class ConstantAttr : public SpecAttr<ConstantAttr, SpecAttrs::Constant,
-                                     detail::ConstantAttrStorage> {
+                                     detail::OneAttrStorage> {
 public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Constant"; }
@@ -250,7 +302,7 @@ public:
 /// An optional attribute. The generated Attribute constraint will not check
 /// for the Attribute's presence, but will apply the constraint if present.
 class OptionalAttr : public SpecAttr<OptionalAttr, SpecAttrs::Optional,
-                                     detail::ConstantAttrStorage> {
+                                     detail::OneAttrStorage> {
 public:
   using Base::Base;
   static llvm::StringLiteral getAttrName() { return "Optional"; }
@@ -301,8 +353,6 @@ public:
   void print(mlir::DialectAsmPrinter &printer);
 };
 
-/// TODO typed elements attributes: int, float, ranked, string
-/// TODO typed array attributes: int, float, string, type, symbolRef
 /// TODO struct attributes, enum attributes?
 
 } // end namespace dmc
