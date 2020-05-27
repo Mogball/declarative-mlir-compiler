@@ -135,6 +135,31 @@ struct AttrComparator {
 
 } // end namespace detail
 
+/// ElementsOf implementation.
+ElementsOfAttr ElementsOfAttr::get(Type elTy) {
+  return Base::get(elTy.getContext(), SpecAttrs::ElementsOf, elTy);
+}
+
+ElementsOfAttr ElementsOfAttr::getChecked(Location loc, Type elTy) {
+  return Base::getChecked(loc, SpecAttrs::ElementsOf, elTy);
+}
+
+LogicalResult ElementsOfAttr::verifyConstructionInvariants(Location loc,
+                                                           Type elTy) {
+  if (!elTy)
+    return emitError(loc, "Element type cannot be null");
+  return success();
+}
+
+LogicalResult ElementsOfAttr::verify(Attribute attr) {
+  if (auto elementsAttr = attr.dyn_cast<mlir::ElementsAttr>()) {
+    auto baseTy = getImpl()->type;
+    auto elTy = elementsAttr.getType().getElementType();
+    return SpecTypes::delegateVerify(baseTy, elTy);
+  }
+  return failure();
+}
+
 /// ConstantAttr implementation.
 ConstantAttr ConstantAttr::get(Attribute attr) {
   return Base::get(attr.getContext(), SpecAttrs::Constant, attr);
@@ -189,10 +214,7 @@ LogicalResult AnyOfAttr::verifyConstructionInvariants(
 
 LogicalResult AnyOfAttr::verify(Attribute attr) {
   for (auto baseAttr : getImpl()->attrs) {
-    if (SpecAttrs::is(baseAttr) &&
-        succeeded(SpecAttrs::delegateVerify(baseAttr, attr)))
-      return success();
-    else if (baseAttr == attr)
+    if (succeeded(SpecAttrs::delegateVerify(baseAttr, attr)))
       return success();
   }
   return failure();
@@ -215,10 +237,7 @@ LogicalResult AllOfAttr::verifyConstructionInvariants(
 
 LogicalResult AllOfAttr::verify(Attribute attr) {
   for (auto baseAttr : getImpl()->attrs) {
-    if (SpecAttrs::is(baseAttr) &&
-        failed(SpecAttrs::delegateVerify(baseAttr, attr)))
-      return failure();
-    else if (baseAttr != attr)
+    if (failed(SpecAttrs::delegateVerify(baseAttr, attr)))
       return failure();
   }
   return success();
@@ -242,10 +261,7 @@ LogicalResult OfTypeAttr::verifyConstructionInvariants(Location loc, Type ty) {
 LogicalResult OfTypeAttr::verify(Attribute attr) {
   if (!attr)
     return failure();
-  auto baseTy = getImpl()->type;
-  if (SpecTypes::is(baseTy))
-    return SpecTypes::delegateVerify(baseTy, attr.getType());
-  return success(baseTy == attr.getType());
+  return SpecTypes::delegateVerify(getImpl()->type, attr.getType());
 }
 
 /// OptionalAttr implementation.
@@ -268,10 +284,7 @@ LogicalResult OptionalAttr::verifyConstructionInvariants(
 LogicalResult OptionalAttr::verify(Attribute attr) {
   if (!attr) // null attribute is acceptable
     return success();
-  auto baseAttr = getImpl()->attr;
-  if (SpecAttrs::is(baseAttr))
-    return SpecAttrs::delegateVerify(baseAttr, attr);
-  return success(baseAttr == attr);
+  return SpecAttrs::delegateVerify(getImpl()->attr, attr);
 }
 
 /// DefaultAttr implementation.
@@ -375,6 +388,12 @@ void SpecDialect::printAttribute(
     Attribute attr, DialectAsmPrinter &printer) const {
   PrintAction<DialectAsmPrinter> action{printer};
   SpecAttrs::kindSwitch(action, attr);
+}
+
+void ElementsOfAttr::print(DialectAsmPrinter &printer) {
+  printer << getAttrName() << '<';
+  printer.printType(getImpl()->type);
+  printer << '>';
 }
 
 void ConstantAttr::print(DialectAsmPrinter &printer) {

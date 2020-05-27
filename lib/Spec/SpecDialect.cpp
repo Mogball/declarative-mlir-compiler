@@ -207,6 +207,8 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     .Case(UnitAttr::getAttrName(), SpecAttrs::Unit)
     .Case(DictionaryAttr::getAttrName(), SpecAttrs::Dictionary)
     .Case(ElementsAttr::getAttrName(), SpecAttrs::Elements)
+    .Case(DenseElementsAttr::getAttrName(), SpecAttrs::DenseElements)
+    .Case(ElementsOfAttr::getAttrName(), SpecAttrs::ElementsOf)
     .Case(ArrayAttr::getAttrName(), SpecAttrs::Array)
     .Case(SymbolRefAttr::getAttrName(), SpecAttrs::SymbolRef)
     .Case(FlatSymbolRefAttr::getAttrName(), SpecAttrs::FlatSymbolRef)
@@ -226,6 +228,15 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
   }
   ParseAction<Attribute, DialectAsmParser> action{parser};
   return SpecAttrs::kindSwitch(action, kind);
+}
+
+Attribute ElementsOfAttr::parse(DialectAsmParser &parser) {
+  Type elTy;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  if (parser.parseLess() || parser.parseType(elTy) ||
+      parser.parseGreater())
+    return Attribute{};
+  return ElementsOfAttr::getChecked(loc, elTy);
 }
 
 Attribute ConstantAttr::parse(DialectAsmParser &parser) {

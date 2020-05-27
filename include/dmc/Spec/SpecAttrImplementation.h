@@ -26,6 +26,8 @@ enum Kinds {
   Unit,
   Dictionary,
   Elements,
+  DenseElements,
+  ElementsOf,
   Array,
 
   SymbolRef,

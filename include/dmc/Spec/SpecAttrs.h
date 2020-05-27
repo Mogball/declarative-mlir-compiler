@@ -132,6 +132,32 @@ public:
   }
 };
 
+class DenseElementsAttr : public SimpleAttr<DenseElementsAttr,
+                                            SpecAttrs::DenseElements> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "DenseElements"; }
+  inline mlir::LogicalResult verify(Attribute attr) {
+    return mlir::success(attr.isa<mlir::DenseElementsAttr>());
+  }
+};
+
+class ElementsOfAttr : public SpecAttr<ElementsOfAttr, SpecAttrs::ElementsOf,
+                                       detail::OneTypeAttrStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "ElementsOf"; }
+
+  static ElementsOfAttr get(mlir::Type elTy);
+  static ElementsOfAttr getChecked(mlir::Location loc, mlir::Type elTy);
+  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
+                                                          mlir::Type elTy);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
 class ArrayAttr : public SimpleAttr<ArrayAttr, SpecAttrs::Array> {
 public:
   using Base::Base;
@@ -246,6 +272,7 @@ public:
 
 /// A default-valued attribute. During Op post-construction, if this attribute
 /// was not provided, the default value will be used.
+/// TODO use default attributes in op builders.
 class DefaultAttr : public SpecAttr<DefaultAttr, SpecAttrs::Default,
                                     detail::DefaultAttrStorage> {
 public:

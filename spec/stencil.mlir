@@ -1,0 +1,2 @@
+dmc.Dialect @stencil {
+}

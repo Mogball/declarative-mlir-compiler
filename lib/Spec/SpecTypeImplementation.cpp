@@ -13,6 +13,10 @@ bool is(Type base) {
 }
 
 LogicalResult delegateVerify(Type base, Type ty) {
+  /// If not a type constraint, use a direct comparison.
+  if (!is(base))
+    return success(base == ty);
+  /// Use the switch table.
   VerifyAction<Type> action{ty};
   return SpecTypes::kindSwitch(action, base);
 }
@@ -31,9 +35,7 @@ LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
        baseIt != baseEnd || tyIt != tyEnd; ++tyIt, ++baseIt) {
     /// Number of operands and results are verified by previous traits.
     assert(baseIt != baseEnd && tyIt != tyEnd);
-    if ((SpecTypes::is(*baseIt) &&
-         failed(SpecTypes::delegateVerify(*baseIt, *tyIt))) ||
-        (!SpecTypes::is(*baseIt) && *baseIt != *tyIt))
+    if (failed(SpecTypes::delegateVerify(*baseIt, *tyIt)))
       return op->emitOpError() << name << " #" << std::distance(firstTy, tyIt)
           << " must be " << *baseIt << " but got " << *tyIt;
   }
@@ -54,9 +56,7 @@ LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
          valIt != valEnd; ++valIt, ++valIdx) {
       // TODO custom type descriptions with dynamic types
       auto valType = (*valIt).getType();
-      if ((SpecTypes::is(*tyIt) &&
-           failed(SpecTypes::delegateVerify(*tyIt, valType))) ||
-          (!SpecTypes::is(*tyIt) && *tyIt != valType))
+      if (failed(SpecTypes::delegateVerify(*tyIt, valType)))
         return op->emitOpError() << name << " #" << valIdx << " must be "
             << *tyIt << " but got " << valType;
     }

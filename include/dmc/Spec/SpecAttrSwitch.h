@@ -35,6 +35,10 @@ auto kindSwitch(const ActionT &action, unsigned kind) {
     return action.template operator()<DictionaryAttr>();
   case Elements:
     return action.template operator()<ElementsAttr>();
+  case DenseElements:
+    return action.template operator()<DenseElementsAttr>();
+  case ElementsOf:
+    return action.template operator()<ElementsOfAttr>();
   case Array:
     return action.template operator()<ArrayAttr>();
   case SymbolRef:

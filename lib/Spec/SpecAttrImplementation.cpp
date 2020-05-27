@@ -11,6 +11,10 @@ bool is(Attribute base) {
 }
 
 LogicalResult delegateVerify(Attribute base, Attribute attr) {
+  /// If not an attribute constraint, do a direct comparison.
+  if (!is(base))
+    return success(base == attr);
+  /// Use the switch table.
   VerifyAction<Attribute> action{attr};
   return SpecAttrs::kindSwitch(action, base);
 }
