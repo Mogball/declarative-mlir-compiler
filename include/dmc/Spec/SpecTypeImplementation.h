@@ -59,13 +59,13 @@ mlir::LogicalResult delegateVerify(mlir::Type base, mlir::Type ty);
 /// A SpecType is used to define a TypeConstraint. Each SpecType
 /// implements a TypeConstraint called on DynamicOperations during
 /// trait and Op verification.
-template <typename ConcreteType, unsigned Kind,
+template <typename ConcreteType, unsigned SpecKind,
           typename StorageType = mlir::DefaultTypeStorage>
 class SpecType
     : public mlir::Type::TypeBase<ConcreteType, mlir::Type, StorageType> {
-  friend class SpecDialect;
-
 public:
+  static constexpr auto Kind = SpecKind;
+
   /// Explicitly define Base class for templated classes.
   using Parent = mlir::Type::TypeBase<ConcreteType, mlir::Type, StorageType>;
   using Base = SpecType<ConcreteType, Kind, StorageType>;

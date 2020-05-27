@@ -151,7 +151,7 @@ static auto getSortedTypes(ArrayRef<Type> tys) {
 
 /// AnyOfType implementation.
 AnyOfType AnyOfType::getChecked(Location loc, ArrayRef<Type> tys) {
-  return Base::getChecked(loc, SpecTypes::AnyOf, getSortedTypes(tys));
+  return Base::getChecked(loc, Kind, getSortedTypes(tys));
 }
 
 LogicalResult AnyOfType::verifyConstructionInvariants(
@@ -173,7 +173,7 @@ LogicalResult AnyOfType::verify(Type ty) {
 
 /// AllOfType implementation.
 AllOfType AllOfType::getChecked(Location loc, ArrayRef<Type> tys) {
-  return Base::getChecked(loc, SpecTypes::AllOf, getSortedTypes(tys));
+  return Base::getChecked(loc, Kind, getSortedTypes(tys));
 }
 
 LogicalResult AllOfType::verifyConstructionInvariants(
@@ -264,7 +264,7 @@ LogicalResult FloatOfWidthsType::verify(Type ty) {
 
 /// ComplexType implementation.
 ComplexType ComplexType::getChecked(Location loc, Type elTy) {
-  return Base::getChecked(loc, SpecTypes::Complex, elTy);
+  return Base::getChecked(loc, Kind, elTy);
 }
 
 LogicalResult ComplexType::verify(Type ty) {
@@ -283,7 +283,7 @@ LogicalResult ComplexType::verify(Type ty) {
 /// OpaqueType implementation.
 OpaqueType OpaqueType::getChecked(Location loc, StringRef dialectName,
                                   StringRef typeName) {
-  return Base::getChecked(loc, SpecTypes::Opaque, dialectName, typeName);
+  return Base::getChecked(loc, Kind, dialectName, typeName);
 }
 
 LogicalResult OpaqueType::verifyConstructionInvariants(
@@ -302,7 +302,7 @@ LogicalResult OpaqueType::verify(Type ty) {
 
 /// VariadicType implementation.
 VariadicType VariadicType::getChecked(Location loc, Type ty) {
-  return Base::getChecked(loc, SpecTypes::Variadic, ty);
+  return Base::getChecked(loc, Kind, ty);
 }
 
 LogicalResult VariadicType::verifyConstructionInvariants(
@@ -331,7 +331,7 @@ LogicalResult VariadicType::verify(Type ty) {
 
 /// IsaType implementation.
 IsaType IsaType::getChecked(Location loc, mlir::SymbolRefAttr typeRef) {
-  return Base::getChecked(loc, SpecTypes::Isa, typeRef);
+  return Base::getChecked(loc, Kind, typeRef);
 }
 
 LogicalResult IsaType::verifyConstructionInvariants(

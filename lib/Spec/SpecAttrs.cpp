@@ -137,7 +137,7 @@ struct AttrComparator {
 
 /// ElementsOf implementation.
 ElementsOfAttr ElementsOfAttr::getChecked(Location loc, Type elTy) {
-  return Base::getChecked(loc, SpecAttrs::ElementsOf, elTy);
+  return Base::getChecked(loc, Kind, elTy);
 }
 
 LogicalResult ElementsOfAttr::verifyConstructionInvariants(Location loc,
@@ -158,7 +158,7 @@ LogicalResult ElementsOfAttr::verify(Attribute attr) {
 
 /// ConstantAttr implementation.
 ConstantAttr ConstantAttr::getChecked(Location loc, Attribute attr) {
-  return Base::getChecked(loc, SpecAttrs::Constant, attr);
+  return Base::getChecked(loc, Kind, attr);
 }
 
 LogicalResult ConstantAttr::verifyConstructionInvariants(
@@ -191,7 +191,7 @@ static auto getSortedAttrs(ArrayRef<Attribute> attrs) {
 
 /// AnyOfAttr implementation
 AnyOfAttr AnyOfAttr::getChecked(Location loc, ArrayRef<Attribute> attrs) {
-  return Base::getChecked(loc, SpecAttrs::AnyOf, getSortedAttrs(attrs));
+  return Base::getChecked(loc, Kind, getSortedAttrs(attrs));
 }
 
 LogicalResult AnyOfAttr::verifyConstructionInvariants(
@@ -209,7 +209,7 @@ LogicalResult AnyOfAttr::verify(Attribute attr) {
 
 /// AllOfAttr implementation
 AllOfAttr AllOfAttr::getChecked(Location loc, ArrayRef<Attribute> attrs) {
-  return Base::getChecked(loc, SpecAttrs::AllOf, getSortedAttrs(attrs));
+  return Base::getChecked(loc, Kind, getSortedAttrs(attrs));
 }
 
 LogicalResult AllOfAttr::verifyConstructionInvariants(
@@ -227,7 +227,7 @@ LogicalResult AllOfAttr::verify(Attribute attr) {
 
 /// OfTypeAttr implementation.
 OfTypeAttr OfTypeAttr::getChecked(Location loc, Type ty) {
-  return Base::getChecked(loc, SpecAttrs::OfType, ty);
+  return Base::getChecked(loc, Kind, ty);
 }
 
 LogicalResult OfTypeAttr::verifyConstructionInvariants(Location loc, Type ty) {
@@ -244,7 +244,7 @@ LogicalResult OfTypeAttr::verify(Attribute attr) {
 
 /// OptionalAttr implementation.
 OptionalAttr OptionalAttr::getChecked(Location loc, Attribute baseAttr) {
-  return Base::getChecked(loc, SpecAttrs::Optional, baseAttr);
+  return Base::getChecked(loc, Kind, baseAttr);
 }
 
 LogicalResult OptionalAttr::verifyConstructionInvariants(
@@ -264,7 +264,7 @@ LogicalResult OptionalAttr::verify(Attribute attr) {
 /// DefaultAttr implementation.
 DefaultAttr DefaultAttr::getChecked(Location loc, Attribute baseAttr,
                                     Attribute defaultAttr) {
-  return Base::getChecked(loc, SpecAttrs::Default, baseAttr, defaultAttr);
+  return Base::getChecked(loc, Kind, baseAttr, defaultAttr);
 }
 
 LogicalResult DefaultAttr::verifyConstructionInvariants(
@@ -286,7 +286,7 @@ LogicalResult DefaultAttr::verify(Attribute attr) {
 
 /// IsaAttr implementation.
 IsaAttr IsaAttr::getChecked(Location loc, mlir::SymbolRefAttr attrRef) {
-  return Base::getChecked(loc, SpecAttrs::Isa, attrRef);
+  return Base::getChecked(loc, Kind, attrRef);
 }
 
 LogicalResult IsaAttr::verifyConstructionInvariants(

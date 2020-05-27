@@ -56,14 +56,14 @@ mlir::LogicalResult delegateVerify(mlir::Attribute base,
 
 } // end namespace SpecAttrs
 
-template <typename ConcreteType, unsigned Kind,
+template <typename ConcreteType, unsigned SpecKind,
           typename StorageType = mlir::AttributeStorage>
 class SpecAttr
     : public mlir::Attribute::AttrBase<ConcreteType, mlir::Attribute,
                                                      StorageType> {
-  friend class SpecDialect;
-
 public:
+  static constexpr auto Kind = SpecKind;
+
   using Parent = mlir::Attribute::AttrBase<ConcreteType, mlir::Attribute,
                                            StorageType>;
   using Base = SpecAttr<ConcreteType, Kind, StorageType>;
