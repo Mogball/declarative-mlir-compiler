@@ -134,7 +134,7 @@ template <typename BaseT, typename... DerivedTs>
 struct polymorphic_type_hooks {
   static const void *get(const BaseT *src,
                          const std::type_info *&type) {
-    if (!src)
+    if (!src || !*src)
       return src;
     return detail::polymorphic_type_hooks_impl<BaseT, DerivedTs...>
           ::get(src, type);

@@ -2,14 +2,20 @@
 
 #include <mlir/IR/Types.h>
 
-using namespace mlir::py;
+using namespace pybind11;
 
-PYBIND11_MODULE(mlir, m) {
+namespace mlir {
+namespace py {
+
+void expose(module &m) {
   exposeParser(m);
   exposeModule(m);
   auto type = exposeTypeBase(m);
   exposeAttribute(m);
-  exposeType(m, type);
-  exposeValue(m);
-  exposeOps(m);
+  //exposeType(m, type);
+  //exposeValue(m);
+  //exposeOps(m);
 }
+
+} // end namespace py
+} // end namespace mlir

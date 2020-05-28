@@ -1,4 +1,4 @@
-pybind11_add_module(mlir
+add_library(pymlir
   Context.cpp
   Context.h
   OwningModuleRef.cpp
@@ -37,14 +37,18 @@ pybind11_add_module(mlir
   Expose.h
   )
 
-target_include_directories(mlir PUBLIC
+target_include_directories(pymlir PUBLIC
   ${Python3_INCLUDE_DIRS}
   )
-target_link_libraries(mlir PUBLIC
+target_link_libraries(pymlir PUBLIC
   ${Python3_LIBRARIES}
+  pybind11
   MLIRIR
   MLIRParser
   DMCDynamic
   DMCSpec
   DMCTraits
   )
+
+pybind11_add_module(mlir ExternalModule.cpp)
+target_link_libraries(mlir PUBLIC pymlir)

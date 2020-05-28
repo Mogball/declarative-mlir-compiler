@@ -62,7 +62,6 @@ void exposeAttribute(module &m) {
       .def("isDenseIntElements", isa<DenseIntElementsAttr>())
       .def("isSparseElementsAttr", isa<SparseElementsAttr>())
       .def("isSplatElements", isa<SplatElementsAttr>());
-
   /// Location must be registered early for default arguments.
   exposeLocation(m, attr);
 
