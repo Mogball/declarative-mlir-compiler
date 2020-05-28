@@ -19,25 +19,4 @@ using namespace pybind11;
 int main() {
   MLIRContext ctx;
   DynamicContext dynCtx{&ctx};
-
-  auto arg = IntegerType::get(32, &ctx);
-  StringRef expr{"isinstance({self}, IntegerType)"};
-  auto name = "type";
-
-  /// Substitute placeholder `self -> name`.
-  dict fmtArgs{"self"_a = name};
-  auto pyExpr = pybind11::cast(expr.str()).cast<str>().format(**fmtArgs);
-  /// Wrap in a function.
-  auto scope = module::import("__main__").attr("__dict__");
-  dict funcExpr{"name"_a = name, "expr"_a = pyExpr};
-  auto funcStr = "def constraint({name}): return {expr}"_s.format(**funcExpr);
-  exec(funcStr, scope);
-
-
-  print(funcStr);
-  print(arg);
-  print(scope["constraint"](arg));
-
-
-  py::evalConstraintExpr(expr, arg);
 }
