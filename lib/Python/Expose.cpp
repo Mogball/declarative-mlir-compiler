@@ -7,14 +7,14 @@ using namespace pybind11;
 namespace mlir {
 namespace py {
 
-void expose(module &m) {
+void getModule(module &m) {
   exposeParser(m);
   exposeModule(m);
   auto type = exposeTypeBase(m);
   exposeAttribute(m);
-  //exposeType(m, type);
-  //exposeValue(m);
-  //exposeOps(m);
+  exposeType(m, type);
+  exposeValue(m);
+  exposeOps(m);
 }
 
 } // end namespace py

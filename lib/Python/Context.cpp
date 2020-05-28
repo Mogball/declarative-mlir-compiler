@@ -19,7 +19,8 @@ public:
     return instance;
   }
 
-  MLIRContext *getContext() { return &context; }
+  MLIRContext *getContext() { return ptr; }
+  void setContext(MLIRContext *ctx) { ptr = ctx; }
 
 private:
   /// Initiazation order is guaranteed.
@@ -27,10 +28,15 @@ private:
   DialectRegistration<TraitRegistry> traitRegistry;
   DialectRegistration<StandardOpsDialect> standardOpsDialect;
   MLIRContext context;
+  MLIRContext *ptr{&context};
 };
 
 MLIRContext *getMLIRContext() {
   return GlobalContextHandle::instance().getContext();
+}
+
+void setMLIRContext(MLIRContext *ctx) {
+  GlobalContextHandle::instance().setContext(ctx);
 }
 
 } // end namespace py

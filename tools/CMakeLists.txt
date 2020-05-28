@@ -33,3 +33,10 @@ target_link_libraries(kind
   MLIRIR
   LLVMSupport
   )
+
+add_executable(pyembed pythonembed.cpp)
+target_link_libraries(pyembed
+  MLIRIR
+  DMCEmbed
+  LLVMSupport
+  )

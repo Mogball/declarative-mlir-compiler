@@ -9,9 +9,6 @@ namespace py {
 using AttrClass = pybind11::class_<Attribute>;
 using TypeClass = pybind11::class_<Type>;
 
-/// Top-level call.
-void expose(pybind11::module &m);
-
 void exposeParser(pybind11::module &m);
 void exposeModule(pybind11::module &m);
 /// pybind11 needs Type to be exposed before it can be used in default args.
