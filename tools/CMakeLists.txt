@@ -14,6 +14,7 @@ target_link_libraries(spec
   DMCIO
   DMCSpec
   DMCTraits
+  DMCEmbed
   LLVMSupport
   MLIRParser
   )
@@ -23,6 +24,7 @@ target_link_libraries(gen
   DMCSpec
   DMCDynamic
   DMCTraits
+  DMCEmbed
   LLVMSupport
   MLIRStandardOps
   MLIRParser
@@ -36,7 +38,8 @@ target_link_libraries(kind
 
 add_executable(pyembed pythonembed.cpp)
 target_link_libraries(pyembed
-  MLIRIR
+  DMCDynamic
+  DMCSpec
   DMCEmbed
-  LLVMSupport
+  DMCTraits
   )

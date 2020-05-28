@@ -1,5 +1,6 @@
 add_library(DMCEmbed
   Constraints.cpp
+  Spec.cpp
   Init.cpp
   )
 

@@ -15,7 +15,13 @@ using namespace pybind11;
 namespace mlir {
 namespace py {
 
+static bool inited{false};
+
 void init(MLIRContext *ctx) {
+  if (inited)
+    return;
+  inited = true;
+
   setMLIRContext(ctx);
   initialize_interpreter();
   /// Add pymlir's objects to the main scope.

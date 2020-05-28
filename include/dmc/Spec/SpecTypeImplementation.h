@@ -48,6 +48,9 @@ enum Kinds {
 
   Isa,
 
+  /// Generic Python type constraint.
+  Py,
+
   NUM_TYPES
 };
 

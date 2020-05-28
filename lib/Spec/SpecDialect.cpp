@@ -27,7 +27,9 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyUnsignedIntegerType, UIType, UnsignedIntOfWidthsType,
       IndexType, AnyFloatType, FType, FloatOfWidthsType, BF16Type,
       AnyComplexType, ComplexType, OpaqueType,
-      FunctionType, VariadicType, IsaType
+      FunctionType, VariadicType, IsaType,
+
+      PyType
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
@@ -49,16 +51,16 @@ Type parseTypeList(DialectAsmParser &parser) {
   // *-of-type ::= `AnyOf` `<` type(`,` type)* `>`
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parser.parseLess())
-    return Type{};
+    return {};
   SmallVector<Type, 4> baseTypes;
   do {
     Type baseType;
     if (parser.parseType(baseType))
-      return Type{};
+      return {};
     baseTypes.push_back(baseType);
   } while (!parser.parseOptionalComma());
   if (parser.parseGreater())
-    return Type{};
+    return {};
   return BaseT::getChecked(loc, baseTypes);
 }
 
@@ -68,7 +70,7 @@ Type parseTypeList(DialectAsmParser &parser) {
 Type SpecDialect::parseType(DialectAsmParser &parser) const {
   StringRef typeName;
   if (parser.parseKeyword(&typeName))
-    return Type{};
+    return {};
   auto kind = llvm::StringSwitch<unsigned>(typeName)
     .Case(AnyType::getTypeName(), AnyType::Kind)
     .Case(NoneType::getTypeName(), NoneType::Kind)
@@ -97,11 +99,12 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     .Case(FunctionType::getTypeName(), FunctionType::Kind)
     .Case(VariadicType::getTypeName(), VariadicType::Kind)
     .Case(IsaType::getTypeName(), IsaType::Kind)
+    .Case(PyType::getTypeName(), PyType::Kind)
     .Default(SpecTypes::NUM_TYPES);
 
   if (kind == SpecTypes::NUM_TYPES) {
     parser.emitError(parser.getCurrentLocation(), "unknown type constraint");
-    return Type{};
+    return {};
   }
   ParseAction<Type, DialectAsmParser> action{parser};
   return SpecTypes::kindSwitch(action, kind);
@@ -121,7 +124,7 @@ Type ComplexType::parse(DialectAsmParser &parser) {
   Type elBaseType;
   if (parser.parseLess() || parser.parseType(elBaseType) ||
       parser.parseGreater())
-    return Type{};
+    return {};
   return ComplexType::getChecked(loc, elBaseType);
 }
 
@@ -132,7 +135,7 @@ Type OpaqueType::parse(DialectAsmParser &parser) {
   if (parser.parseLess() || parser.parseAttribute(dialectNameAttr) ||
       parser.parseComma() || parser.parseAttribute(typeNameAttr) ||
       parser.parseGreater())
-    return Type{};
+    return {};
   return OpaqueType::getChecked(loc, dialectNameAttr.getValue(),
                                 typeNameAttr.getValue());
 }
@@ -142,7 +145,7 @@ Type VariadicType::parse(DialectAsmParser &parser) {
   Type baseTy;
   if (parser.parseLess() || parser.parseType(baseTy) ||
       parser.parseGreater())
-    return Type{};
+    return {};
   return VariadicType::get(baseTy);
 }
 
@@ -152,8 +155,18 @@ Type IsaType::parse(DialectAsmParser &parser) {
   mlir::SymbolRefAttr typeRef;
   if (parser.parseLess() || parser.parseAttribute(typeRef) ||
       parser.parseGreater())
-    return Type{};
+    return {};
   return IsaType::getChecked(loc, typeRef);
+}
+
+Type PyType::parse(DialectAsmParser &parser) {
+  // `Py` `<` `"` py-expr `"` `>`
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::StringAttr exprAttr;
+  if (parser.parseLess() || parser.parseAttribute(exprAttr) ||
+      parser.parseGreater())
+    return {};
+  return PyType::getChecked(loc, exprAttr.getValue());
 }
 
 /// Attribute parsing.

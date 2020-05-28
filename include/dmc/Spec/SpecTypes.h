@@ -25,6 +25,7 @@ struct WidthListStorage;
 struct OneTypeStorage;
 struct OpaqueTypeStorage;
 struct IsaTypeStorage;
+struct PyTypeStorage;
 } // end namespace detail
 
 /// Match any type.
@@ -338,6 +339,27 @@ public:
   static IsaType getChecked(mlir::Location loc, mlir::SymbolRefAttr typeRef);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::SymbolRefAttr typeRef);
+  mlir::LogicalResult verify(Type ty);
+
+  static Type parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+/// A generic Python type constraint. The constraint consists of a single
+/// Python expression, where the type argument uses the placeholder `{type}`.
+/// For example, `isinstance({type}, IntegerAttr)`. The constraint cannot take
+/// any arguments.
+///
+/// This is a precursor to full constraints that define a full function,
+/// `def my_type_constraint(type, args...)`, that takes arguments.
+class PyType : public SpecType<PyType, SpecTypes::Py, detail::PyTypeStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getTypeName() { return "Py"; }
+
+  static PyType getChecked(mlir::Location loc, llvm::StringRef expr);
+  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
+                                                          llvm::StringRef expr);
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);

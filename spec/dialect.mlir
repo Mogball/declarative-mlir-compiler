@@ -34,5 +34,6 @@ dmc.Dialect @test {
   dmc.Op @op_regions() -> () {} (Any, Sized<2>, Variadic<IsolatedFromAbove>)
   dmc.Op @ret() -> () config { is_terminator = true }
 
-  //dmc.Alias @IsInteger -> #dmc.Py<"isinstance({self}, IntegerAttr)">
+  dmc.Alias @IsInteger -> !dmc.Py<"isinstance({self}, IntegerType)">
+  dmc.Op @op_py(!test.IsInteger) -> ()
 }

@@ -60,6 +60,8 @@ auto kindSwitch(const ActionT &action, unsigned kind) {
     return action.template operator()<VariadicType>();
   case Isa:
     return action.template operator()<IsaType>();
+  case Py:
+    return action.template operator()<PyType>();
   }
 }
 

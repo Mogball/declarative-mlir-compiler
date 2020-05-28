@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ ! -d bin ]; then
+  ./configure
+fi
+
+cd bin && cmake --build . --target help

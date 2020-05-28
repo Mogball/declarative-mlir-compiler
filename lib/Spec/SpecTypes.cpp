@@ -112,8 +112,7 @@ struct OpaqueTypeStorage : public TypeStorage {
 struct IsaTypeStorage : public TypeStorage {
   using KeyTy = mlir::SymbolRefAttr;
 
-  explicit IsaTypeStorage(mlir::SymbolRefAttr symRef)
-      : symRef{symRef} {}
+  explicit IsaTypeStorage(mlir::SymbolRefAttr symRef) : symRef{symRef} {}
 
   bool operator==(const KeyTy &key) const { return key == symRef; }
   static llvm::hash_code hashKey(const KeyTy &key) { return hash_value(key); }

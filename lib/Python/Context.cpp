@@ -1,10 +1,5 @@
-#include "dmc/Spec/SpecDialect.h"
-#include "dmc/Traits/Registry.h"
-
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-
-using namespace dmc;
 
 namespace mlir {
 namespace py {
@@ -24,8 +19,6 @@ public:
 
 private:
   /// Initiazation order is guaranteed.
-  DialectRegistration<SpecDialect> specDialect;
-  DialectRegistration<TraitRegistry> traitRegistry;
   DialectRegistration<StandardOpsDialect> standardOpsDialect;
   MLIRContext context;
   MLIRContext *ptr{&context};
