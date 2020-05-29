@@ -15,6 +15,8 @@ void getModule(module &m) {
   exposeType(m, type);
   exposeValue(m);
   exposeOps(m);
+
+  exposeOpAsm(m);
 }
 
 } // end namespace py

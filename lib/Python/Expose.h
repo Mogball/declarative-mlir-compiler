@@ -32,5 +32,8 @@ void exposeOpaqueType(pybind11::module &m, TypeClass &type);
 void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type);
 void exposeShapedTypes(pybind11::module &m, TypeClass &type);
 
+/// Parsers and printers.
+void exposeOpAsm(pybind11::module &m);
+
 } // end namespace py
 } // end namespace mlir

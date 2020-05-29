@@ -14,8 +14,7 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
   return ::nullcheck(fcn, "function type");
 }
 
-FunctionType getFunctionType(const std::vector<Type> &inputs,
-                             const std::vector<Type> &results) {
+FunctionType getFunctionType(TypeListRef inputs, TypeListRef results) {
   return FunctionType::get(inputs, results, getMLIRContext());
 }
 

@@ -19,6 +19,7 @@ add_library(pymlir
   Utility.h
 
   # Reduce compilation time by splitting the functions
+  ExposeOpAsm.cpp
   ExposeOps.cpp
   ExposeValue.cpp
   ExposeShapedTypes.cpp

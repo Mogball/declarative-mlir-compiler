@@ -1,0 +1,39 @@
+func @laplace(%arg0 : !stencil.field<[-1, -1, -1], f64>,
+              %arg1 : !stencil.field<[-1, -1, -1], f64>)
+    attributes { stencil.program } {
+
+  "stencil.assert"(%arg0) { lb = [-4, -4, -4], ub = [68, 68, 68] }
+      : (!stencil.field<[-1, -1, -1], f64>) -> ()
+  "stencil.assert"(%arg1) { lb = [-4, -4, -4], ub = [68, 68, 68] }
+      : (!stencil.field<[-1, -1, -1], f64>) -> ()
+
+  %0 = "stencil.load"(%arg0) : (!stencil.field<[-1, -1, -1], f64>) ->
+                                !stencil.temp<[-1, -1, -1], f64>
+  %1 = "stencil.apply"(%0) ({
+  ^bb0(%arg2 : !stencil.temp<[-1, -1, -1], f64>):
+    %2 = "stencil.access"(%arg2) { offset = [-1, 0, 0] }
+        : (!stencil.temp<[-1, -1, -1], f64>) -> f64
+    %3 = "stencil.access"(%arg2) { offset = [1, 0, 0] }
+        : (!stencil.temp<[-1, -1, -1], f64>) -> f64
+    %4 = "stencil.access"(%arg2) { offset = [0, 1, 0] }
+        : (!stencil.temp<[-1, -1, -1], f64>) -> f64
+    %5 = "stencil.access"(%arg2) { offset = [0, -1, 0] }
+        : (!stencil.temp<[-1, -1, -1], f64>) -> f64
+    %6 = "stencil.access"(%arg2) { offset = [0, 0, 0] }
+        : (!stencil.temp<[-1, -1, -1], f64>) -> f64
+
+    %7 = addf %2, %3 : f64
+    %8 = addf %4, %5 : f64
+    %9 = addf %7, %8 : f64
+    %cst = constant -4.000000e+00 : f64
+    %10 = mulf %6, %cst : f64
+    %11 = addf %10, %9 : f64
+
+    "stencil.return"(%11) : (f64) -> ()
+  }) : (!stencil.temp<[-1, -1, -1], f64>) -> !stencil.temp<[-1, -1, -1], f64>
+
+  "stencil.store"(%1, %arg1) { lb = [0, 0, 0], ub = [64, 64, 64] }
+      : (!stencil.temp<[-1, -1, -1], f64>,
+         !stencil.field<[-1, -1, -1], f64>) -> ()
+  return
+}

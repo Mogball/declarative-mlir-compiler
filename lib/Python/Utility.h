@@ -6,6 +6,27 @@
 #include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
 
+/// Shorthands.
+namespace mlir {
+namespace py {
+
+using StringList = std::vector<std::string>;
+using ValueList = std::vector<Value>;
+using TypeList = std::vector<Type>;
+using AttrList = std::vector<Attribute>;
+using BlockList = std::vector<Block *>;
+using AttrDict = std::unordered_map<std::string, Attribute>;
+
+using StringListRef = const StringList &;
+using ValueListRef = const ValueList &;
+using TypeListRef = const TypeList &;
+using AttrListRef = const AttrList &;
+using BlockListRef = const BlockList &;
+using AttrDictRef = const AttrDict &;
+
+} // end namespace py
+} // end namespace mlir
+
 /// Create a printer for MLIR objects to std::string.
 template <typename T>
 struct StringPrinter {

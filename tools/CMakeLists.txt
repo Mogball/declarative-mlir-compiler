@@ -42,4 +42,5 @@ target_link_libraries(pyembed
   DMCSpec
   DMCEmbed
   DMCTraits
+  DMCIO
   )

@@ -70,12 +70,12 @@ void exposeType(module &m, TypeClass &type) {
   exposeShapedTypes(m, type);
 
   class_<TupleType>(m, "TupleType", type)
-      .def(init([](const std::vector<Type> &elTys) {
+      .def(init([](TypeListRef elTys) {
         return TupleType::get(elTys, getMLIRContext());
-      }), "elementTypes"_a = std::vector<Type>{})
+      }), "elementTypes"_a = TypeList{})
       .def_property_readonly("types", nullcheck([](TupleType ty) {
         auto elTys = ty.getTypes();
-        return new std::vector<Type>{std::begin(elTys), std::end(elTys)};
+        return new TypeList{std::begin(elTys), std::end(elTys)};
       }))
       .def("__len__", nullcheck(&TupleType::size))
       .def("__iter__", nullcheck([](TupleType ty) {
@@ -89,7 +89,7 @@ void exposeType(module &m, TypeClass &type) {
       .def("getFlattenedTypes", nullcheck([](TupleType ty) {
         SmallVector<Type, 8> elTys;
         ty.getFlattenedTypes(elTys);
-        return new std::vector<Type>{std::begin(elTys), std::end(elTys)};
+        return new TypeList{std::begin(elTys), std::end(elTys)};
       }));
 
   implicitly_convertible_from_all<Type,

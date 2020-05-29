@@ -12,16 +12,13 @@
 
 using namespace pybind11;
 using namespace mlir;
-using namespace llvm;
 
 namespace mlir {
 namespace py {
 
 Operation *operationCtor(
-    Location loc, const std::string &name, const std::vector<Type> &retTys,
-    const std::vector<Value> &operands,
-    const std::unordered_map<std::string, Attribute> &attrs,
-    const std::vector<Block *> &successors, unsigned numRegions) {
+    Location loc, const std::string &name, TypeListRef retTys, ValueListRef operands,
+    AttrDictRef attrs, BlockListRef successors, unsigned numRegions) {
   OperationName opName{name, getMLIRContext()};
   NamedAttrList attrList;
   for (auto &[name, attr] : attrs)
@@ -60,7 +57,7 @@ void exposeOps(module &m) {
         return std::move(os.str());
       })
       .def_property_readonly("name", [](Operation *op) {
-        return op->getName().getStringRef();
+        return op->getName().getStringRef().str();
       })
       .def("isRegistered", &Operation::isRegistered)
       .def("erase", &Operation::erase)
@@ -84,8 +81,7 @@ void exposeOps(module &m) {
       .def("moveAfter",
            overload<void(Operation::*)(Operation *)>(&Operation::moveAfter))
       .def("isBeforeInBlock", &Operation::isBeforeInBlock)
-      .def("setOperands", [](Operation *op,
-                             const std::vector<Value> &operands) {
+      .def("setOperands", [](Operation *op, ValueListRef operands) {
         op->setOperands(operands);
       })
       .def("getNumOperands", &Operation::getNumOperands)

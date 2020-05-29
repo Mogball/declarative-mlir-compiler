@@ -40,11 +40,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 add_subdirectory(pybind11)
 
 # Global options
-add_compile_options(-Wall -Wextra
-  -Wno-unused-parameter
-  -Wno-unused-but-set-parameter
-  -Wno-unknown-warning-option
-  -fdiagnostics-color)
+add_compile_options(-Wall -fdiagnostics-color)
 
 # Global includes
 include_directories(

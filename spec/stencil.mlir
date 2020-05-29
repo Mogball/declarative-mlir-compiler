@@ -26,8 +26,8 @@ dmc.Dialect @stencil {
                                                     ub = #stencil.OptionalIndex }
 
   /// StoreOp
-  dmc.Op @store(!stencil.Temp, !stencil.Field) -> ()  { lb = #stencil.Index,
-                                                        ub = #stencil.Index }
+  dmc.Op @store(!stencil.Temp, !stencil.Field) -> () { lb = #stencil.Index,
+                                                       ub = #stencil.Index }
 
   /// ApplyOp
   dmc.Op @apply(!dmc.Variadic<!dmc.Any>) -> (!dmc.Variadic<!stencil.Temp>)
