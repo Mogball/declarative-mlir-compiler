@@ -16,6 +16,8 @@ add_library(pymlir
   Attribute.cpp
   Attribute.h
 
+  Utility.h
+
   # Reduce compilation time by splitting the functions
   ExposeOps.cpp
   ExposeValue.cpp

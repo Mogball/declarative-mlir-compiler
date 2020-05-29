@@ -1,4 +1,5 @@
-#include "Support.h"
+#include "Utility.h"
+#include "dmc/Python/APComplex.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/StandardTypes.h>
@@ -194,21 +195,3 @@ void exposeElementsAttr(module &m, class_<Attribute> &attr) {
 
 } // end namespace py
 } // end namespace mlir
-
-namespace pybind11 {
-
-template <> struct polymorphic_type_hook<DenseIntOrFPElementsAttr>
-    : public polymorphic_type_hooks<DenseIntOrFPElementsAttr,
-      DenseFPElementsAttr, DenseIntElementsAttr> {};
-
-template <> struct polymorphic_type_hook<DenseElementsAttr>
-    : public polymorphic_type_hooks<DenseElementsAttr,
-      DenseStringElementsAttr, DenseIntOrFPElementsAttr, DenseFPElementsAttr,
-      DenseIntElementsAttr> {};
-
-template <> struct polymorphic_type_hook<ElementsAttr>
-    : public polymorphic_type_hooks<ElementsAttr,
-      DenseElementsAttr, DenseStringElementsAttr, DenseIntOrFPElementsAttr,
-      DenseFPElementsAttr, DenseIntElementsAttr, SparseElementsAttr> {};
-
-} // end namespace pybind11

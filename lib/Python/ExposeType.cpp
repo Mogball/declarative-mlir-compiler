@@ -1,7 +1,7 @@
 #include "Type.h"
 #include "Context.h"
 #include "Expose.h"
-#include "Support.h"
+#include "Utility.h"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/StandardTypes.h>
@@ -105,18 +105,3 @@ void exposeType(module &m, TypeClass &type) {
 
 } // end namespace py
 } // end namespace mlir
-
-namespace pybind11 {
-
-template <> struct polymorphic_type_hook<Type>
-    : public polymorphic_type_hooks<Type,
-      FunctionType, OpaqueType,
-      ComplexType, IndexType, IntegerType, FloatType, mlir::NoneType,
-
-      VectorType,
-      TensorType, RankedTensorType, UnrankedTensorType,
-      BaseMemRefType, MemRefType, UnrankedMemRefType,
-
-      TupleType> {};
-
-} // end namespace pybind11

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Polymorphic.h"
+
 #include <pybind11/pybind11.h>
 
 namespace mlir {

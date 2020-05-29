@@ -1,7 +1,7 @@
+#include "Utility.h"
 #include "Expose.h"
 #include "Identifier.h"
 #include "Context.h"
-#include "Support.h"
 
 #include <mlir/IR/Value.h>
 #include <mlir/IR/Operation.h>
@@ -136,11 +136,3 @@ void exposeValue(module &m) {
 
 } // end namespace py
 } // end namespace mlir
-
-namespace pybind11 {
-
-template <> struct polymorphic_type_hook<Value>
-    : public polymorphic_type_hooks<Value,
-      BlockArgument, OpResult> {};
-
-} // end namespace pybind11

@@ -1,6 +1,10 @@
 #include "Scope.h"
 #include "dmc/Embed/Constraints.h"
 
+/// The polymorphic_type_hook must be visible so that Type and Attribute can be
+/// downcasted to their appropriate derived classes.
+#include "dmc/Python/Polymorphic.h"
+
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/StandardTypes.h>
 #include <pybind11/embed.h>

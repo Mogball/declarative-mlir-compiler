@@ -1,6 +1,6 @@
 #include "Context.h"
 #include "Location.h"
-#include "Support.h"
+#include "Utility.h"
 #include "Type.h"
 #include "Expose.h"
 
@@ -134,21 +134,3 @@ void exposeShapedTypes(pybind11::module &m, TypeClass &type) {
 
 } // end namespace py
 } // end namespace mlir
-
-namespace pybind11 {
-
-template <> struct polymorphic_type_hook<TensorType>
-    : public polymorphic_type_hooks<TensorType,
-      RankedTensorType, UnrankedTensorType> {};
-
-template <> struct polymorphic_type_hook<BaseMemRefType>
-    : public polymorphic_type_hooks<BaseMemRefType,
-      MemRefType, UnrankedMemRefType> {};
-
-template <> struct polymorphic_type_hook<ShapedType>
-    : public polymorphic_type_hooks<ShapedType,
-      VectorType,
-      TensorType, RankedTensorType, UnrankedTensorType,
-      BaseMemRefType, MemRefType, UnrankedMemRefType> {};
-
-} // end namespace pybind11

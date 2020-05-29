@@ -1,4 +1,4 @@
-#include "Support.h"
+#include "Utility.h"
 #include "Location.h"
 
 #include <pybind11/pybind11.h>
@@ -7,26 +7,6 @@
 using namespace llvm;
 using namespace mlir;
 using namespace pybind11;
-
-namespace pybind11 {
-template <> struct polymorphic_type_hook<LocationAttr>
-    : public polymorphic_type_hooks<LocationAttr,
-      UnknownLoc, CallSiteLoc, FileLineColLoc, FusedLoc, NameLoc> {};
-
-/// In order to safely downcast from Location to an impl type, we need to
-/// cast the impl pointer directly. Location holds a LocationAttr and we
-/// need the pointer to this object to avoid returning a reference to a
-/// local value.
-template <> struct polymorphic_type_hook<Location> {
-  static const void *get(const Location *src,
-                         const std::type_info *&type) {
-    if (!src)
-      return src;
-    return polymorphic_type_hook<LocationAttr>::get((*src).operator->(),
-                                                    type);
-  }
-};
-} // end namespace pybind11
 
 namespace mlir {
 namespace py {

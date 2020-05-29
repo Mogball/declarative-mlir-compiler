@@ -16,7 +16,18 @@ using namespace llvm;
 using namespace dmc;
 using namespace pybind11;
 
+
 int main() {
   MLIRContext ctx;
   DynamicContext dynCtx{&ctx};
+
+  StringRef expr = "isinstance({self}, IntegerType)";
+  auto arg = IntegerType::get(32, &ctx);
+
+  errs() << (succeeded(py::evalConstraintExpr(expr, (Type)arg))
+             ? "success" : "failure") << "\n";
+
+  errs() << (succeeded(py::evalConstraintExpr(expr, arg))
+             ? "success" : "failure") << "\n";
+
 }
