@@ -65,6 +65,8 @@ auto kindSwitch(const ActionT &action, unsigned kind) {
     return action.template operator()<DefaultAttr>();
   case Isa:
     return action.template operator()<IsaAttr>();
+  case Py:
+    return action.template operator()<PyAttr>();
   }
 }
 

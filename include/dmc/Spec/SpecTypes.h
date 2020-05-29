@@ -346,8 +346,8 @@ public:
 };
 
 /// A generic Python type constraint. The constraint consists of a single
-/// Python expression, where the type argument uses the placeholder `{type}`.
-/// For example, `isinstance({type}, IntegerAttr)`. The constraint cannot take
+/// Python expression, where the type argument uses the placeholder `{self}`.
+/// For example, `isinstance({self}, IntegerAttr)`. The constraint cannot take
 /// any arguments.
 ///
 /// This is a precursor to full constraints that define a full function,

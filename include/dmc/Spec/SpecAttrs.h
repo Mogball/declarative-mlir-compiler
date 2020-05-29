@@ -14,6 +14,7 @@ struct OneTypeAttrStorage;
 struct DimensionAttrStorage;
 struct DefaultAttrStorage;
 struct IsaAttrStorage;
+struct PyAttrStorage;
 } // end namespace detail
 
 class AnyAttr : public SimpleAttr<AnyAttr, SpecAttrs::Any> {
@@ -336,6 +337,21 @@ public:
   static IsaAttr getChecked(mlir::Location loc, mlir::SymbolRefAttr attrRef);
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::SymbolRefAttr attrRef);
+  mlir::LogicalResult verify(Attribute attr);
+
+  static Attribute parse(mlir::DialectAsmParser &parser);
+  void print(mlir::DialectAsmPrinter &printer);
+};
+
+/// A generic Python attribute constraint. See `PyType`.
+class PyAttr : public SpecAttr<PyAttr, SpecAttrs::Py, detail::PyAttrStorage> {
+public:
+  using Base::Base;
+  static llvm::StringLiteral getAttrName() { return "Py"; }
+
+  static PyAttr getChecked(mlir::Location loc, llvm::StringRef expr);
+  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
+                                                          llvm::StringRef expr);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);

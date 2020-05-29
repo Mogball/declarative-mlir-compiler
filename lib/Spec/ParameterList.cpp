@@ -10,11 +10,13 @@ namespace dmc {
 #include "dmc/Spec/ParameterList.cpp.inc"
 
 namespace impl {
-/// Check that all parameters are SpecAttr.
+/// Check that all parameters are SpecAttrs.
 LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
   unsigned idx = 0;
   for (auto &param : params) {
-    if (!SpecAttrs::is(param))
+    /// Since the verifier is called before reparse, we have to let opaque
+    /// attributes through since they may resolve to aliases.
+    if (!SpecAttrs::is(param) && !param.isa<OpaqueAttr>())
       return op->emitOpError("parameter #") << idx << " expected a SpecAttr "
           << "but got: " << param;
     ++idx;

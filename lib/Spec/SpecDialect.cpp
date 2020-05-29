@@ -35,10 +35,13 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
       AnyIAttr, IAttr, SIAttr, UIAttr, FAttr,
       StringAttr, TypeAttr, UnitAttr,
-      DictionaryAttr, ElementsAttr, ArrayAttr,
+      DictionaryAttr, ElementsAttr, DenseElementsAttr, ElementsOfAttr,
+      RankedElementsAttr, StringElementsAttr, ArrayAttr, ArrayOfAttr,
       SymbolRefAttr, FlatSymbolRefAttr,
       ConstantAttr, AnyOfAttr, AllOfAttr, OfTypeAttr,
       OptionalAttr, DefaultAttr, IsaAttr,
+
+      PyAttr,
 
       AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion
   >();
@@ -234,6 +237,7 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     .Case(OptionalAttr::getAttrName(), OptionalAttr::Kind)
     .Case(DefaultAttr::getAttrName(), DefaultAttr::Kind)
     .Case(IsaAttr::getAttrName(), IsaAttr::Kind)
+    .Case(PyAttr::getAttrName(), PyAttr::Kind)
     .Default(SpecAttrs::NUM_ATTRS);
 
   if (kind == SpecAttrs::NUM_ATTRS) {
@@ -319,6 +323,15 @@ Attribute IsaAttr::parse(DialectAsmParser &parser) {
       parser.parseGreater())
     return Attribute{};
   return IsaAttr::getChecked(loc, attrRef);
+}
+
+Attribute PyAttr::parse(DialectAsmParser &parser) {
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  mlir::StringAttr exprAttr;
+  if (parser.parseLess() || parser.parseAttribute(exprAttr) ||
+      parser.parseGreater())
+    return {};
+  return PyAttr::getChecked(loc, exprAttr.getValue());
 }
 
 } // end namespace dmc

@@ -49,7 +49,7 @@ module {
 
   func @test5() -> () {
     %0 = "test.get_value"() : () -> i32
-    "test.op_py"(%0) : (i32) -> ()
+    "test.op_py"(%0) { index = [1, 2, 3] } : (i32) -> ()
     "test.ret"() : () -> ()
   }
 }

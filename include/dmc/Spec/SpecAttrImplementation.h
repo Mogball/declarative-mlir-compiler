@@ -46,6 +46,9 @@ enum Kinds {
 
   Isa,
 
+  /// Generic Python attribute constraint.
+  Py,
+
   /// Non-attribute-constraint kinds.
   OpTrait,
   OpTraits,

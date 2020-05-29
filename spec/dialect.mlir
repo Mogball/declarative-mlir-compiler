@@ -35,5 +35,6 @@ dmc.Dialect @test {
   dmc.Op @ret() -> () config { is_terminator = true }
 
   dmc.Alias @IsInteger -> !dmc.Py<"isinstance({self}, IntegerType)">
-  dmc.Op @op_py(!test.IsInteger) -> ()
+  dmc.Alias @ArraySize3 -> #dmc.Py<"isinstance({self}, ArrayAttr) and len({self}) == 3">
+  dmc.Op @op_py(!test.IsInteger) -> () { index = #test.ArraySize3 }
 }
