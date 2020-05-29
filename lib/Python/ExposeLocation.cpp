@@ -39,7 +39,6 @@ void exposeLocation(module &m, class_<Attribute> &attr) {
   class_<LocationAttr> locAttr{m, "LocationAttr", attr};
   locAttr
       .def(init<Location>())
-      .def(init<const Location &>())
       .def(self == self)
       .def(self != self)
       .def("__repr__", StringPrinter<LocationAttr>{})

@@ -24,7 +24,6 @@ TypeClass exposeTypeBase(module &m) {
   class_<Type> type{m, "Type"};
   type
       .def(init<>())
-      .def(init<const Type &>())
       .def(self == self)
       .def(self != self)
       .def("__repr__", StringPrinter<Type>{})

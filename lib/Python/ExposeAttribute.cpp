@@ -31,7 +31,6 @@ void exposeAttribute(module &m) {
   class_<Attribute> attr{m, "Attribute"};
   attr
       .def(init<>())
-      .def(init<const Attribute &>())
       .def(self == self)
       .def(self != self)
       .def("__repr__", StringPrinter<Attribute>{})
