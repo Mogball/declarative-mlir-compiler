@@ -7,7 +7,7 @@ namespace dmc {
 namespace SpecAttrs {
 
 bool is(Attribute base) {
-  return Any <= base.getKind() && base.getKind() < NUM_ATTRS;
+  return Any <= base.getKind() && base.getKind() < LAST_SPEC_ATTR;
 }
 
 LogicalResult delegateVerify(Attribute base, Attribute attr) {

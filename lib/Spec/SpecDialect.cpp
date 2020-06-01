@@ -103,9 +103,9 @@ Type SpecDialect::parseType(DialectAsmParser &parser) const {
     .Case(VariadicType::getTypeName(), VariadicType::Kind)
     .Case(IsaType::getTypeName(), IsaType::Kind)
     .Case(PyType::getTypeName(), PyType::Kind)
-    .Default(SpecTypes::NUM_TYPES);
+    .Default(SpecTypes::LAST_SPEC_TYPE);
 
-  if (kind == SpecTypes::NUM_TYPES) {
+  if (kind == SpecTypes::LAST_SPEC_TYPE) {
     parser.emitError(parser.getCurrentLocation(), "unknown type constraint");
     return {};
   }
@@ -238,9 +238,9 @@ Attribute SpecDialect::parseAttribute(DialectAsmParser &parser,
     .Case(DefaultAttr::getAttrName(), DefaultAttr::Kind)
     .Case(IsaAttr::getAttrName(), IsaAttr::Kind)
     .Case(PyAttr::getAttrName(), PyAttr::Kind)
-    .Default(SpecAttrs::NUM_ATTRS);
+    .Default(SpecAttrs::LAST_SPEC_ATTR);
 
-  if (kind == SpecAttrs::NUM_ATTRS) {
+  if (kind == SpecAttrs::LAST_SPEC_ATTR) {
     parser.emitError(parser.getCurrentLocation(),
                      "unknown attribute constraint");
     return Attribute{};

@@ -161,9 +161,9 @@ ParseResult parseOpRegion(OpAsmParser &parser, Attribute &opRegion) {
       .Case(SizedRegion::getName(), SpecRegion::Sized)
       .Case(IsolatedFromAboveRegion::getName(), SpecRegion::IsolatedFromAbove)
       .Case(VariadicRegion::getName(), SpecRegion::Variadic)
-      .Default(SpecRegion::NUM_KINDS);
+      .Default(SpecRegion::LAST_SPEC_REGION);
 
-  if (kind == SpecRegion::NUM_KINDS)
+  if (kind == SpecRegion::LAST_SPEC_REGION)
     return emitError(loc, "unknown region constraint: '") << name << '\'';
   ParseAction<Attribute, OpAsmParser> action{parser};
   opRegion = SpecRegion::kindSwitch(action, kind);

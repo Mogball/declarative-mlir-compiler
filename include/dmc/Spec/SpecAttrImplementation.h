@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dmc/Kind.h"
+#include "SpecKinds.h"
 
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/DialectImplementation.h>
@@ -9,57 +9,9 @@
 namespace dmc {
 
 namespace SpecAttrs {
-enum Kinds {
-  Any = Kind::FIRST_SPEC_ATTR,
-  Bool,
-  Index,
-  APInt,
-
-  AnyI,
-  I,
-  SI,
-  UI,
-  F,
-
-  String,
-  Type,
-  Unit,
-  Dictionary,
-  Elements,
-  DenseElements,
-  ElementsOf,
-  RankedElements,
-  StringElements,
-  Array,
-  ArrayOf,
-
-  SymbolRef,
-  FlatSymbolRef,
-
-  Constant,
-  AnyOf,
-  AllOf,
-  OfType,
-
-  Optional,
-  Default,
-
-  Isa,
-
-  /// Generic Python attribute constraint.
-  Py,
-
-  /// Non-attribute-constraint kinds.
-  OpTrait,
-  OpTraits,
-
-  NUM_ATTRS
-};
-
 bool is(mlir::Attribute base);
 mlir::LogicalResult delegateVerify(mlir::Attribute base,
                                    mlir::Attribute attr);
-
 } // end namespace SpecAttrs
 
 template <typename ConcreteType, unsigned SpecKind,

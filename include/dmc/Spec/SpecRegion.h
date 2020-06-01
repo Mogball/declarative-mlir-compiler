@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dmc/Kind.h"
+#include "SpecKinds.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Region.h>
@@ -14,20 +14,10 @@ class OpAsmPrinter;
 namespace dmc {
 
 namespace SpecRegion {
-enum Kinds {
-  Any = Kind::FIRST_SPEC_REGION,
-  Sized,
-  IsolatedFromAbove,
-  Variadic,
-
-  NUM_KINDS
-};
-
 bool is(mlir::Attribute base);
 mlir::LogicalResult delegateVerify(mlir::Attribute base, mlir::Region *region);
 /// TODO Instead of avoiding Dialect::printAttribute, use it.
 std::string toString(mlir::Attribute opRegion);
-
 } // end namespace SpecRegion
 
 namespace detail {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dmc/Kind.h"
+#include "dmc/Spec/SpecKinds.h"
 
 namespace dmc {
 namespace Traits {
@@ -44,10 +44,10 @@ enum Kind {
 
 namespace TraitAttr {
 enum Kinds {
-  OpTrait = Kind::FIRST_TRAIT_ATTR,
+  OpTrait = SpecRegion::LAST_SPEC_REGION,
   OpTraits,
 
-  NUM_ATTRS
+  LAST_TRAIT_ATTR
 };
 } // end namespace TraitAttr
 } // end namespace dmc

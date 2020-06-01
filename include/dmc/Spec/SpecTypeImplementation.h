@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dmc/Kind.h"
+#include "SpecKinds.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
 #include <mlir/IR/DialectImplementation.h>
@@ -9,54 +9,8 @@
 namespace dmc {
 
 namespace SpecTypes {
-enum Kinds {
-  Any = Kind::FIRST_SPEC_TYPE,
-  None,
-  AnyOf,
-  AllOf,
-
-  AnyInteger,
-  AnyI,
-  AnyIntOfWidths,
-
-  AnySignlessInteger,
-  I,
-  SignlessIntOfWidths,
-
-  AnySignedInteger,
-  SI,
-  SignedIntOfWidths,
-
-  AnyUnsignedInteger,
-  UI,
-  UnsignedIntOfWidths,
-
-  Index,
-
-  AnyFloat,
-  F,
-  FloatOfWidths,
-  BF16,
-
-  AnyComplex,
-  Complex,
-
-  Opaque,
-  Function,
-
-  Variadic, // Optional is a subset of Variadic
-
-  Isa,
-
-  /// Generic Python type constraint.
-  Py,
-
-  NUM_TYPES
-};
-
 bool is(mlir::Type base);
 mlir::LogicalResult delegateVerify(mlir::Type base, mlir::Type ty);
-
 } // end namespace SpecTypes
 
 /// A SpecType is used to define a TypeConstraint. Each SpecType

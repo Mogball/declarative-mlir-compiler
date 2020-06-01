@@ -156,7 +156,7 @@ Attribute TraitRegistry::parseAttribute(DialectAsmParser &parser,
   auto kind = llvm::StringSwitch<TraitAttr::Kinds>(attrName)
       .Case("OpTrait", TraitAttr::OpTrait)
       .Case("OpTraits", TraitAttr::OpTraits)
-      .Default(TraitAttr::NUM_ATTRS);
+      .Default(TraitAttr::LAST_TRAIT_ATTR);
 
   switch (kind) {
   case TraitAttr::OpTrait:

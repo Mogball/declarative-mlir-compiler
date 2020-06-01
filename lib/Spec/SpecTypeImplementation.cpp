@@ -9,7 +9,7 @@ namespace dmc {
 namespace SpecTypes {
 
 bool is(Type base) {
-  return Any <= base.getKind() && base.getKind() < NUM_TYPES;
+  return Any <= base.getKind() && base.getKind() < LAST_SPEC_TYPE;
 }
 
 LogicalResult delegateVerify(Type base, Type ty) {
