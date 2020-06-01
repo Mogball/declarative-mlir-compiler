@@ -6,6 +6,9 @@
 #include <mlir/IR/DialectImplementation.h>
 
 namespace dmc {
+// Forward declarations
+class OpType;
+
 namespace impl {
 
 /// Parse a single attribute using an OpAsmParser.
@@ -71,6 +74,10 @@ void printIntegerList(mlir::DialectAsmPrinter &printer,
                       ListT &ints) {
   llvm::interleaveComma(ints, printer, [&](auto val) { printer << val; });
 }
+
+/// Parse and print an OpType.
+mlir::ParseResult parseOpType(mlir::OpAsmParser &parser, OpType &opType);
+void printOpType(mlir::OpAsmPrinter &printer, OpType opType);
 
 } // end namespace impl
 } // end namespace dmc

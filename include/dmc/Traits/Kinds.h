@@ -44,7 +44,7 @@ enum Kind {
 
 namespace TraitAttr {
 enum Kinds {
-  OpTrait = TypeKinds::LAST_SPEC_REGION,
+  OpTrait = SpecRegion::LAST_SPEC_REGION,
   OpTraits,
 
   LAST_TRAIT_ATTR

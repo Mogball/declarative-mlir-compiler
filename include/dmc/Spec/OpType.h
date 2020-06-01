@@ -4,27 +4,32 @@
 
 #include <mlir/IR/Types.h>
 
-namespace mlir {
 namespace dmc {
 namespace detail {
 struct OpTypeStorage;
-};
+} // end namespace detail
 
-class OpType : public Type::TypeBase<OpType, Type, detail::OpTypeStorage> {
+class OpType : public mlir::Type::TypeBase<OpType, mlir::Type,
+                                           detail::OpTypeStorage> {
 public:
   using Base::Base;
 
-  static OpType get(MLIRContext *ctx,
-                    ArrayRef<StringRef> argNames, ArrayRef<StringRef> retNames,
-                    ArrayRef<Type> argTys, ArrayRef<Type> retTys);
+  static OpType get(
+      mlir::MLIRContext *ctx,
+      llvm::ArrayRef<llvm::StringRef> argNames,
+      llvm::ArrayRef<llvm::StringRef> retNames,
+      llvm::ArrayRef<mlir::Type> argTys, llvm::ArrayRef<mlir::Type> retTys);
 
-  static bool kindof(unsigned kind) { return kind == TypeKinds::OpType; }
+  static bool kindof(unsigned kind) { return kind == TypeKinds::OpTypeKind; }
 
-  StringRef getOperandName(unsigned idx);
-  StringRef getResultName(unsigned idx);
-  ArrayRef<Type> getInputs();
-  ArrayRef<Type> getResults();
+  unsigned getNumOperands();
+  unsigned getNumResults();
+  llvm::StringRef getOperandName(unsigned idx);
+  llvm::StringRef getResultName(unsigned idx);
+  mlir::Type getOperandType(unsigned idx);
+  mlir::Type getResultType(unsigned idx);
+  llvm::ArrayRef<mlir::Type> getInputs();
+  llvm::ArrayRef<mlir::Type> getResults();
 };
 
 } // end namespace dmc
-} // end namespace mlir

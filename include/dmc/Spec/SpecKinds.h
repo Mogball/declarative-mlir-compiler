@@ -112,7 +112,7 @@ enum Kinds {
 } // end namespace SpecRegion
 
 enum TypeKinds {
-  OpType = SpecTypes::LAST_SPEC_TYPE,
+  OpTypeKind = SpecTypes::LAST_SPEC_TYPE,
 
   LAST_KIND
 };

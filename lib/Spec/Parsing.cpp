@@ -2,6 +2,7 @@
 #include "dmc/Spec/Support.h"
 #include "dmc/Spec/SpecRegion.h"
 #include "dmc/Spec/SpecRegionSwitch.h"
+#include "dmc/Spec/OpType.h"
 
 #include <mlir/IR/Builders.h>
 #include <llvm/ADT/StringSwitch.h>
@@ -204,6 +205,31 @@ void printOptionalRegionList(OpAsmPrinter &printer,
                           { printOpRegion(printer, region); });
     printer << ')';
   }
+}
+
+/// OpType parsing.
+template <typename NameList, typename TypeList>
+ParseResult parseValueList(OpAsmParser &parser,
+                           NameList &names, TypeList &tys) {
+  if (parser.parseLess())
+    return failure();
+}
+
+ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
+  // op-type ::= `(` value-list `)` `->` `(` value-list `)`
+  // value-list ::= (value (`,` value)*)?
+  // value ::= identifier `:` type
+  SmallVector<StringRef, 4> argNames, retNames;
+  SmallVector<Type, 4> argTys, retTys;
+  if (parser.parseLParen())
+    return failure();
+  StringRef name;
+  if (!parser.parseOptionalKeyword(&name)) {
+  }
+  if (parser.parseRParen())
+    return failure();
+  opType = OpType::get(parser.getBuilder().getContext(),
+                       argNames, retNames, argTys, retTys);
 }
 
 } // end namespace impl
