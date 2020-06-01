@@ -97,8 +97,8 @@ bool DialectOp::allowsUnknownTypes() {
 }
 
 /// OperationOp
-void OperationOp::setOpType(mlir::FunctionType opTy) {
-  setAttr(getTypeAttrName(), mlir::TypeAttr::get(opTy));
+void OperationOp::setOpType(OpType opTy) {
+  setAttr(getOpTypeAttrName(), mlir::TypeAttr::get(opTy));
 }
 
 void OperationOp::setOpAttrs(mlir::DictionaryAttr opAttrs) {
@@ -122,11 +122,11 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
 
 void OperationOp::build(
     OpBuilder &builder, OperationState &result, StringRef name,
-    mlir::FunctionType type, ArrayRef<NamedAttribute> opAttrs,
+    OpType opType, ArrayRef<NamedAttribute> opAttrs,
     ArrayRef<Attribute> opRegions, ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
-  result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
+  result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
   result.addAttribute(getOpAttrDictAttrName(),
                       builder.getDictionaryAttr(opAttrs));
   result.addAttribute(getOpRegionsAttrName(),
@@ -146,18 +146,18 @@ void OperationOp::build(
 // region-list ::= `(` region-attr (`,` region-attr)* `)`
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
-  mlir::TypeAttr funcTypeAttr;
+  OpType opType;
   NamedAttrList opAttrs;
   mlir::ArrayAttr regionAttr;
   OpTraitsAttr traitArr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      parser.parseAttribute(funcTypeAttr, getTypeAttrName(),
-                            result.attributes) ||
+      impl::parseOpType(parser, opType) ||
       parser.parseOptionalAttrDict(opAttrs) ||
       impl::parseOptionalRegionList(parser, regionAttr) ||
       impl::parseOptionalOpTraitList(parser, traitArr))
     return failure();
+  result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
   result.addAttribute(getOpAttrDictAttrName(),
                       mlir::DictionaryAttr::get(opAttrs, result.getContext()));
   result.addAttribute(getOpRegionsAttrName(), regionAttr);
@@ -174,15 +174,20 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
 void OperationOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  printer.printType(getType());
+  impl::printOpType(printer, getOpType());
   printer << ' ';
   printer.printAttribute(getOpAttrs());
   impl::printOptionalRegionList(printer, getOpRegions());
   impl::printOptionalOpTraitList(printer, getOpTraits());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
-      SymbolTable::getSymbolAttrName(), getTypeAttrName(),
+      SymbolTable::getSymbolAttrName(), getOpTypeAttrName(),
       getOpAttrDictAttrName(), getOpRegionsAttrName(), getOpTraitsAttrName()});
+}
+
+OpType OperationOp::getOpType() {
+  return getAttrOfType<mlir::TypeAttr>(getOpTypeAttrName()).getValue()
+      .cast<OpType>();
 }
 
 mlir::DictionaryAttr OperationOp::getOpAttrs() {
@@ -210,13 +215,8 @@ bool OperationOp::isIsolatedFromAbove() {
       .getValue();
 }
 
-unsigned OperationOp::getNumOperands() {
-  return llvm::size(getType().getInputs());
-}
-
-unsigned OperationOp::getNumResults() {
-  return llvm::size(getType().getResults());
-}
+unsigned OperationOp::getNumOperands() { return getOpType().getNumOperands(); }
+unsigned OperationOp::getNumResults() { return getOpType().getNumResults(); }
 
 /// Trait array manipulation helpers.
 namespace impl {
@@ -237,13 +237,23 @@ LogicalResult OperationOp::verify() {
   if (!getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName()))
     return emitOpError("expected BoolAttr named: ")
         << getIsIsolatedFromAboveAttrName();
+
+  auto opTypeAttr = getAttrOfType<mlir::TypeAttr>(getOpTypeAttrName());
+  if (!opTypeAttr)
+    return emitOpError("expected TypeAttr named: ")
+        << getOpTypeAttrName();
+  if (!opTypeAttr.getValue().isa<OpType>())
+    return emitOpError("expected TypeAttr to contain an `OpType`");
+
   if (!getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName()))
     return emitOpError("expected DictionaryAttr named: ")
         << getOpAttrDictAttrName();
+
   auto opRegions = getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
   if (!opRegions)
     return emitOpError("expected ArrayAttr named: ")
         << getOpRegionsAttrName();
+
   auto opTraits = getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
   if (!opTraits)
     return emitOpError("expected OpTraitsAttr named: ")
@@ -252,7 +262,7 @@ LogicalResult OperationOp::verify() {
   /// If there is are variadic values, there must be a size specifier.
   /// More than size specifier is prohobited. Having a size specifier without
   /// variadic values is okay.
-  bool hasVariadicArgs = hasVariadicValues(getType().getInputs());
+  bool hasVariadicArgs = hasVariadicValues(getOpType().getOperandTypes());
   bool hasSameSizedArgs = impl::hasTrait<SameVariadicOperandSizes>(opTraits);
   bool hasArgSegments = impl::hasTrait<SizedOperandSegments>(opTraits);
   if (hasSameSizedArgs && hasArgSegments)
@@ -261,8 +271,9 @@ LogicalResult OperationOp::verify() {
   if (hasVariadicArgs && !hasSameSizedArgs && !hasArgSegments)
     return emitOpError("more than one variadic operands requires a ")
         << "variadic size specifier";
+
   /// Check results.
-  bool hasVariadicRets = hasVariadicValues(getType().getResults());
+  bool hasVariadicRets = hasVariadicValues(getOpType().getResultTypes());
   bool hasSameSizedRets = impl::hasTrait<SameVariadicResultSizes>(opTraits);
   bool hasRetSegments = impl::hasTrait<SizedResultSegments>(opTraits);
   if (hasSameSizedRets && hasRetSegments)
@@ -292,13 +303,6 @@ LogicalResult OperationOp::verify() {
       return emitOpError("expected only the last region to be variadic");
   }
 
-  return success();
-}
-
-LogicalResult OperationOp::verifyType() {
-  if (!getType().isa<mlir::FunctionType>())
-    return emitOpError("requires '" + getTypeAttrName() +
-                       "' attribute of function type");
   return success();
 }
 

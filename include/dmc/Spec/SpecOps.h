@@ -1,7 +1,8 @@
 #pragma once
 
-#include "ParameterList.h"
 #include "HasChildren.h"
+#include "OpType.h"
+#include "ParameterList.h"
 #include "ReparseOpInterface.h"
 #include "dmc/Traits/OpTrait.h"
 
@@ -100,7 +101,7 @@ public:
 class OperationOp
     : public mlir::Op<OperationOp,
                       mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult,
-                      mlir::OpTrait::IsIsolatedFromAbove, mlir::OpTrait::FunctionLike,
+                      mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
                       mlir::dmc::ReparseOpInterface::Trait> {
@@ -110,7 +111,7 @@ public:
   static llvm::StringRef getOperationName() { return "dmc.Op"; }
 
   static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
-                    llvm::StringRef name, mlir::FunctionType type,
+                    llvm::StringRef name, OpType opType,
                     llvm::ArrayRef<mlir::NamedAttribute> opAttrs,
                     llvm::ArrayRef<mlir::Attribute> opRegions,
                     llvm::ArrayRef<mlir::NamedAttribute> config);
@@ -122,6 +123,7 @@ public:
   mlir::LogicalResult verify();
 
   /// Getters.
+  OpType getOpType();
   mlir::DictionaryAttr getOpAttrs();
   mlir::ArrayAttr getOpRegions();
   OpTraitsAttr getOpTraits();
@@ -137,14 +139,8 @@ public:
   mlir::ParseResult reparse();
 
 private:
-  /// Hooks for FunctionLike
-  friend class mlir::OpTrait::FunctionLike<OperationOp>;
-  unsigned getNumFuncArguments() { return getType().getInputs().size(); }
-  unsigned getNumFuncResults() { return getType().getResults().size(); }
-  mlir::LogicalResult verifyType();
-
   /// Replace the Op type.
-  void setOpType(mlir::FunctionType opTy);
+  void setOpType(OpType opTy);
   /// Replace the Op attributes.
   void setOpAttrs(mlir::DictionaryAttr opAttrs);
   /// Replace the Op regions.
@@ -154,6 +150,9 @@ private:
   static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
                                       mlir::OperationState &result);
 
+  static inline llvm::StringRef getOpTypeAttrName() {
+    return "type";
+  }
   static inline llvm::StringRef getOpAttrDictAttrName() {
     return "op_attrs";
   }

@@ -9,7 +9,7 @@ namespace dmc {
 
 namespace {
 
-mlir::FunctionType getOpType(Operation *op) {
+OpType getOpType(Operation *op) {
   auto *typeTrait = DynamicOperation::of(op)->getTrait<TypeConstraintTrait>();
   assert(typeTrait && "DynamicOperation missing TypeTrait");
   return typeTrait->getOpType();
@@ -61,14 +61,14 @@ LogicalResult checkVariadicSegments(
 } // end anonymous namespace
 
 LogicalResult SameVariadicOperandSizes::verifyOp(Operation *op) const {
-  if (failed(checkVariadicValues(getOpType(op).getInputs(),
+  if (failed(checkVariadicValues(getOpType(op).getOperandTypes(),
                                  op->getOperands())))
     return op->emitOpError("malformed variadic operands");
   return success();
 }
 
 LogicalResult SameVariadicResultSizes::verifyOp(Operation *op) const {
-  if (failed(checkVariadicValues(getOpType(op).getResults(),
+  if (failed(checkVariadicValues(getOpType(op).getResultTypes(),
                                  op->getResults())))
     return op->emitOpError("malformed variadic results");
   return success();
@@ -77,7 +77,7 @@ LogicalResult SameVariadicResultSizes::verifyOp(Operation *op) const {
 LogicalResult SizedOperandSegments::verifyOp(Operation *op) const {
   if (failed(Base::verifyTrait(op)))
     return failure();
-  return checkVariadicSegments(op, getOpType(op).getInputs(),
+  return checkVariadicSegments(op, getOpType(op).getOperandTypes(),
                                getSegmentSizesAttr(op), "operand");
 }
 
@@ -89,7 +89,7 @@ DenseIntElementsAttr SizedOperandSegments::getSegmentSizesAttr(Operation *op) {
 LogicalResult SizedResultSegments::verifyOp(Operation *op) const {
   if (failed(Base::verifyTrait(op)))
     return failure();
-  return checkVariadicSegments(op, getOpType(op).getResults(),
+  return checkVariadicSegments(op, getOpType(op).getResultTypes(),
                                getSegmentSizesAttr(op), "result");
 }
 
@@ -134,25 +134,25 @@ ValueRange getAttrValueGroup(TypeRange tys, ValueRange vals, unsigned idx,
 /// Value group getters for variadic values.
 ValueRange SameVariadicOperandSizes::getOperandGroup(
     Operation *op, unsigned idx) {
-  return getFixedValueGroup<OperandRange>(getOpType(op).getInputs(),
+  return getFixedValueGroup<OperandRange>(getOpType(op).getOperandTypes(),
       op->getOperands(), idx);
 }
 
 ValueRange SameVariadicResultSizes::getResultGroup(
     Operation *op, unsigned idx) {
-  return getFixedValueGroup<ResultRange>(getOpType(op).getResults(),
+  return getFixedValueGroup<ResultRange>(getOpType(op).getResultTypes(),
       op->getResults(), idx);
 }
 
 ValueRange SizedOperandSegments::getOperandGroup(
     Operation *op, unsigned idx) {
-  return getAttrValueGroup<OperandRange>(getOpType(op).getInputs(),
+  return getAttrValueGroup<OperandRange>(getOpType(op).getOperandTypes(),
       op->getOperands(), idx, getSegmentSizesAttr(op));
 }
 
 ValueRange SizedResultSegments::getResultGroup(
     Operation *op, unsigned idx) {
-  return getAttrValueGroup<ResultRange>(getOpType(op).getResults(),
+  return getAttrValueGroup<ResultRange>(getOpType(op).getResultTypes(),
       op->getResults(), idx, getSegmentSizesAttr(op));
 }
 

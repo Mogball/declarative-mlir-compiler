@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SpecKinds.h"
+#include "OpType.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
 #include <mlir/IR/DialectImplementation.h>
@@ -66,8 +67,7 @@ public:
 
 /// Verify Type constraints.
 namespace impl {
-mlir::LogicalResult verifyTypeConstraints(
-    mlir::Operation *op, mlir::FunctionType opTy);
+mlir::LogicalResult verifyTypeConstraints(mlir::Operation *op, OpType opTy);
 } // end namespace impl
 
 } // end namespace dmc

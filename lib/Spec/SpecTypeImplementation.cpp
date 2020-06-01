@@ -64,35 +64,35 @@ LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
   return success();
 }
 
-LogicalResult verifyOperandTypes(Operation *op, mlir::FunctionType opTy,
-                                 DynamicOperation *info) {
+LogicalResult
+verifyOperandTypes(Operation *op, OpType opTy, DynamicOperation *info) {
   if (info->getTrait<SizedOperandSegments>()) {
-    return verifyVariadicTypes(op, opTy.getInputs(),
+    return verifyVariadicTypes(op, opTy.getOperandTypes(),
         SizedOperandSegments::getOperandGroup, "operand");
   } else if (info->getTrait<SameVariadicOperandSizes>()) {
-    return verifyVariadicTypes(op, opTy.getInputs(),
+    return verifyVariadicTypes(op, opTy.getOperandTypes(),
         SameVariadicOperandSizes::getOperandGroup, "operand");
   } else {
-    return verifyTypeRange(op, opTy.getInputs(),
+    return verifyTypeRange(op, opTy.getOperandTypes(),
         op->getOperandTypes(), "operand");
   }
 }
 
-LogicalResult verifyResultTypes(Operation *op, mlir::FunctionType opTy,
-                                DynamicOperation *info) {
+LogicalResult
+verifyResultTypes(Operation *op, OpType opTy, DynamicOperation *info) {
   if (info->getTrait<SizedResultSegments>()) {
-    return verifyVariadicTypes(op, opTy.getResults(),
+    return verifyVariadicTypes(op, opTy.getResultTypes(),
         SizedResultSegments::getResultGroup, "result");
   } else if (info->getTrait<SameVariadicResultSizes>()) {
-    return verifyVariadicTypes(op, opTy.getResults(),
+    return verifyVariadicTypes(op, opTy.getResultTypes(),
         SameVariadicResultSizes::getResultGroup, "result");
   } else {
-    return verifyTypeRange(op, opTy.getResults(),
+    return verifyTypeRange(op, opTy.getResultTypes(),
         op->getResultTypes(), "result");
   }
 }
 
-LogicalResult verifyTypeConstraints(Operation *op, mlir::FunctionType opTy) {
+LogicalResult verifyTypeConstraints(Operation *op, OpType opTy) {
   auto *info = DynamicOperation::of(op);
   return failure(failed(verifyOperandTypes(op, opTy, info)) ||
                  failed(verifyResultTypes(op, opTy, info)));

@@ -5,6 +5,7 @@
 #include "dmc/Spec/SpecTypeImplementation.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
 #include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/OpType.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/OpDefinition.h>
@@ -77,7 +78,7 @@ public:
   static llvm::StringRef getName() { return "TypeConstraintTrait"; }
 
   /// Create a type constraint with types wrapped in a FunctionType.
-  inline explicit TypeConstraintTrait(mlir::FunctionType opTy)
+  inline explicit TypeConstraintTrait(OpType opTy)
       : opTy{opTy} {}
 
   /// Check the Op's operand and result types.
@@ -88,7 +89,7 @@ public:
   inline auto getOpType() { return opTy; }
 
 private:
-  mlir::FunctionType opTy;
+  OpType opTy;
 };
 
 class AttrConstraintTrait : public DynamicTrait {

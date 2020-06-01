@@ -63,14 +63,14 @@ ParseResult reparseNamedAttrs(OperationOp op, NamedAttrRange attrs,
 } // end anonymous namespace
 
 ParseResult OperationOp::reparse() {
-  /// Reparse operation type.
-  auto opTy = getType();
-  std::vector<Type> argTys, resTys;
-  if (failed(reparseTypeRange(*this, opTy.getInputs(), argTys, "operand")))
+  /// Reparse operation type. Names will remain the same.
+  auto opTy = getOpType();
+  SmallVector<Type, 4> argTys, retTys;
+  if (reparseTypeRange(*this, opTy.getOperandTypes(), argTys, "operand") ||
+      reparseTypeRange(*this, opTy.getResultTypes(), retTys, "result"))
     return failure();
-  if (failed(reparseTypeRange(*this, opTy.getResults(), resTys, "result")))
-    return failure();
-  auto newOpTy = mlir::FunctionType::get(argTys, resTys, getContext());
+  auto newOpTy = OpType::get(getContext(), opTy.getOperandNames(),
+                             opTy.getResultNames(), argTys, retTys);
   if (newOpTy != opTy)
     setOpType(newOpTy);
 

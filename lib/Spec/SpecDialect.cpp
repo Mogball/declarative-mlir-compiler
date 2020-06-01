@@ -29,7 +29,9 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyComplexType, ComplexType, OpaqueType,
       FunctionType, VariadicType, IsaType,
 
-      PyType
+      PyType,
+
+      OpType
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,

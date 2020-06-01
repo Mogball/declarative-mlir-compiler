@@ -60,24 +60,24 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
 
   /// Add operand and result count op traits if none exist. For variadic
   /// values, apply an AtLeast op trait.
-  auto opTy = opOp.getType();
-  if (!hasVariadicValues(opTy.getInputs())) {
-    if (failed(op->addOpTrait<NOperands>(llvm::size(opTy.getInputs()))))
+  auto opTy = opOp.getOpType();
+  if (!hasVariadicValues(opTy.getOperandTypes())) {
+    if (failed(op->addOpTrait<NOperands>(opTy.getNumOperands())))
       return opOp.emitOpError("specified an invalid op trait: ")
           << NOperands::getName();
   } else {
     if (!op->getTrait<AtLeastNOperands>())
       op->addOpTrait<AtLeastNOperands>(countNonVariadicValues(
-          opTy.getResults()));
+          opTy.getResultTypes()));
   }
-  if (!hasVariadicValues(opTy.getResults())) {
-    if (failed(op->addOpTrait<NResults>(llvm::size(opTy.getResults()))))
+  if (!hasVariadicValues(opTy.getResultTypes())) {
+    if (failed(op->addOpTrait<NResults>(opTy.getNumResults())))
       return opOp.emitOpError("specified an invalid op trait: ")
           << NResults::getName();
   } else {
     if (!op->getTrait<AtLeastNResults>())
       op->addOpTrait<AtLeastNResults>(countNonVariadicValues(
-          opTy.getResults()));
+          opTy.getResultTypes()));
   }
 
   /// Add type and attribute constraint traits last. Type and regions constrints
