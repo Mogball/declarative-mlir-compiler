@@ -120,10 +120,21 @@ enum Kinds {
 };
 } // end namespace SpecSuccessor
 
-enum TypeKinds {
+namespace TypeKinds {
+enum Kinds {
   OpTypeKind = SpecTypes::LAST_SPEC_TYPE,
 
   LAST_KIND
 };
+} // end namespace TypeKinds
+
+namespace AttrKinds {
+enum Kinds {
+  OpRegionKind = SpecSuccessor::LAST_SPEC_SUCCESSOR,
+  OpSuccessorKind,
+
+  LAST_KIND
+};
+} // end namespace AttrKinds
 
 } // end namespace dmc

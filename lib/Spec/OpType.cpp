@@ -1,4 +1,5 @@
 #include "dmc/Spec/OpType.h"
+#include "dmc/Spec/NamedConstraints.h"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Diagnostics.h>
@@ -7,17 +8,11 @@
 
 using namespace mlir;
 
-template <typename RangeT>
-bool range_equal(const RangeT &lhs, const RangeT &rhs) {
-  return llvm::size(lhs) == llvm::size(rhs) &&
-    std::equal(std::begin(lhs), std::end(lhs), std::begin(rhs));
-}
-
 namespace dmc {
-namespace detail {
 
-LogicalResult verifyNameTypeRanges(Location loc, ArrayRef<StringRef> names,
-                                   ArrayRef<Type> types, const char *val) {
+template <typename ArgT>
+LogicalResult verifyNamedRange(Location loc, ArrayRef<StringRef> names,
+                               ArrayRef<ArgT> types, const char *val) {
   if (llvm::size(names) != llvm::size(types))
     return emitError(loc) << "expected same number of " << val
         << " names and types";
@@ -34,23 +29,15 @@ LogicalResult verifyNameTypeRanges(Location loc, ArrayRef<StringRef> names,
   return success();
 }
 
+namespace detail {
+
 struct OpTypeBase {
   ArrayRef<StringRef> argNames, retNames;
   ArrayRef<Type> argTys, retTys;
 
   bool operator==(const OpTypeBase &o) const {
-    return
-        range_equal(argNames, o.argNames) &&
-        range_equal(retNames, o.retNames) &&
-        range_equal(argTys, o.argTys) &&
-        range_equal(retTys, o.retTys);
-  }
-
-  LogicalResult verifyConstructionInvariants(Location loc) {
-    return success(succeeded(verifyNameTypeRanges(loc, argNames, argTys,
-                                                  "operand")) &&
-                   succeeded(verifyNameTypeRanges(loc, retNames, retTys,
-                                                  "result")));
+    return argNames == o.argNames && retNames == o.retNames &&
+        argTys == o.argTys && retTys == o.retTys;
   }
 };
 
@@ -67,22 +54,68 @@ struct OpTypeStorage : public TypeStorage, public OpTypeBase {
 
   static OpTypeStorage *construct(TypeStorageAllocator &alloc,
                                   const KeyTy &key) {
-    return new (alloc.allocate<OpTypeStorage>()) OpTypeStorage{OpTypeBase{
+    return new (alloc.allocate<OpTypeStorage>()) OpTypeStorage{{
       alloc.copyInto(key.argNames), alloc.copyInto(key.retNames),
       alloc.copyInto(key.argTys), alloc.copyInto(key.retTys)
     }};
   }
 };
+
+struct NamedConstraintBase {
+  ArrayRef<StringRef> names;
+  ArrayRef<Attribute> attrs;
+
+  bool operator==(const NamedConstraintBase &o) const {
+    return names == o.names && attrs == o.attrs;
+  }
+};
+
+struct NamedConstraintStorage : public AttributeStorage,
+                                public NamedConstraintBase {
+  using KeyTy = NamedConstraintBase;
+
+  explicit NamedConstraintStorage(const KeyTy &key)
+      : NamedConstraintBase{key} {}
+
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return llvm::hash_combine(key.names, key.attrs);
+  }
+
+  static NamedConstraintStorage *construct(AttributeStorageAllocator &alloc,
+                                           const KeyTy &key) {
+    return new (alloc.allocate<NamedConstraintStorage>())
+        NamedConstraintStorage{{alloc.copyInto(key.names),
+                                alloc.copyInto(key.attrs)}};
+  }
+};
+
 } // end namespace detail
 
 OpType OpType::getChecked(
     mlir::Location loc,
     ArrayRef<StringRef> argNames, ArrayRef<StringRef> retNames,
     ArrayRef<Type> argTys, ArrayRef<Type> retTys) {
-  detail::OpTypeBase opType{argNames, retNames, argTys, retTys};
-  if (failed(opType.verifyConstructionInvariants(loc)))
+  if (failed(verifyNamedRange(loc, argNames, argTys, "operand")) ||
+      failed(verifyNamedRange(loc, retNames, retTys, "result")))
     return {};
+  detail::OpTypeBase opType{argNames, retNames, argTys, retTys};
   return Base::get(loc.getContext(), TypeKinds::OpTypeKind, opType);
+}
+
+OpRegion OpRegion::getChecked(Location loc, ArrayRef<StringRef> names,
+                              ArrayRef<Attribute> opRegions) {
+  if (failed(verifyNamedRange(loc, names, opRegions, "region")))
+    return {};
+  return Base::get(loc.getContext(), AttrKinds::OpRegionKind,
+                   detail::NamedConstraintBase{names, opRegions});
+}
+
+OpSuccessor OpSuccessor::getChecked(Location loc, ArrayRef<StringRef> names,
+                                    ArrayRef<Attribute> opSuccs) {
+  if (failed(verifyNamedRange(loc, names, opSuccs, "successor")))
+    return {};
+  return Base::get(loc.getContext(), AttrKinds::OpSuccessorKind,
+                   detail::NamedConstraintBase{names, opSuccs});
 }
 
 unsigned OpType::getNumOperands() {

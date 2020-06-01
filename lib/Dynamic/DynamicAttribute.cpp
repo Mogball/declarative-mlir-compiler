@@ -17,15 +17,12 @@ namespace detail {
 struct DynamicAttributeStorage : public AttributeStorage {
   using KeyTy = std::pair<DynamicAttributeImpl *, ArrayRef<Attribute>>;
 
-  explicit DynamicAttributeStorage(const KeyTy &key)
-      : impl{key.first},
-        params{std::begin(key.second), std::end(key.second)} {}
+  explicit DynamicAttributeStorage(DynamicAttributeImpl *impl,
+                                   ArrayRef<Attribute> params)
+      : impl{impl}, params{params} {}
 
   bool operator==(const KeyTy &key) const {
-    return impl == key.first &&
-        std::size(params) == std::size(key.second) &&
-        std::equal(std::begin(params), std::end(params),
-                   std::begin(key.second));
+    return impl == key.first && params == key.second;
   }
 
   static llvm::hash_code hashKey(const KeyTy &key) {
@@ -35,11 +32,11 @@ struct DynamicAttributeStorage : public AttributeStorage {
   static DynamicAttributeStorage *construct(AttributeStorageAllocator &alloc,
                                             const KeyTy &key) {
     return new (alloc.allocate<DynamicAttributeStorage>())
-        DynamicAttributeStorage{key};
+        DynamicAttributeStorage{key.first, alloc.copyInto(key.second)};
   }
 
   DynamicAttributeImpl *impl;
-  std::vector<Attribute> params;
+  ArrayRef<Attribute> params;
 };
 } // end namespace detail
 

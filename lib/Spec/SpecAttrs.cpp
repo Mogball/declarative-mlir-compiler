@@ -71,10 +71,7 @@ struct DimensionAttrStorage : public AttributeStorage {
   explicit DimensionAttrStorage(KeyTy key) : dims{key} {}
   static llvm::hash_code hashKey(KeyTy key) { return hash_value(key); }
 
-  bool operator==(KeyTy key) const {
-    return std::size(key) == std::size(dims) &&
-        std::equal(std::begin(key), std::end(key), std::begin(dims));
-  }
+  bool operator==(KeyTy key) const { return key == dims; }
 
   static DimensionAttrStorage *construct(AttributeStorageAllocator &alloc,
                                          KeyTy key) {

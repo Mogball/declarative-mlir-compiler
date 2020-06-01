@@ -44,7 +44,7 @@ enum Kind {
 
 namespace TraitAttr {
 enum Kinds {
-  OpTrait = SpecSuccessor::LAST_SPEC_SUCCESSOR,
+  OpTrait = AttrKinds::LAST_KIND,
   OpTraits,
 
   LAST_TRAIT_ATTR
