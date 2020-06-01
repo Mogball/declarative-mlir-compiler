@@ -1,5 +1,10 @@
 #include "dmc/Spec/OpType.h"
 
+#include <mlir/IR/Location.h>
+#include <mlir/IR/Diagnostics.h>
+#include <llvm/ADT/StringSet.h>
+#include <llvm/ADT/Twine.h>
+
 using namespace mlir;
 
 template <typename RangeT>
@@ -10,6 +15,25 @@ bool range_equal(const RangeT &lhs, const RangeT &rhs) {
 
 namespace dmc {
 namespace detail {
+
+LogicalResult verifyNameTypeRanges(Location loc, ArrayRef<StringRef> names,
+                                   ArrayRef<Type> types, const char *val) {
+  if (llvm::size(names) != llvm::size(types))
+    return emitError(loc) << "expected same number of " << val
+        << " names and types";
+  // Verify names are unique.
+  StringSet<> nameSet;
+  unsigned idx{};
+  for (auto name : names) {
+    auto [it, inserted] = nameSet.insert(name);
+    if (!inserted)
+      return emitError(loc) << "name of " << val << " #" << idx << ": '"
+          << Twine{name} << "' is not unique";
+    ++idx;
+  }
+  return success();
+}
+
 struct OpTypeBase {
   ArrayRef<StringRef> argNames, retNames;
   ArrayRef<Type> argTys, retTys;
@@ -20,6 +44,13 @@ struct OpTypeBase {
         range_equal(retNames, o.retNames) &&
         range_equal(argTys, o.argTys) &&
         range_equal(retTys, o.retTys);
+  }
+
+  LogicalResult verifyConstructionInvariants(Location loc) {
+    return success(succeeded(verifyNameTypeRanges(loc, argNames, argTys,
+                                                  "operand")) &&
+                   succeeded(verifyNameTypeRanges(loc, retNames, retTys,
+                                                  "result")));
   }
 };
 
@@ -44,13 +75,14 @@ struct OpTypeStorage : public TypeStorage, public OpTypeBase {
 };
 } // end namespace detail
 
-OpType OpType::get(MLIRContext *ctx,
-                   ArrayRef<StringRef> argNames, ArrayRef<StringRef> retNames,
-                   ArrayRef<Type> argTys, ArrayRef<Type> retTys) {
-  assert(llvm::size(argNames) == llvm::size(argTys));
-  assert(llvm::size(retNames) == llvm::size(retTys));
-  return Base::get(ctx, TypeKinds::OpTypeKind,
-                   detail::OpTypeBase{argNames, retNames, argTys, retTys});
+OpType OpType::getChecked(
+    mlir::Location loc,
+    ArrayRef<StringRef> argNames, ArrayRef<StringRef> retNames,
+    ArrayRef<Type> argTys, ArrayRef<Type> retTys) {
+  detail::OpTypeBase opType{argNames, retNames, argTys, retTys};
+  if (failed(opType.verifyConstructionInvariants(loc)))
+    return {};
+  return Base::get(loc.getContext(), TypeKinds::OpTypeKind, opType);
 }
 
 unsigned OpType::getNumOperands() {

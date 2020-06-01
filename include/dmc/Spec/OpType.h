@@ -14,8 +14,8 @@ class OpType : public mlir::Type::TypeBase<OpType, mlir::Type,
 public:
   using Base::Base;
 
-  static OpType get(
-      mlir::MLIRContext *ctx,
+  static OpType getChecked(
+      mlir::Location loc,
       llvm::ArrayRef<llvm::StringRef> argNames,
       llvm::ArrayRef<llvm::StringRef> retNames,
       llvm::ArrayRef<mlir::Type> argTys, llvm::ArrayRef<mlir::Type> retTys);

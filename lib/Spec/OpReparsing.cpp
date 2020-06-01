@@ -69,8 +69,8 @@ ParseResult OperationOp::reparse() {
   if (reparseTypeRange(*this, opTy.getOperandTypes(), argTys, "operand") ||
       reparseTypeRange(*this, opTy.getResultTypes(), retTys, "result"))
     return failure();
-  auto newOpTy = OpType::get(getContext(), opTy.getOperandNames(),
-                             opTy.getResultNames(), argTys, retTys);
+  auto newOpTy = OpType::getChecked(getLoc(), opTy.getOperandNames(),
+                                    opTy.getResultNames(), argTys, retTys);
   if (newOpTy != opTy)
     setOpType(newOpTy);
 

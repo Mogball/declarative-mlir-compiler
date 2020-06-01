@@ -239,11 +239,11 @@ ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
   // value ::= identifier `:` type
   SmallVector<StringRef, 4> argNames, retNames;
   SmallVector<Type, 4> argTys, retTys;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (parseValueList(parser, argNames, argTys) || parser.parseArrow() ||
       parseValueList(parser, retNames, retTys))
     return failure();
-  opType = OpType::get(parser.getBuilder().getContext(),
-                       argNames, retNames, argTys, retTys);
+  opType = OpType::getChecked(loc, argNames, retNames, argTys, retTys);
   return success();
 }
 
