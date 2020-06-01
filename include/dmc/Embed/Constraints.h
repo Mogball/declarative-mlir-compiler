@@ -8,11 +8,11 @@
 namespace mlir {
 namespace py {
 
-LogicalResult evalConstraintExpr(StringRef expr, Attribute attr);
-LogicalResult evalConstraintExpr(StringRef expr, Type type);
+LogicalResult registerConstraint(Location loc, StringRef expr,
+                                 std::string &funcName);
 
-LogicalResult verifyAttrConstraint(Location loc, StringRef expr);
-LogicalResult verifyTypeConstraint(Location loc, StringRef expr);
+LogicalResult evalConstraint(const std::string &funcName, Type type);
+LogicalResult evalConstraint(const std::string &funcName, Attribute attr);
 
 } // end namespace py
 } // end namespace mlir

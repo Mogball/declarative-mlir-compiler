@@ -350,8 +350,6 @@ public:
   static llvm::StringLiteral getAttrName() { return "Py"; }
 
   static PyAttr getChecked(mlir::Location loc, llvm::StringRef expr);
-  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
-                                                          llvm::StringRef expr);
   mlir::LogicalResult verify(Attribute attr);
 
   static Attribute parse(mlir::DialectAsmParser &parser);

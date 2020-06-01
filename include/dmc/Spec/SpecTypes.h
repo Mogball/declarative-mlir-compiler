@@ -358,8 +358,6 @@ public:
   static llvm::StringLiteral getTypeName() { return "Py"; }
 
   static PyType getChecked(mlir::Location loc, llvm::StringRef expr);
-  static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
-                                                          llvm::StringRef expr);
   mlir::LogicalResult verify(Type ty);
 
   static Type parse(mlir::DialectAsmParser &parser);

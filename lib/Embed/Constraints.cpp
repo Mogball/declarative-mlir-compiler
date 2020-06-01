@@ -6,7 +6,6 @@
 #include "dmc/Python/Polymorphic.h"
 
 #include <mlir/IR/Diagnostics.h>
-#include <mlir/IR/StandardTypes.h>
 #include <pybind11/embed.h>
 #include <pybind11/cast.h>
 
@@ -15,49 +14,58 @@ using namespace pybind11;
 namespace mlir {
 namespace py {
 
-/// Evaluate a single expression Python constraint on a type or attribute.
-template <typename ArgT>
-static LogicalResult evalConstraint(StringRef expr, const char *name,
-                                    ArgT arg) {
-  /// Substitute placeholder `self -> name`.
-  dict fmtArgs{"self"_a = name};
-  auto pyExpr = pybind11::cast(expr.str()).cast<str>().format(**fmtArgs);
-  /// Wrap in a function.
-  auto scope = getMainScope();
-  dict funcExpr{"name"_a = name, "expr"_a = pyExpr};
-  auto funcStr = "def constraint({name}): return {expr}"_s.format(**funcExpr);
-  exec(funcStr, scope);
-  /// Call the function.
-  return success(scope["constraint"](arg).template cast<bool>());
-}
+namespace {
+class ConstraintRegistry {
+public:
+  static ConstraintRegistry &get() {
+    static ConstraintRegistry instance;
+    return instance;
+  }
 
-LogicalResult evalConstraintExpr(StringRef expr, Attribute attr) {
-  return evalConstraint(expr, "attr", attr);
-}
+  /// Function registers a constraint and returns the name. Throws on error.
+  std::string registerConstraint(std::string expr) {
+    // Substitute `{self}`
+    dict fmtArgs{"self"_a = "arg"};
+    auto pyExpr = pybind11::cast(expr).cast<str>().format(**fmtArgs);
+    // Wrap in a function and register it in the main scope
+    auto scope = getMainScope();
+    std::string funcName{"anonymous_constraint_"};
+    funcName += std::to_string(idx++);
+    dict funcExpr{"func_name"_a = funcName, "expr"_a = pyExpr};
+    auto funcStr = "def {func_name}(arg): return {expr}"_s
+        .format(**funcExpr);
+    exec(funcStr, scope);
+    return funcName;
+  }
 
-LogicalResult evalConstraintExpr(StringRef expr, Type type) {
-  return evalConstraint(expr, "type", type);
-}
+  template <typename ArgT>
+  LogicalResult evalConstraint(const std::string &funcName, ArgT arg) {
+    return success(getMainScope()[funcName.c_str()](arg).template cast<bool>());
+  }
 
-/// Verify that a single expression constraint has valid syntax, can be called,
-/// and returns a boolean value.
-template <typename ArgT>
-static LogicalResult verifyConstraint(Location loc, StringRef expr,
-                                      const char *name, ArgT dummy) {
+private:
+  ConstraintRegistry() = default;
+
+  std::size_t idx{};
+};
+} // end anonymous namespace
+
+LogicalResult registerConstraint(Location loc, StringRef expr,
+                                 std::string &funcName) {
   try {
-    evalConstraint(expr, name, dummy);
-  } catch (std::runtime_error &e) {
-    return emitError(loc) << "Failed to verify constraint: " << e.what();
+    funcName = ConstraintRegistry::get().registerConstraint(expr.str());
+  } catch (const std::runtime_error &e) {
+    return emitError(loc) << "Failed to create Python constraint: " << e.what();
   }
   return success();
 }
 
-LogicalResult verifyAttrConstraint(Location loc, StringRef expr) {
-  return verifyConstraint(loc, expr, "attr", UnitAttr::get(loc.getContext()));
+LogicalResult evalConstraint(const std::string &funcName, Type type) {
+  return ConstraintRegistry::get().evalConstraint(funcName, type);
 }
 
-LogicalResult verifyTypeConstraint(Location loc, StringRef expr) {
-  return verifyConstraint(loc, expr, "type", NoneType::get(loc.getContext()));
+LogicalResult evalConstraint(const std::string &funcName, Attribute attr) {
+  return ConstraintRegistry::get().evalConstraint(funcName, attr);
 }
 
 } // end namespace py

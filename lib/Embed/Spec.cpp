@@ -17,6 +17,8 @@ struct PyConstraintStorage {
   static llvm::hash_code hashKey(KeyTy key) { return hash_value(key); }
 
   StringRef expr;
+  /// Not part of the key, but store the function name. Initialize to empty.
+  std::string funcName{};
 };
 
 struct PyTypeStorage : public PyConstraintStorage, public TypeStorage {
@@ -41,16 +43,17 @@ struct PyAttrStorage : public PyConstraintStorage, public AttributeStorage {
 
 /// PyType implementation.
 PyType PyType::getChecked(Location loc, StringRef expr) {
-  return Base::getChecked(loc, Kind, expr);
-}
-
-LogicalResult PyType::verifyConstructionInvariants(Location loc,
-                                                   StringRef expr) {
-  return py::verifyTypeConstraint(loc, expr);
+  auto ret = Base::get(loc.getContext(), Kind, expr);
+  auto &funcName = ret.getImpl()->funcName;
+  if (funcName.empty()) {
+    if (failed(py::registerConstraint(loc, expr, funcName)))
+      return {};
+  }
+  return ret;
 }
 
 LogicalResult PyType::verify(Type ty) {
-  return py::evalConstraintExpr(getImpl()->expr, ty);
+  return py::evalConstraint(getImpl()->funcName, ty);
 }
 
 void PyType::print(DialectAsmPrinter &printer) {
@@ -59,16 +62,17 @@ void PyType::print(DialectAsmPrinter &printer) {
 
 /// PyAttr implementation.
 PyAttr PyAttr::getChecked(Location loc, StringRef expr) {
-  return Base::getChecked(loc, Kind, expr);
-}
-
-LogicalResult PyAttr::verifyConstructionInvariants(Location loc,
-                                                   StringRef expr) {
-  return py::verifyAttrConstraint(loc, expr);
+  auto ret = Base::get(loc.getContext(), Kind, expr);
+  auto &funcName = ret.getImpl()->funcName;
+  if (funcName.empty()) {
+    if (failed(py::registerConstraint(loc, expr, funcName)))
+      return {};
+  }
+  return ret;
 }
 
 LogicalResult PyAttr::verify(Attribute attr) {
-  return py::evalConstraintExpr(getImpl()->expr, attr);
+  return py::evalConstraint(getImpl()->funcName, attr);
 }
 
 void PyAttr::print(DialectAsmPrinter &printer) {
