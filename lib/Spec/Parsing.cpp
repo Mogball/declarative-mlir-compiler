@@ -236,7 +236,7 @@ ParseResult parseOptionalSuccessorList(OpAsmParser &parser,
         return failure();
       opSuccs.push_back(opSucc);
     } while (!parser.parseOptionalComma());
-    if (parser.parseRParen())
+    if (parser.parseRSquare())
       return failure();
   }
   succsAttr = parser.getBuilder().getArrayAttr(opSuccs);
@@ -293,8 +293,8 @@ ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
   return success();
 }
 
-template <typename NameList, typename TypeList>
-void printValueList(OpAsmPrinter &printer, NameList names, TypeList tys) {
+template <typename PrinterT, typename NameList, typename TypeList>
+void printValueList(PrinterT &printer, NameList names, TypeList tys) {
   printer << '(';
   llvm::interleaveComma(llvm::zip(names, tys), printer, [&](auto it) {
     printer << std::get<0>(it)<< " : " << std::get<1>(it);
@@ -302,10 +302,19 @@ void printValueList(OpAsmPrinter &printer, NameList names, TypeList tys) {
   printer << ')';
 }
 
-void printOpType(OpAsmPrinter &printer, OpType opType) {
+template <typename PrinterT>
+void printOpTypeImpl(PrinterT &printer, OpType opType) {
   printValueList(printer, opType.getOperandNames(), opType.getOperandTypes());
   printer << " -> ";
   printValueList(printer, opType.getResultNames(), opType.getResultTypes());
+}
+
+void printOpType(OpAsmPrinter &printer, OpType opType) {
+  return printOpTypeImpl(printer, opType);
+}
+
+void printOpType(mlir::DialectAsmPrinter &printer, OpType opType) {
+  return printOpTypeImpl(printer, opType);
 }
 
 } // end namespace impl

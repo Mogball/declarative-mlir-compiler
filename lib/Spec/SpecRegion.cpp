@@ -15,7 +15,7 @@ namespace dmc {
 namespace SpecRegion {
 
 bool is(Attribute base) {
-  return Any <= base.getKind() && base.getKind() <= LAST_SPEC_REGION;
+  return Any <= base.getKind() && base.getKind() < LAST_SPEC_REGION;
 }
 
 LogicalResult delegateVerify(Attribute base, Region &region) {

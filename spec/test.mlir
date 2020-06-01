@@ -52,4 +52,14 @@ module {
     "test.op_py"(%0) { index = [1, 2, 3] } : (i32) -> ()
     "test.ret"() : () -> ()
   }
+
+  func @test6() -> () {
+  ^bb0:
+    "test.op_succ"() [^bb1, ^bb2] : () -> ()
+  ^bb1:
+    "test.op_succ"() [^bb2, ^bb2, ^bb2] : () -> ()
+  ^bb2:
+    "test.ret"() : () -> ()
+  }
+
 }

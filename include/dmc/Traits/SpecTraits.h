@@ -5,6 +5,7 @@
 #include "dmc/Spec/SpecTypeImplementation.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
 #include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/OpType.h"
 
 #include <mlir/IR/Attributes.h>
@@ -112,7 +113,7 @@ private:
   mlir::DictionaryAttr opAttrs;
 };
 
-/// Top-level Region verifier apply the given constraints on an Operation's
+/// Top-level Region verifier applies the given constraints on an Operation's
 /// regions. Validity of the constraints is verified on the Operation spec.
 class RegionConstraintTrait : public DynamicTrait {
 public:
@@ -131,6 +132,27 @@ public:
 
 private:
   mlir::ArrayAttr opRegions;
+};
+
+/// Top-level successor verifier applies the given constraints on an Operation's
+/// successors. Validity of the constraints is verified on the Operation spec.
+class SuccessorConstraintTrait : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "SuccessorConstraintTrait"; }
+
+  /// Create a successor constraint with constraints in an ArrayAttr.
+  inline explicit SuccessorConstraintTrait(mlir::ArrayAttr opSuccs)
+      : opSuccs{opSuccs} {}
+
+  /// Check the Op's successors.
+  inline mlir::LogicalResult verifyOp(mlir::Operation *op) const override {
+    return impl::verifySuccessorConstraints(op, opSuccs);
+  }
+
+  inline auto getOpSuccessors() { return opSuccs; }
+
+private:
+  mlir::ArrayAttr opSuccs;
 };
 
 } // end namespace dmc

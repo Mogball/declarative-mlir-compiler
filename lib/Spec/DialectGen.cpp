@@ -54,9 +54,18 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
       op->addOpTrait<AtLeastNRegions>(llvm::size(opRegions) - numVarRegions);
   }
 
-  /// Default to 0 successors if no trait is specified.
-  if (!op->getTrait<NSuccessors>() && !op->getTrait<AtLeastNSuccessors>())
-    op->addOpTrait<NSuccessors>(0);
+  /// Add successor counts.
+  auto opSuccs = opOp.getOpSuccessors();
+  auto numVarSuccs = llvm::count_if(opSuccs, [](Attribute opSucc) {
+                                    return opSucc.isa<VariadicSuccessor>(); });
+  if (!numVarSuccs) {
+    if (failed(op->addOpTrait<NSuccessors>(llvm::size(opSuccs))))
+      return opOp.emitOpError("specified and invalid op trait: ")
+          << NSuccessors::getName();
+  } else {
+    if (!op->getTrait<AtLeastNSuccessors>())
+      op->addOpTrait<AtLeastNSuccessors>(llvm::size(opSuccs) - numVarSuccs);
+  }
 
   /// Add operand and result count op traits if none exist. For variadic
   /// values, apply an AtLeast op trait.
@@ -85,6 +94,7 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   op->addOpTrait<TypeConstraintTrait>(opTy);
   op->addOpTrait<AttrConstraintTrait>(opOp.getOpAttrs());
   op->addOpTrait<RegionConstraintTrait>(opRegions);
+  op->addOpTrait<SuccessorConstraintTrait>(opSuccs);
 
   /// Finally, register the Op.
   if (failed(op->finalize()) ||

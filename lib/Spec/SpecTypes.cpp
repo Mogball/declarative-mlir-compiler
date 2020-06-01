@@ -380,11 +380,6 @@ LogicalResult IsaType::verify(Type ty) {
 }
 
 /// Type printing.
-void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  PrintAction<DialectAsmPrinter> action{printer};
-  SpecTypes::kindSwitch(action, type);
-}
-
 void printTypeList(ArrayRef<Type> tys, DialectAsmPrinter &printer) {
   printer << '<';
   llvm::interleaveComma(tys, printer, [&](Type ty) { printer << ty; });

@@ -339,6 +339,10 @@ LogicalResult OperationOp::verify() {
           *this, opSuccs, &SpecSuccessor::is, "successor")))
     return failure();
 
+  /// An operator with successors must be a terminator.
+  if (llvm::size(opSuccs) && !isTerminator())
+    return emitOpError("an operation with successors must be a terminator");
+
   return success();
 }
 

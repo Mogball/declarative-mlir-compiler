@@ -61,8 +61,18 @@ DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
 
 LogicalResult DynamicOperation::addOpTrait(
     StringRef name, std::unique_ptr<DynamicTrait> trait) {
-  auto [it, inserted] = traits.try_emplace(name, std::move(trait));
-  return success(inserted);
+  if (getTrait(name))
+    return failure();
+  traits.emplace_back(name, std::move(trait));
+  return success();
+}
+
+DynamicTrait *DynamicOperation::getTrait(StringRef name) {
+  for (auto &trait : traits) {
+    if (trait.first == name)
+      return trait.second.get();
+  }
+  return nullptr;
 }
 
 LogicalResult DynamicOperation::finalize() {

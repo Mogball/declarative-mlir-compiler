@@ -86,6 +86,7 @@ void printIntegerList(mlir::DialectAsmPrinter &printer,
 /// Parse and print an OpType.
 mlir::ParseResult parseOpType(mlir::OpAsmParser &parser, OpType &opType);
 void printOpType(mlir::OpAsmPrinter &printer, OpType opType);
+void printOpType(mlir::DialectAsmPrinter &printer, OpType opType);
 
 } // end namespace impl
 } // end namespace dmc

@@ -357,12 +357,6 @@ void printAttrList(const AttrList &attrs, DialectAsmPrinter &printer) {
 
 } // end anonymous namespace
 
-void SpecDialect::printAttribute(
-    Attribute attr, DialectAsmPrinter &printer) const {
-  PrintAction<DialectAsmPrinter> action{printer};
-  SpecAttrs::kindSwitch(action, attr);
-}
-
 void ElementsOfAttr::print(DialectAsmPrinter &printer) {
   printer << getAttrName() << '<';
   printer.printType(getImpl()->type);

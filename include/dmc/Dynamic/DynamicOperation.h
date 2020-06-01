@@ -57,6 +57,7 @@ public:
   /// Higher-level DynamicOperation specification info is made
   /// available to traits and other verifiers through traits.
   template <typename TraitT> TraitT *getTrait();
+  DynamicTrait *getTrait(llvm::StringRef);
 
 private:
   /// Full operation name: `dialect`.`opName`.
@@ -64,8 +65,10 @@ private:
   /// Associated Dialect.
   DynamicDialect * const dialect;
 
-  /// A list of dynamic OpTraits.
-  llvm::StringMap<std::unique_ptr<DynamicTrait>> traits;
+  /// A list of dynamic OpTraits. Lookups and insertions are linear time as
+  /// there are assumed to be few traits. Using a vector also guarantees that
+  /// the traits are checked in insertion order.
+  std::vector<std::pair<llvm::StringRef, std::unique_ptr<DynamicTrait>>> traits;
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
@@ -78,13 +81,8 @@ mlir::LogicalResult DynamicOperation::addOpTrait(Args &&... args) {
       std::forward<Args>(args)...));
 }
 
-template <typename TraitT>
-TraitT *DynamicOperation::getTrait() {
-  /// TODO for "hard" traits, use standard MLIR OpTraits with DynamicOperation?
-  auto it = traits.find(TraitT::getName());
-  if (it == std::end(traits))
-    return nullptr;
-  return dynamic_cast<TraitT *>(it->second.get());
+template <typename TraitT> TraitT *DynamicOperation::getTrait() {
+  return dynamic_cast<TraitT *>(getTrait(TraitT::getName()));
 }
 
 } // end namespace dmc

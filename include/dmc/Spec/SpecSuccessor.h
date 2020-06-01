@@ -56,4 +56,9 @@ public:
   void print(llvm::raw_ostream &os);
 };
 
+namespace impl {
+mlir::LogicalResult verifySuccessorConstraints(mlir::Operation *op,
+                                               mlir::ArrayAttr opSuccs);
+} // end namespace impl
+
 } // end namespace dmc

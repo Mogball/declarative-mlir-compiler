@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecOps.h"
-#include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/SpecRegionSwitch.h"
+#include "dmc/Spec/SpecSuccessorSwitch.h"
 #include "dmc/Spec/SpecTypeSwitch.h"
 #include "dmc/Spec/SpecAttrSwitch.h"
 
@@ -45,8 +46,34 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
 
       PyAttr,
 
-      AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion
+      AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion,
+      AnySuccessor, VariadicSuccessor
   >();
+}
+
+/// printAttribute is called from printGenericOp
+void SpecDialect::printAttribute(
+    Attribute attr, DialectAsmPrinter &printer) const {
+  if (SpecRegion::is(attr)) {
+    PrintAction<llvm::raw_ostream> action{printer.getStream()};
+    SpecRegion::kindSwitch(action, attr);
+  } else if (SpecSuccessor::is(attr)) {
+    PrintAction<llvm::raw_ostream> action{printer.getStream()};
+    SpecSuccessor::kindSwitch(action, attr);
+  } else {
+    PrintAction<DialectAsmPrinter> action{printer};
+    SpecAttrs::kindSwitch(action, attr);
+  }
+}
+
+/// printType is called from printGenericOp
+void SpecDialect::printType(Type type, DialectAsmPrinter &printer) const {
+  if (SpecTypes::is(type)) {
+    PrintAction<DialectAsmPrinter> action{printer};
+    SpecTypes::kindSwitch(action, type);
+  } else {
+    impl::printOpType(printer, type.cast<OpType>());
+  }
 }
 
 namespace {
