@@ -61,6 +61,14 @@ unsigned OpType::getNumResults() {
   return llvm::size(getImpl()->retTys);
 }
 
+ArrayRef<StringRef> OpType::getOperandNames() {
+  return getImpl()->argNames;
+}
+
+ArrayRef<StringRef> OpType::getResultNames() {
+  return getImpl()->retNames;
+}
+
 StringRef OpType::getOperandName(unsigned idx) {
   assert(idx < getNumOperands());
   return getImpl()->argNames[idx];
@@ -71,11 +79,11 @@ StringRef OpType::getResultName(unsigned idx) {
   return getImpl()->retNames[idx];
 }
 
-ArrayRef<Type> OpType::getInputs() {
+ArrayRef<Type> OpType::getOperandTypes() {
   return getImpl()->argTys;
 }
 
-ArrayRef<Type> OpType::getResults() {
+ArrayRef<Type> OpType::getResultTypes() {
   return getImpl()->retTys;
 }
 

@@ -26,10 +26,12 @@ public:
   unsigned getNumResults();
   llvm::StringRef getOperandName(unsigned idx);
   llvm::StringRef getResultName(unsigned idx);
+  llvm::ArrayRef<llvm::StringRef> getOperandNames();
+  llvm::ArrayRef<llvm::StringRef> getResultNames();
   mlir::Type getOperandType(unsigned idx);
   mlir::Type getResultType(unsigned idx);
-  llvm::ArrayRef<mlir::Type> getInputs();
-  llvm::ArrayRef<mlir::Type> getResults();
+  llvm::ArrayRef<mlir::Type> getOperandTypes();
+  llvm::ArrayRef<mlir::Type> getResultTypes();
 };
 
 } // end namespace dmc

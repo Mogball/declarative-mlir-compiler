@@ -211,8 +211,26 @@ void printOptionalRegionList(OpAsmPrinter &printer,
 template <typename NameList, typename TypeList>
 ParseResult parseValueList(OpAsmParser &parser,
                            NameList &names, TypeList &tys) {
-  if (parser.parseLess())
+  StringRef name;
+  Type type;
+  if (parser.parseLParen())
     return failure();
+  // Parse the first value, if present
+  if (!parser.parseOptionalKeyword(&name)) {
+    if (parser.parseColon() || parser.parseType(type))
+      return failure();
+    names.push_back(name);
+    tys.push_back(type);
+    // Parse list values
+    while (!parser.parseOptionalComma()) {
+      if (parser.parseKeyword(&name) || parser.parseColon() ||
+          parser.parseType(type))
+        return failure();
+      names.push_back(name);
+      tys.push_back(type);
+    }
+  }
+  return parser.parseRParen();
 }
 
 ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
@@ -221,15 +239,27 @@ ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
   // value ::= identifier `:` type
   SmallVector<StringRef, 4> argNames, retNames;
   SmallVector<Type, 4> argTys, retTys;
-  if (parser.parseLParen())
-    return failure();
-  StringRef name;
-  if (!parser.parseOptionalKeyword(&name)) {
-  }
-  if (parser.parseRParen())
+  if (parseValueList(parser, argNames, argTys) || parser.parseArrow() ||
+      parseValueList(parser, retNames, retTys))
     return failure();
   opType = OpType::get(parser.getBuilder().getContext(),
                        argNames, retNames, argTys, retTys);
+  return success();
+}
+
+template <typename NameList, typename TypeList>
+void printValueList(OpAsmPrinter &printer, NameList names, TypeList tys) {
+  printer << '(';
+  llvm::interleaveComma(llvm::zip(names, tys), printer, [&](auto it) {
+    printer << std::get<0>(it)<< " : " << std::get<1>(it);
+  });
+  printer << ')';
+}
+
+void printOpType(OpAsmPrinter &printer, OpType opType) {
+  printValueList(printer, opType.getOperandNames(), opType.getOperandTypes());
+  printer << " -> ";
+  printValueList(printer, opType.getResultNames(), opType.getResultTypes());
 }
 
 } // end namespace impl
