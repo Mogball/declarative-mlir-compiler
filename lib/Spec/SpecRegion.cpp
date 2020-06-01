@@ -18,8 +18,8 @@ bool is(Attribute base) {
   return Any <= base.getKind() && base.getKind() <= LAST_SPEC_REGION;
 }
 
-LogicalResult delegateVerify(Attribute base, Region *region) {
-  VerifyAction<Region *> action{region};
+LogicalResult delegateVerify(Attribute base, Region &region) {
+  VerifyAction<Region &> action{region};
   return SpecRegion::kindSwitch(action, base);
 }
 
@@ -63,13 +63,13 @@ LogicalResult SizedRegion::verifyConstructionInvariants(Location loc,
   return success();
 }
 
-LogicalResult SizedRegion::verify(Region *region) {
-  return success(std::size(region->getBlocks()) == getImpl()->numBlocks);
+LogicalResult SizedRegion::verify(Region &region) {
+  return success(std::size(region.getBlocks()) == getImpl()->numBlocks);
 }
 
 /// IsolatedFromAboveRegion.
-LogicalResult IsolatedFromAboveRegion::verify(Region *region) {
-  return success(region->isIsolatedFromAbove());
+LogicalResult IsolatedFromAboveRegion::verify(Region &region) {
+  return success(region.isIsolatedFromAbove());
 }
 
 /// VariadicRegion.
@@ -85,7 +85,7 @@ LogicalResult VariadicRegion::verifyConstructionInvariants(
   return success();
 }
 
-LogicalResult VariadicRegion::verify(Region *region) {
+LogicalResult VariadicRegion::verify(Region &region) {
   return SpecRegion::delegateVerify(getImpl()->attr, region);
 }
 
@@ -122,9 +122,7 @@ LogicalResult verifyRegionConstraints(Operation *op,
                                       mlir::ArrayAttr opRegions) {
   return verifyConstraintsLastVariadic<VariadicRegion>(
       op, op->getRegions(), opRegions,
-      [](Attribute constraint, Region &region)
-      { return SpecRegion::delegateVerify(constraint, &region); },
-      [](Attribute constraint) { return SpecRegion::toString(constraint); });
+      &SpecRegion::delegateVerify, &SpecRegion::toString);
 }
 
 /// Successor verification.
@@ -132,9 +130,7 @@ LogicalResult verifySuccessorConstraints(Operation *op,
                                          mlir::ArrayAttr opSuccs) {
   return verifyConstraintsLastVariadic<VariadicSuccessor>(
       op, op->getSuccessors(), opSuccs,
-      [](Attribute constraint, Block *block)
-      { return SpecSuccessor::delegateVerify(constraint, block); },
-      [](Attribute constraint) { return SpecSuccessor::toString(constraint); });
+      &SpecSuccessor::delegateVerify, &SpecSuccessor::toString);
 }
 } // end namespace impl
 

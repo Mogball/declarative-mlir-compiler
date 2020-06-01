@@ -16,7 +16,7 @@ namespace dmc {
 
 namespace SpecRegion {
 bool is(mlir::Attribute base);
-mlir::LogicalResult delegateVerify(mlir::Attribute base, mlir::Region *region);
+mlir::LogicalResult delegateVerify(mlir::Attribute base, mlir::Region &region);
 /// TODO Instead of avoiding Dialect::printAttribute, use it.
 std::string toString(mlir::Attribute opRegion);
 } // end namespace SpecRegion
@@ -36,7 +36,7 @@ public:
     return Base::get(ctx, SpecRegion::Any);
   }
 
-  inline mlir::LogicalResult verify(mlir::Region *) { return mlir::success(); }
+  inline mlir::LogicalResult verify(mlir::Region &) { return mlir::success(); }
 
   static Attribute parse(mlir::OpAsmParser &parser);
   void print(llvm::raw_ostream &os);
@@ -54,7 +54,7 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(mlir::Location loc,
                                                           unsigned size);
 
-  mlir::LogicalResult verify(mlir::Region *region);
+  mlir::LogicalResult verify(mlir::Region &region);
 
   static Attribute parse(mlir::OpAsmParser &parser);
   void print(llvm::raw_ostream &os);
@@ -73,7 +73,7 @@ public:
     return Base::get(ctx, SpecRegion::IsolatedFromAbove);
   }
 
-  mlir::LogicalResult verify(mlir::Region *region);
+  mlir::LogicalResult verify(mlir::Region &region);
 
   static Attribute parse(mlir::OpAsmParser &parser);
   void print(llvm::raw_ostream &os);
@@ -92,7 +92,7 @@ public:
   static mlir::LogicalResult verifyConstructionInvariants(
       mlir::Location loc, mlir::Attribute regionConstraint);
 
-  mlir::LogicalResult verify(mlir::Region *region);
+  mlir::LogicalResult verify(mlir::Region &region);
 
   static Attribute parse(mlir::OpAsmParser &parser);
   void print(llvm::raw_ostream &os);
