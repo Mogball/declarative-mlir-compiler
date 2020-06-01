@@ -42,12 +42,20 @@ void printOptionalOpTraitList(mlir::OpAsmPrinter &printer,
 /// Parse and print an op region attribute list.
 mlir::ParseResult parseOpRegion(mlir::OpAsmParser &parser,
                                 mlir::Attribute &opRegion);
-void printOpRegion(mlir::OpAsmPrinter &printer, mlir::Attribute opRegion);
 void printOpRegion(llvm::raw_ostream &os, mlir::Attribute opRegion);
 mlir::ParseResult parseOptionalRegionList(mlir::OpAsmParser &parser,
                                           mlir::ArrayAttr &regionsAttr);
 void printOptionalRegionList(mlir::OpAsmPrinter &printer,
                              mlir::ArrayAttr regionsAttr);
+
+/// Parse and print an op successor attribute list.
+mlir::ParseResult parseOpSuccessor(mlir::OpAsmParser &parser,
+                                   mlir::Attribute &opSucc);
+void printOpSuccessor(llvm::raw_ostream &os, mlir::Attribute opSucc);
+mlir::ParseResult parseOptionalSuccessorList(mlir::OpAsmParser &parser,
+                                             mlir::ArrayAttr &succsAttr);
+void printOptionalSuccessorList(mlir::OpAsmPrinter &printer,
+                                mlir::ArrayAttr &succsAttr);
 
 /// Parse and print a list of integers, which may be empty.
 /// int-list ::= (int (`,` int)*)?

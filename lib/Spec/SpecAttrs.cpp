@@ -31,24 +31,6 @@ TypedAttrStorage *TypedAttrStorage::construct(AttributeStorageAllocator &alloc,
       TypedAttrStorage{key};
 }
 
-/// OneAttrStorage implementation. Store one attribute.
-struct OneAttrStorage : public AttributeStorage {
-  using KeyTy = Attribute;
-
-  explicit OneAttrStorage(KeyTy key) : attr{key} {}
-  bool operator==(const KeyTy &key) const { return key == attr; }
-  static llvm::hash_code hashKey(const KeyTy &key) {
-    return hash_value(key);
-  }
-
-  static OneAttrStorage *construct(AttributeStorageAllocator &alloc,
-                                        const KeyTy &key) {
-    return new (alloc.allocate<OneAttrStorage>()) OneAttrStorage{key};
-  }
-
-  KeyTy attr;
-};
-
 /// AttrListStorage implementation. Store a list of attributes.
 struct AttrListStorage : public AttributeStorage {
   using KeyTy = ImmutableSortedList<Attribute>;

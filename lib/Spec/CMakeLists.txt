@@ -1,11 +1,12 @@
 add_library(DMCSpec
   SpecDialect.cpp
   SpecTypes.cpp
-  SpecTypeImplementation.cpp
   SpecTypeDetail.cpp
   SpecOps.cpp
   SpecAttrs.cpp
   SpecRegion.cpp
+  SpecSuccessor.cpp
+  SpecTypeImplementation.cpp
   SpecAttrImplementation.cpp
   DialectGen.cpp
   ParameterList.cpp

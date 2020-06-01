@@ -1,7 +1,7 @@
 #include "dmc/Spec/Parsing.h"
 #include "dmc/Spec/Support.h"
-#include "dmc/Spec/SpecRegion.h"
 #include "dmc/Spec/SpecRegionSwitch.h"
+#include "dmc/Spec/SpecSuccessorSwitch.h"
 #include "dmc/Spec/OpType.h"
 
 #include <mlir/IR/Builders.h>
@@ -171,10 +171,6 @@ ParseResult parseOpRegion(OpAsmParser &parser, Attribute &opRegion) {
   return success(static_cast<bool>(opRegion));
 }
 
-void printOpRegion(OpAsmPrinter &printer, Attribute opRegion) {
-  printOpRegion(printer.getStream(), opRegion);
-}
-
 void printOpRegion(llvm::raw_ostream &os, Attribute opRegion) {
   PrintAction<llvm::raw_ostream> action{os};
   SpecRegion::kindSwitch(action, opRegion);
@@ -202,8 +198,58 @@ void printOptionalRegionList(OpAsmPrinter &printer,
   if (llvm::size(regionsAttr)) {
     printer << " (";
     llvm::interleaveComma(regionsAttr, printer, [&](Attribute region)
-                          { printOpRegion(printer, region); });
+                          { printOpRegion(printer.getStream(), region); });
     printer << ')';
+  }
+}
+
+/// Successor parsing.
+ParseResult parseOpSuccessor(OpAsmParser &parser, Attribute &opSucc) {
+  StringRef name;
+  if (parser.parseKeyword(&name))
+    return failure();
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+  auto kind = StringSwitch<unsigned>(name)
+      .Case(AnySuccessor::getName(), SpecSuccessor::Any)
+      .Case(VariadicSuccessor::getName(), SpecSuccessor::Variadic)
+      .Default(SpecSuccessor::LAST_SPEC_SUCCESSOR);
+
+  if (kind == SpecSuccessor::LAST_SPEC_SUCCESSOR)
+    return emitError(loc, "unknown successor constraint: '") << name << '\'';
+  ParseAction<Attribute, OpAsmParser> action{parser};
+  opSucc = SpecSuccessor::kindSwitch(action, kind);
+  return success(static_cast<bool>(opSucc));
+}
+
+void printOpSuccessor(llvm::raw_ostream &os, Attribute opSucc) {
+  PrintAction<llvm::raw_ostream> action{os};
+  SpecSuccessor::kindSwitch(action, opSucc);
+}
+
+ParseResult parseOptionalSuccessorList(OpAsmParser &parser,
+                                       mlir::ArrayAttr &succsAttr) {
+  SmallVector<Attribute, 2> opSuccs;
+  if (!parser.parseOptionalLSquare()) {
+    do {
+      Attribute opSucc;
+      if (parseOpSuccessor(parser, opSucc))
+        return failure();
+      opSuccs.push_back(opSucc);
+    } while (!parser.parseOptionalComma());
+    if (parser.parseRParen())
+      return failure();
+  }
+  succsAttr = parser.getBuilder().getArrayAttr(opSuccs);
+  return success();
+}
+
+void printOptionalSuccessorList(OpAsmPrinter &printer,
+                                mlir::ArrayAttr succsAttr) {
+  if (llvm::size(succsAttr)) {
+    printer << '[';
+    llvm::interleaveComma(succsAttr, printer, [&](Attribute succ)
+                          { printOpSuccessor(printer.getStream(), succ); });
+    printer << ']';
   }
 }
 

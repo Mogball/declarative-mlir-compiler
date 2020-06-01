@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SpecAttrDetail.h"
+#include "SpecAttrBase.h"
 #include "SpecTypes.h"
 
 #include <mlir/IR/StandardTypes.h>
@@ -8,7 +9,6 @@
 namespace dmc {
 
 namespace detail {
-struct OneAttrStorage;
 struct AttrListStorage;
 struct OneTypeAttrStorage;
 struct DimensionAttrStorage;

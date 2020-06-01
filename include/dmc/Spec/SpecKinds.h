@@ -111,6 +111,15 @@ enum Kinds {
 };
 } // end namespace SpecRegion
 
+namespace SpecSuccessor {
+enum Kinds {
+  Any = SpecRegion::LAST_SPEC_REGION,
+  Variadic,
+
+  LAST_SPEC_SUCCESSOR
+};
+} // end namespace SpecSuccessor
+
 enum TypeKinds {
   OpTypeKind = SpecTypes::LAST_SPEC_TYPE,
 
