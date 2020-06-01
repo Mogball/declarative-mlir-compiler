@@ -55,7 +55,7 @@ void printOpSuccessor(llvm::raw_ostream &os, mlir::Attribute opSucc);
 mlir::ParseResult parseOptionalSuccessorList(mlir::OpAsmParser &parser,
                                              mlir::ArrayAttr &succsAttr);
 void printOptionalSuccessorList(mlir::OpAsmPrinter &printer,
-                                mlir::ArrayAttr &succsAttr);
+                                mlir::ArrayAttr succsAttr);
 
 /// Parse and print a list of integers, which may be empty.
 /// int-list ::= (int (`,` int)*)?

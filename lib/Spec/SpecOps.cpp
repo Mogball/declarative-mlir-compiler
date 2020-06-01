@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/Parsing.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Traits/Registry.h"
@@ -109,6 +110,10 @@ void OperationOp::setOpRegions(mlir::ArrayAttr opRegions) {
   setAttr(getOpRegionsAttrName(), opRegions);
 }
 
+void OperationOp::setOpSuccessors(mlir::ArrayAttr opSuccs) {
+  setAttr(getOpSuccsAttrName(), opSuccs);
+}
+
 void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
                                           OperationState &result) {
   auto falseAttr = builder.getBoolAttr(false);
@@ -121,9 +126,11 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
 }
 
 void OperationOp::build(
-    OpBuilder &builder, OperationState &result, StringRef name,
-    OpType opType, ArrayRef<NamedAttribute> opAttrs,
-    ArrayRef<Attribute> opRegions, ArrayRef<NamedAttribute> config) {
+    OpBuilder &builder, OperationState &result, StringRef name, OpType opType,
+    ArrayRef<NamedAttribute> opAttrs,
+    ArrayRef<Attribute> opRegions,
+    ArrayRef<Attribute> opSuccs,
+    ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
@@ -131,12 +138,14 @@ void OperationOp::build(
                       builder.getDictionaryAttr(opAttrs));
   result.addAttribute(getOpRegionsAttrName(),
                       builder.getArrayAttr(opRegions));
+  result.addAttribute(getOpSuccsAttrName(),
+                      builder.getArrayAttr(opSuccs));
   result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
 }
 
-// op ::= `dmc.Op` `@`op-name func-type (attr-dict)? (region-list)?
+// op ::= `dmc.Op` `@`op-name func-type (attr-dict)? (region-list)? (succ-list)?
 //        (`traits` trait-list)?
 //        (`config` attr-dict)?
 //
@@ -144,23 +153,27 @@ void OperationOp::build(
 // trait-list ::= `[` trait (`,` trait)* `]`
 // trait ::= `@`trait-name param-list?
 // region-list ::= `(` region-attr (`,` region-attr)* `)`
+// succ-list ::= `[` succ-attr (`,` succ-attr)* `]`
 ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   OpType opType;
   NamedAttrList opAttrs;
   mlir::ArrayAttr regionAttr;
+  mlir::ArrayAttr succAttr;
   OpTraitsAttr traitArr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
       impl::parseOpType(parser, opType) ||
       parser.parseOptionalAttrDict(opAttrs) ||
       impl::parseOptionalRegionList(parser, regionAttr) ||
+      impl::parseOptionalSuccessorList(parser, succAttr) ||
       impl::parseOptionalOpTraitList(parser, traitArr))
     return failure();
   result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
   result.addAttribute(getOpAttrDictAttrName(),
                       mlir::DictionaryAttr::get(opAttrs, result.getContext()));
   result.addAttribute(getOpRegionsAttrName(), regionAttr);
+  result.addAttribute(getOpSuccsAttrName(), succAttr);
   result.addAttribute(getOpTraitsAttrName(), traitArr);
   if (!parser.parseOptionalKeyword("config") &&
       parser.parseOptionalAttrDict(result.attributes))
@@ -179,10 +192,12 @@ void OperationOp::print(OpAsmPrinter &printer) {
   printer.printAttribute(getOpAttrs());
   impl::printOptionalRegionList(printer, getOpRegions());
   impl::printOptionalOpTraitList(printer, getOpTraits());
+  impl::printOptionalSuccessorList(printer, getOpSuccessors());
   printer << " config";
   printer.printOptionalAttrDict(getAttrs(), {
       SymbolTable::getSymbolAttrName(), getOpTypeAttrName(),
-      getOpAttrDictAttrName(), getOpRegionsAttrName(), getOpTraitsAttrName()});
+      getOpAttrDictAttrName(), getOpRegionsAttrName(),
+      getOpSuccsAttrName(), getOpTraitsAttrName()});
 }
 
 OpType OperationOp::getOpType() {
@@ -196,6 +211,10 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
 
 mlir::ArrayAttr OperationOp::getOpRegions() {
   return getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
+}
+
+mlir::ArrayAttr OperationOp::getOpSuccessors() {
+  return getAttrOfType<mlir::ArrayAttr>(getOpSuccsAttrName());
 }
 
 OpTraitsAttr OperationOp::getOpTraits() {
@@ -220,10 +239,35 @@ unsigned OperationOp::getNumResults() { return getOpType().getNumResults(); }
 
 /// Trait array manipulation helpers.
 namespace impl {
-template <typename TraitT>
-bool hasTrait(OpTraitsAttr opTraits) {
+template <typename TraitT> bool hasTrait(OpTraitsAttr opTraits) {
   return llvm::count_if(opTraits.getValue(), [](OpTraitAttr sym)
                         { return sym.getName() == TraitT::getName(); });
+}
+
+/// Check that all constraints satisfy `is` and only the last is variadic.
+template <typename VariadicT, typename ListT, typename CheckFcn>
+LogicalResult verifyConstraintList(Operation *op, ListT vars, CheckFcn &&is,
+                                   const char *name) {
+  /// Ensure that op regions are valid region constraints.
+  unsigned idx{}, numVar{};
+  for (auto var : vars) {
+    if (!is(var))
+      return op->emitOpError("expected a valid ") << name << " constraint for "
+          << name << " #" << idx;
+    if (var.template isa<VariadicT>())
+      ++numVar;
+    ++idx;
+  }
+  /// Check at most one variadic region, which must be the last constraint.
+  if (numVar) {
+    if (numVar > 1)
+      return op->emitOpError("op can have at most one variadic ") << name
+          << " specifier";
+    if (!std::prev(std::end(vars))->template isa<VariadicT>())
+      return op->emitOpError("expected only the last ") << name
+          << " to be variadic";
+  }
+  return success();
 }
 } // end namespace impl
 
@@ -254,6 +298,11 @@ LogicalResult OperationOp::verify() {
     return emitOpError("expected ArrayAttr named: ")
         << getOpRegionsAttrName();
 
+  auto opSuccs = getAttrOfType<mlir::ArrayAttr>(getOpSuccsAttrName());
+  if (!opSuccs)
+    return emitOpError("expected ArrayAttr named: ")
+        << getOpSuccsAttrName();
+
   auto opTraits = getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
   if (!opTraits)
     return emitOpError("expected OpTraitsAttr named: ")
@@ -283,25 +332,12 @@ LogicalResult OperationOp::verify() {
     return emitOpError("more than one variadic result requires a ")
         << "variadic size specifier";
 
-  /// Ensure that op regions are valid region constraints.
-  unsigned regionIdx = 0;
-  unsigned numVarRegions = 0;
-  for (auto opRegion : opRegions) {
-    if (!SpecRegion::is(opRegion))
-      return emitOpError("expected a valid region constraint for region #")
-          << regionIdx;
-    if (opRegion.isa<VariadicRegion>())
-      ++numVarRegions;
-    ++regionIdx;
-  }
-  /// Check at most one variadic region, which must be the last region
-  /// constraint.
-  if (numVarRegions) {
-    if (numVarRegions > 1)
-      return emitOpError("op can have at most one variadic region specifier");
-    if (!std::prev(std::end(opRegions))->isa<VariadicRegion>())
-      return emitOpError("expected only the last region to be variadic");
-  }
+  /// Verify the region and successor constraint lists.
+  if (failed(impl::verifyConstraintList<VariadicRegion>(
+          *this, opRegions, &SpecRegion::is, "region")) ||
+      failed(impl::verifyConstraintList<VariadicSuccessor>(
+          *this, opSuccs, &SpecSuccessor::is, "successor")))
+    return failure();
 
   return success();
 }

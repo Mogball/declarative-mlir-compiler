@@ -246,7 +246,7 @@ ParseResult parseOptionalSuccessorList(OpAsmParser &parser,
 void printOptionalSuccessorList(OpAsmPrinter &printer,
                                 mlir::ArrayAttr succsAttr) {
   if (llvm::size(succsAttr)) {
-    printer << '[';
+    printer << " [";
     llvm::interleaveComma(succsAttr, printer, [&](Attribute succ)
                           { printOpSuccessor(printer.getStream(), succ); });
     printer << ']';
