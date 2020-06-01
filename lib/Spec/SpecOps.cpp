@@ -210,6 +210,14 @@ bool OperationOp::isIsolatedFromAbove() {
       .getValue();
 }
 
+unsigned OperationOp::getNumOperands() {
+  return llvm::size(getType().getInputs());
+}
+
+unsigned OperationOp::getNumResults() {
+  return llvm::size(getType().getResults());
+}
+
 /// Trait array manipulation helpers.
 namespace impl {
 template <typename TraitT>

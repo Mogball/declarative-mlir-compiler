@@ -130,6 +130,9 @@ public:
   bool isCommutative();
   bool isIsolatedFromAbove();
 
+  unsigned getNumOperands();
+  unsigned getNumResults();
+
   /// Reparse types and attributes.
   mlir::ParseResult reparse();
 
