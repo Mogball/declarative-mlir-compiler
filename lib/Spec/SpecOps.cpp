@@ -230,9 +230,6 @@ bool OperationOp::isIsolatedFromAbove() {
       .getValue();
 }
 
-unsigned OperationOp::getNumOperands() { return getOpType().getNumOperands(); }
-unsigned OperationOp::getNumResults() { return getOpType().getNumResults(); }
-
 /// Trait array manipulation helpers.
 namespace impl {
 template <typename TraitT> bool hasTrait(OpTraitsAttr opTraits) {

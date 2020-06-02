@@ -135,9 +135,6 @@ public:
   bool isCommutative();
   bool isIsolatedFromAbove();
 
-  unsigned getNumOperands();
-  unsigned getNumResults();
-
   llvm::StringRef getAssemblyFormat();
 
   /// Allow querying of traits by temporarily instantiating one.

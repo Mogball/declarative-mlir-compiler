@@ -12,6 +12,8 @@ struct OpTypeStorage;
 struct NamedType {
   llvm::StringRef name;
   mlir::Type type;
+
+  bool isVariadic() const;
 };
 
 class OpType : public mlir::Type::TypeBase<OpType, mlir::Type,

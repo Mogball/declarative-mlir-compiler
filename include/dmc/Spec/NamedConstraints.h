@@ -12,6 +12,8 @@ struct NamedConstraintStorage;
 struct NamedConstraint {
   llvm::StringRef name;
   mlir::Attribute attr;
+
+  bool isVariadic() const;
 };
 
 namespace detail {

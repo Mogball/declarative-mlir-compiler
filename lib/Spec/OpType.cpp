@@ -1,5 +1,8 @@
 #include "dmc/Spec/OpType.h"
 #include "dmc/Spec/NamedConstraints.h"
+#include "dmc/Spec/SpecTypes.h"
+#include "dmc/Spec/SpecRegion.h"
+#include "dmc/Spec/SpecSuccessor.h"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Diagnostics.h>
@@ -120,5 +123,13 @@ ArrayRef<NamedType> OpType::getResults() { return getImpl()->results; }
 ArrayRef<NamedConstraint> OpRegion::getRegions() { return getImpl()->attrs; }
 ArrayRef<NamedConstraint> OpSuccessor::getSuccessors()
 { return getImpl()->attrs; }
+
+bool NamedType::isVariadic() const {
+  return type.isa<VariadicType>();
+}
+
+bool NamedConstraint::isVariadic() const {
+  return attr.isa<VariadicRegion>() || attr.isa<VariadicSuccessor>();
+}
 
 } // end namespace dmc
