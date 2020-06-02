@@ -1,8 +1,11 @@
 #include "dmc/Embed/Init.h"
 #include "dmc/Embed/Constraints.h"
+#include "dmc/Embed/OpFormatGen.h"
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Traits/Registry.h"
 #include "dmc/Python/PyMLIR.h"
 #include "dmc/IO/ModuleWriter.h"
+#include "dmc/Spec/SpecDialect.h"
 
 #include <pybind11/embed.h>
 #include <pybind11/cast.h>
@@ -14,13 +17,14 @@
 #include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/Builders.h>
 
 using namespace mlir;
 using namespace llvm;
-using namespace dmc;
+using namespace ::dmc;
 using namespace pybind11;
 
-class TestOp : public Op<TestOp, OpTrait::AtLeastNOperands<1>::Impl> {
+class TestOp : public Op<TestOp, mlir::OpTrait::AtLeastNOperands<1>::Impl> {
 public:
   using Op::Op;
 
@@ -50,9 +54,46 @@ public:
 
 int main() {
   DialectRegistration<TestDialect>{};
+  DialectRegistration<SpecDialect>{};
+  DialectRegistration<TraitRegistry>{};
   MLIRContext ctx;
   DynamicContext dynCtx{&ctx};
+  OpBuilder b{&ctx};
 
+  StringRef name{"fmt_op"};
+  auto loc = b.getUnknownLoc();
+  auto opType = OpType::getChecked(loc, {
+    {"temp", b.getIntegerType(32)},
+  }, {
+    {"res", b.getIntegerType(64)},
+  });
+  std::vector<mlir::NamedAttribute> opAttrs;
+  opAttrs.push_back({b.getIdentifier("offset"),
+                    b.getStringAttr("xd")});
+  auto opRegion = OpRegion::getChecked(loc, {});
+  auto opSucc = OpSuccessor::getChecked(loc, {});
+  auto opTraits = OpTraitsAttr::getChecked(loc, b.getArrayAttr({}));
+
+  ModuleWriter mw{&dynCtx};
+  auto fcn = mw.createFunction("testFcn", {b.getIntegerType(32)}, {});
+  FunctionWriter fw{fcn};
+  b.setInsertionPointToStart(&fcn.front());
+  std::vector<mlir::NamedAttribute> attrs;
+  attrs.push_back({b.getIdentifier("fmt"),
+      b.getStringAttr("$temp $offset attr-dict-with-keyword `>` functional-type($temp, $res)")});
+  auto opOp = b.create<OperationOp>(loc, name, opType, opAttrs, opRegion, opSucc, opTraits, attrs);
+
+
+  std::string parserStr, printerStr;
+  llvm::raw_string_ostream parser{parserStr}, printer{printerStr};
+  if (failed(generateOpFormat(opOp, parser, printer)))
+    errs() << "Failed to generate op format\n";
+
+  errs() << "\nParser:\n";
+  errs() << parser.str() << "\n";
+  errs() << "\nPrinter:\n";
+  errs() << printer.str() << "\n";
+  /*
   auto scope = module::import("__main__").attr("__dict__");
   exec(R"(
     def print_test_op(printer, op):
@@ -69,4 +110,5 @@ int main() {
 
   mw.getModule().print(outs());
   outs() << "\n";
+  */
 }

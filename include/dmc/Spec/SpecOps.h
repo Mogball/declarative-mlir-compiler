@@ -115,7 +115,7 @@ public:
   static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name, OpType opType,
                     llvm::ArrayRef<mlir::NamedAttribute> opAttrs,
-                    OpRegion opRegion, OpSuccessor opSucc,
+                    OpRegion opRegion, OpSuccessor opSucc, OpTraitsAttr opTraits,
                     llvm::ArrayRef<mlir::NamedAttribute> config);
 
   /// Operation hooks.
@@ -135,7 +135,7 @@ public:
   bool isCommutative();
   bool isIsolatedFromAbove();
 
-  llvm::StringRef getAssemblyFormat();
+  mlir::StringAttr getAssemblyFormat();
 
   /// Allow querying of traits by temporarily instantiating one.
   std::unique_ptr<DynamicTrait> getTrait(llvm::StringRef name);

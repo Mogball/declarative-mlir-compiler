@@ -120,15 +120,14 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
   addAttributesIfNotPresent({
       builder.getNamedAttr(getIsTerminatorAttrName(), falseAttr),
       builder.getNamedAttr(getIsCommutativeAttrName(), falseAttr),
-      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr),
-      builder.getNamedAttr(getOpTraitsAttrName(), builder.getArrayAttr({}))},
+      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr)},
       result);
 }
 
 void OperationOp::build(
     OpBuilder &builder, OperationState &result, StringRef name, OpType opType,
     ArrayRef<NamedAttribute> opAttrs, OpRegion opRegion, OpSuccessor opSucc,
-    ArrayRef<NamedAttribute> config) {
+    OpTraitsAttr opTraits, ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
@@ -136,6 +135,7 @@ void OperationOp::build(
                       builder.getDictionaryAttr(opAttrs));
   result.addAttribute(getOpRegionsAttrName(), opRegion);
   result.addAttribute(getOpSuccsAttrName(), opSucc);
+  result.addAttribute(getOpTraitsAttrName(), opTraits);
   result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
@@ -228,6 +228,23 @@ bool OperationOp::isCommutative() {
 bool OperationOp::isIsolatedFromAbove() {
   return getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName())
       .getValue();
+}
+
+mlir::StringAttr OperationOp::getAssemblyFormat() {
+  return getAttrOfType<mlir::StringAttr>("fmt");
+}
+
+std::unique_ptr<DynamicTrait> OperationOp::getTrait(StringRef name) {
+  auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
+  for (auto trait : getOpTraits().getValue()) {
+    if (trait.getName() != name)
+      continue;
+    auto ctor = registry->lookupTrait(trait.getName());
+    if (failed(ctor.verify(getLoc(), trait.getParameters())))
+      return nullptr;
+    return ctor.call(trait.getParameters());
+  }
+  return nullptr;
 }
 
 /// Trait array manipulation helpers.

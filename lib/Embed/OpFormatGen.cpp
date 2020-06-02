@@ -378,7 +378,7 @@ static bool canFormatEnumAttr(const NamedAttribute *attr) {
 /// {0}: The name of the attribute.
 /// {1}: The type for the attribute.
 const char *const attrParserCode = R"(
-  {0}Attr, success = parser.parseAttribute({0}Attr{1}, "{1}", result.attributes)
+  {0}Attr, success = parser.parseAttribute({0}Attr{1}, "{0}", result.attributes)
   if not success:
     return False
 )";
@@ -1319,8 +1319,8 @@ class FormatParser {
 public:
   FormatParser(llvm::SourceMgr &mgr, OperationFormat &format, OperationOp op)
       : lexer(mgr, op), curToken(lexer.lexToken()), fmt(format), op(op), opTy(op.getOpType()),
-        seenOperandTypes(op.getNumOperands()),
-        seenResultTypes(op.getNumResults()) {}
+        seenOperandTypes(opTy.getNumOperands()),
+        seenResultTypes(opTy.getNumResults()) {}
 
   /// Parse the operation assembly format.
   LogicalResult parse();
@@ -2064,7 +2064,8 @@ LogicalResult generateOpFormat(OperationOp op,
                                llvm::raw_ostream &printerOs) {
   llvm::SourceMgr mgr;
   mgr.AddNewSourceBuffer(
-      llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat()), llvm::SMLoc{});
+      llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat().getValue()),
+      llvm::SMLoc{});
   OperationFormat format{op};
   if (failed(FormatParser(mgr, format, op).parse()))
     return failure();

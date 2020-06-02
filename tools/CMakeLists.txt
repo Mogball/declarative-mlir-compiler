@@ -43,4 +43,5 @@ target_link_libraries(pyembed
   DMCEmbed
   DMCTraits
   DMCIO
+  LLVMMLIRTableGen
   )
