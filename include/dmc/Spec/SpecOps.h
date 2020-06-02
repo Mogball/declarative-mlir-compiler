@@ -19,6 +19,7 @@ class OperationOp;
 class TypeOp;
 class AttributeOp;
 class AliasOp;
+class DynamicTrait;
 
 /// Top-level Op in the SpecDialect which defines a dialect:
 ///
@@ -136,6 +137,14 @@ public:
 
   unsigned getNumOperands();
   unsigned getNumResults();
+
+  llvm::StringRef getAssemblyFormat();
+
+  /// Allow querying of traits by temporarily instantiating one.
+  std::unique_ptr<DynamicTrait> getTrait(llvm::StringRef name);
+  template <typename TraitT> std::unique_ptr<TraitT> getTrait() {
+    return dynamic_cast<TraitT *>(getTrait(TraitT::getName()).release());
+  }
 
   /// Reparse types and attributes.
   mlir::ParseResult reparse();

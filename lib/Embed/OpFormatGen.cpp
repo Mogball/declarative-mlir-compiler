@@ -6,6 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "dmc/Spec/SpecOps.h"
+#include "dmc/Traits/StandardTraits.h"
+#include <mlir/IR/Diagnostics.h>
+
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/TableGen/Format.h"
 #include "mlir/TableGen/OpClass.h"
@@ -26,6 +30,7 @@
 
 using namespace mlir;
 using namespace mlir::tblgen;
+using ::dmc::OperationOp;
 
 static llvm::cl::opt<bool> formatErrorIsFatal(
     "asmformat-error-is-fatal",
@@ -95,14 +100,14 @@ protected:
 
 /// This class represents a variable that refers to an attribute argument.
 struct AttributeVariable
-    : public VariableElement<NamedAttribute, Element::Kind::AttributeVariable> {
-  using VariableElement<NamedAttribute,
+    : public VariableElement<tblgen::NamedAttribute, Element::Kind::AttributeVariable> {
+  using VariableElement<tblgen::NamedAttribute,
                         Element::Kind::AttributeVariable>::VariableElement;
 
   /// Return the constant builder call for the type of this attribute, or None
   /// if it doesn't have one.
   Optional<StringRef> getTypeBuilder() const {
-    Optional<Type> attrType = var->attr.getValueType();
+    Optional<tblgen::Type> attrType = var->attr.getValueType();
     return attrType ? attrType->getBuilderCall() : llvm::None;
   }
 };
@@ -301,7 +306,7 @@ struct OperationFormat {
     Optional<StringRef> variableTransformer;
   };
 
-  OperationFormat(const Operator &op)
+  OperationFormat(OperationOp op)
       : allOperands(false), allOperandTypes(false), allResultTypes(false) {
     operandTypes.resize(op.getNumOperands(), TypeResolution());
     resultTypes.resize(op.getNumResults(), TypeResolution());
@@ -340,7 +345,7 @@ struct OperationFormat {
 
 /// Returns if we can format the given attribute as an EnumAttr in the parser
 /// format.
-static bool canFormatEnumAttr(const NamedAttribute *attr) {
+static bool canFormatEnumAttr(const tblgen::NamedAttribute *attr) {
   const EnumAttr *enumAttr = dyn_cast<EnumAttr>(&attr->attr);
   if (!enumAttr)
     return false;
@@ -603,7 +608,7 @@ static void genElementParser(Element *element, OpMethodBody &body,
 
     /// Arguments.
   } else if (auto *attr = dyn_cast<AttributeVariable>(element)) {
-    const NamedAttribute *var = attr->getVar();
+    const tblgen::NamedAttribute *var = attr->getVar();
 
     // Check to see if we can parse this as an enum attribute.
     if (canFormatEnumAttr(var)) {
@@ -883,7 +888,7 @@ void OperationFormat::genParserVariadicSegmentResolution(Operator &op,
 static void genAttrDictPrinter(OperationFormat &fmt, Operator &op,
                                OpMethodBody &body, bool withKeyword) {
   // Collect all of the attributes used in the format, these will be elided.
-  SmallVector<const NamedAttribute *, 1> usedAttributes;
+  SmallVector<const tblgen::NamedAttribute *, 1> usedAttributes;
   for (auto &it : fmt.elements)
     if (auto *attr = dyn_cast<AttributeVariable>(it.get()))
       usedAttributes.push_back(attr->getVar());
@@ -893,7 +898,7 @@ static void genAttrDictPrinter(OperationFormat &fmt, Operator &op,
   // Elide the variadic segment size attributes if necessary.
   if (!fmt.allOperands && op.getTrait("OpTrait::AttrSizedOperandSegments"))
     body << "\"operand_segment_sizes\", ";
-  llvm::interleaveComma(usedAttributes, body, [&](const NamedAttribute *attr) {
+  llvm::interleaveComma(usedAttributes, body, [&](const tblgen::NamedAttribute *attr) {
     body << "\"" << attr->name << "\"";
   });
   body << "});\n";
@@ -987,7 +992,7 @@ static void genElementPrinter(Element *element, OpMethodBody &body,
   shouldEmitSpace = true;
 
   if (auto *attr = dyn_cast<AttributeVariable>(element)) {
-    const NamedAttribute *var = attr->getVar();
+    const tblgen::NamedAttribute *var = attr->getVar();
 
     // If we are formatting as an enum, symbolize the attribute as a string.
     if (canFormatEnumAttr(var)) {
@@ -1118,7 +1123,7 @@ private:
 /// This class implements a simple lexer for operation assembly format strings.
 class FormatLexer {
 public:
-  FormatLexer(llvm::SourceMgr &mgr, Operator &op);
+  FormatLexer(llvm::SourceMgr &mgr, OperationOp op);
 
   /// Lex the next token and return it.
   Token lexToken();
@@ -1143,13 +1148,13 @@ private:
   Token lexVariable(const char *tokStart);
 
   llvm::SourceMgr &srcMgr;
-  Operator &op;
+  OperationOp op;
   StringRef curBuffer;
   const char *curPtr;
 };
 } // end anonymous namespace
 
-FormatLexer::FormatLexer(llvm::SourceMgr &mgr, Operator &op)
+FormatLexer::FormatLexer(llvm::SourceMgr &mgr, OperationOp op)
     : srcMgr(mgr), op(op) {
   curBuffer = srcMgr.getMemoryBuffer(mgr.getMainFileID())->getBuffer();
   curPtr = curBuffer.begin();
@@ -1157,15 +1162,13 @@ FormatLexer::FormatLexer(llvm::SourceMgr &mgr, Operator &op)
 
 Token FormatLexer::emitError(llvm::SMLoc loc, const Twine &msg) {
   srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Error, msg);
-  llvm::SrcMgr.PrintMessage(op.getLoc()[0], llvm::SourceMgr::DK_Note,
-                            "in custom assembly format for this operation");
+  op.emitOpError("in custom assembly format for this operation");
   return formToken(Token::error, loc.getPointer());
 }
 Token FormatLexer::emitErrorAndNote(llvm::SMLoc loc, const Twine &msg,
                                     const Twine &note) {
   srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Error, msg);
-  llvm::SrcMgr.PrintMessage(op.getLoc()[0], llvm::SourceMgr::DK_Note,
-                            "in custom assembly format for this operation");
+  op.emitOpError("in custom assembly format for this operation");
   srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Note, note);
   return formToken(Token::error, loc.getPointer());
 }
@@ -1301,7 +1304,7 @@ namespace {
 /// format.
 class FormatParser {
 public:
-  FormatParser(llvm::SourceMgr &mgr, OperationFormat &format, Operator &op)
+  FormatParser(llvm::SourceMgr &mgr, OperationFormat &format, OperationOp op)
       : lexer(mgr, op), curToken(lexer.lexToken()), fmt(format), op(op),
         seenOperandTypes(op.getNumOperands()),
         seenResultTypes(op.getNumResults()) {}
@@ -1423,7 +1426,7 @@ private:
   FormatLexer lexer;
   Token curToken;
   OperationFormat &fmt;
-  Operator &op;
+  OperationOp op;
 
   // The following are various bits of format state used for verification
   // during parsing.
@@ -1431,7 +1434,7 @@ private:
   bool hasAllSuccessors = false;
   llvm::SmallBitVector seenOperandTypes, seenResultTypes;
   llvm::DenseSet<const NamedTypeConstraint *> seenOperands;
-  llvm::DenseSet<const NamedAttribute *> seenAttrs;
+  llvm::DenseSet<const tblgen::NamedAttribute *> seenAttrs;
   llvm::DenseSet<const NamedSuccessor *> seenSuccessors;
   llvm::DenseSet<const NamedTypeConstraint *> optionalVariables;
 };
@@ -1455,21 +1458,16 @@ LogicalResult FormatParser::parse() {
 
   // Check for any type traits that we can use for inferring types.
   llvm::StringMap<TypeResolutionInstance> variableTyResolver;
-  for (const OpTrait &trait : op.getTraits()) {
-    const llvm::Record &def = trait.getDef();
-    if (def.isSubClassOf("AllTypesMatch")) {
-      handleAllTypesMatchConstraint(def.getValueAsListOfStrings("values"),
-                                    variableTyResolver);
-    } else if (def.getName() == "SameTypeOperands") {
-      handleSameTypesConstraint(variableTyResolver, /*includeResults=*/false);
-    } else if (def.getName() == "SameOperandsAndResultType") {
-      handleSameTypesConstraint(variableTyResolver, /*includeResults=*/true);
-    } else if (def.isSubClassOf("TypesMatchWith")) {
-      if (const auto *lhsArg = findSeenArg(def.getValueAsString("lhs")))
-        variableTyResolver[def.getValueAsString("rhs")] = {
-            lhsArg, def.getValueAsString("transformer")};
-    }
-  }
+  if (op.getTrait<::dmc::SameTypeOperands>())
+    handleSameTypesConstraint(variableTyResolver, /*includeResults=*/false);
+  if (op.getTrait<::dmc::SameOperandsAndResultType>())
+    handleSameTypesConstraint(variableTyResolver, /*includeResults=*/true);
+  //if (auto def = op.getTrait<::dmc::AllTypesMatch>())
+  //  handleAllTypesMatchConstraint(def->getValues(), variableTyResolver);
+  //if (auto def = op.getTrait<::dmc::TypesMatchWith>())
+  //  if (const auto *lhsArg = findSeenArg(def->getLhs()))
+  //    variableTyResolver[def.getRhs()] = { lhsArg, def.getTransformer() };
+
 
   // Verify the state of the various operation components.
   if (failed(verifyAttributes(loc)) ||
@@ -1737,7 +1735,7 @@ LogicalResult FormatParser::parseVariable(std::unique_ptr<Element> &element,
   // Check that the parsed argument is something actually registered on the
   // op.
   /// Attributes
-  if (const NamedAttribute *attr = findArg(op.getAttributes(), name)) {
+  if (const tblgen::NamedAttribute *attr = findArg(op.getAttributes(), name)) {
     if (isTopLevel && !seenAttrs.insert(attr).second)
       return emitError(loc, "attribute '" + name + "' is already bound");
     element = std::make_unique<AttributeVariable>(attr);
@@ -2046,29 +2044,17 @@ FormatParser::parseTypeDirectiveOperand(std::unique_ptr<Element> &element) {
 // Interface
 //===----------------------------------------------------------------------===//
 
-void generateOpFormat(const Operator &constOp, OpClass &opClass) {
-  // TODO(riverriddle) Operator doesn't expose all necessary functionality via
-  // the const interface.
-  Operator &op = const_cast<Operator &>(constOp);
-  if (!op.hasAssemblyFormat())
-    return;
-
-  // Parse the format description.
+LogicalResult generateOpFormat(OperationOp op,
+                               llvm::raw_ostream &parserOs,
+                               llvm::raw_ostream &printerOs) {
   llvm::SourceMgr mgr;
   mgr.AddNewSourceBuffer(
-      llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat()), llvm::SMLoc());
-  OperationFormat format(op);
-  if (failed(FormatParser(mgr, format, op).parse())) {
-    // Exit the process if format errors are treated as fatal.
-    if (formatErrorIsFatal) {
-      // Invoke the interrupt handlers to run the file cleanup handlers.
-      llvm::sys::RunInterruptHandlers();
-      std::exit(1);
-    }
-    return;
-  }
+      llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat()), llvm::SMLoc{});
+  OperationFormat format{op};
+  if (failed(FormatParser(mgr, format, op).parse()))
+    return failure();
 
-  // Generate the printer and parser based on the parsed format.
-  format.genParser(op, opClass);
-  format.genPrinter(op, opClass);
+  //format.genParser(op, parserOs);
+  //format.genPrinter(op, printerOs);
+  return success();
 }
