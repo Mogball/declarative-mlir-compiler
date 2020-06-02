@@ -106,11 +106,11 @@ void OperationOp::setOpAttrs(mlir::DictionaryAttr opAttrs) {
   setAttr(getOpAttrDictAttrName(), opAttrs);
 }
 
-void OperationOp::setOpRegions(mlir::ArrayAttr opRegions) {
+void OperationOp::setOpRegions(OpRegion opRegions) {
   setAttr(getOpRegionsAttrName(), opRegions);
 }
 
-void OperationOp::setOpSuccessors(mlir::ArrayAttr opSuccs) {
+void OperationOp::setOpSuccessors(OpSuccessor opSuccs) {
   setAttr(getOpSuccsAttrName(), opSuccs);
 }
 
@@ -127,19 +127,15 @@ void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
 
 void OperationOp::build(
     OpBuilder &builder, OperationState &result, StringRef name, OpType opType,
-    ArrayRef<NamedAttribute> opAttrs,
-    ArrayRef<Attribute> opRegions,
-    ArrayRef<Attribute> opSuccs,
+    ArrayRef<NamedAttribute> opAttrs, OpRegion opRegion, OpSuccessor opSucc,
     ArrayRef<NamedAttribute> config) {
   result.addAttribute(SymbolTable::getSymbolAttrName(),
                       builder.getStringAttr(name));
   result.addAttribute(getOpTypeAttrName(), mlir::TypeAttr::get(opType));
   result.addAttribute(getOpAttrDictAttrName(),
                       builder.getDictionaryAttr(opAttrs));
-  result.addAttribute(getOpRegionsAttrName(),
-                      builder.getArrayAttr(opRegions));
-  result.addAttribute(getOpSuccsAttrName(),
-                      builder.getArrayAttr(opSuccs));
+  result.addAttribute(getOpRegionsAttrName(), opRegion);
+  result.addAttribute(getOpSuccsAttrName(), opSucc);
   result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
   buildDefaultValuedAttrs(builder, result);
@@ -158,8 +154,8 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   OpType opType;
   NamedAttrList opAttrs;
-  mlir::ArrayAttr regionAttr;
-  mlir::ArrayAttr succAttr;
+  OpRegion regionAttr;
+  OpSuccessor succAttr;
   OpTraitsAttr traitArr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
@@ -209,12 +205,12 @@ mlir::DictionaryAttr OperationOp::getOpAttrs() {
   return getAttrOfType<mlir::DictionaryAttr>(getOpAttrDictAttrName());
 }
 
-mlir::ArrayAttr OperationOp::getOpRegions() {
-  return getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
+OpRegion OperationOp::getOpRegions() {
+  return getAttrOfType<OpRegion>(getOpRegionsAttrName());
 }
 
-mlir::ArrayAttr OperationOp::getOpSuccessors() {
-  return getAttrOfType<mlir::ArrayAttr>(getOpSuccsAttrName());
+OpSuccessor OperationOp::getOpSuccessors() {
+  return getAttrOfType<OpSuccessor>(getOpSuccsAttrName());
 }
 
 OpTraitsAttr OperationOp::getOpTraits() {
@@ -293,14 +289,14 @@ LogicalResult OperationOp::verify() {
     return emitOpError("expected DictionaryAttr named: ")
         << getOpAttrDictAttrName();
 
-  auto opRegions = getAttrOfType<mlir::ArrayAttr>(getOpRegionsAttrName());
+  auto opRegions = getAttrOfType<OpRegion>(getOpRegionsAttrName());
   if (!opRegions)
-    return emitOpError("expected ArrayAttr named: ")
+    return emitOpError("expected OpRegion named: ")
         << getOpRegionsAttrName();
 
-  auto opSuccs = getAttrOfType<mlir::ArrayAttr>(getOpSuccsAttrName());
+  auto opSuccs = getAttrOfType<OpSuccessor>(getOpSuccsAttrName());
   if (!opSuccs)
-    return emitOpError("expected ArrayAttr named: ")
+    return emitOpError("expected OpSuccessor named: ")
         << getOpSuccsAttrName();
 
   auto opTraits = getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());

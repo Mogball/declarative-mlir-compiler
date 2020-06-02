@@ -20,6 +20,14 @@ public:
 
   static bool kindof(unsigned kind)
   { return kind == AttrKinds::OpRegionKind; }
+
+  llvm::ArrayRef<llvm::StringRef> getRegionNames();
+  llvm::ArrayRef<mlir::Attribute> getRegionAttrs();
+  unsigned getNumRegions();
+
+  inline auto begin() { return std::begin(getRegionAttrs()); }
+  inline auto end() { return std::end(getRegionAttrs()); }
+  inline auto size() { return std::size(getRegionAttrs()); }
 };
 
 class OpSuccessor : public mlir::Attribute::AttrBase<
@@ -33,6 +41,14 @@ public:
 
   static bool kindof(unsigned kind)
   { return kind == AttrKinds::OpSuccessorKind; }
+
+  llvm::ArrayRef<llvm::StringRef> getSuccessorNames();
+  llvm::ArrayRef<mlir::Attribute> getSuccessorAttrs();
+  unsigned getNumSuccessors();
+
+  inline auto begin() { return std::begin(getSuccessorAttrs()); }
+  inline auto end() { return std::end(getSuccessorAttrs()); }
+  inline auto size() { return std::size(getSuccessorAttrs()); }
 };
 
 } // end namespace dmc

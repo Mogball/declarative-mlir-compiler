@@ -3,6 +3,7 @@
 #include "dmc/Spec/SpecRegionSwitch.h"
 #include "dmc/Spec/SpecSuccessorSwitch.h"
 #include "dmc/Spec/OpType.h"
+#include "dmc/Spec/NamedConstraints.h"
 
 #include <mlir/IR/Builders.h>
 #include <llvm/ADT/StringSwitch.h>
@@ -176,32 +177,45 @@ void printOpRegion(llvm::raw_ostream &os, Attribute opRegion) {
   SpecRegion::kindSwitch(action, opRegion);
 }
 
-ParseResult parseOptionalRegionList(OpAsmParser &parser,
-                                    mlir::ArrayAttr &regionsAttr) {
+ParseResult parseOptionalRegionList(OpAsmParser &parser, OpRegion &opRegion) {
+  SmallVector<StringRef, 1> names;
   SmallVector<Attribute, 1> opRegions;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (!parser.parseOptionalLParen()) {
     do {
+      StringRef name;
       Attribute opRegion;
-      if (parseOpRegion(parser, opRegion))
+      if (parser.parseKeyword(&name) || parser.parseColon() ||
+          parseOpRegion(parser, opRegion))
         return failure();
+      names.push_back(name);
       opRegions.push_back(opRegion);
     } while (!parser.parseOptionalComma());
     if (parser.parseRParen())
       return failure();
   }
-  regionsAttr = parser.getBuilder().getArrayAttr(opRegions);
-  return success();
+  opRegion = OpRegion::getChecked(loc, names, opRegions);
+  return success(static_cast<bool>(opRegion));
 }
 
-void printOptionalRegionList(OpAsmPrinter &printer,
-                             mlir::ArrayAttr regionsAttr) {
-  if (llvm::size(regionsAttr)) {
+template <typename PrinterT>
+void printOptionalRegionList(PrinterT &printer, OpRegion opRegion) {
+  if (opRegion.getNumRegions()) {
     printer << " (";
-    llvm::interleaveComma(regionsAttr, printer, [&](Attribute region)
-                          { printOpRegion(printer.getStream(), region); });
+    llvm::interleaveComma(
+        llvm::zip(opRegion.getRegionNames(), opRegion.getRegionAttrs()),
+        printer, [&](auto val) {
+          printer << std::get<0>(val) << " : ";
+          printOpRegion(printer.getStream(), std::get<1>(val));
+        });
     printer << ')';
   }
 }
+
+template void
+printOptionalRegionList(OpAsmPrinter &printer, OpRegion opRegion);
+template void
+printOptionalRegionList(DialectAsmPrinter &printer, OpRegion opRegion);
 
 /// Successor parsing.
 ParseResult parseOpSuccessor(OpAsmParser &parser, Attribute &opSucc) {
@@ -227,31 +241,45 @@ void printOpSuccessor(llvm::raw_ostream &os, Attribute opSucc) {
 }
 
 ParseResult parseOptionalSuccessorList(OpAsmParser &parser,
-                                       mlir::ArrayAttr &succsAttr) {
+                                       OpSuccessor &opSucc) {
+  SmallVector<StringRef, 2> names;
   SmallVector<Attribute, 2> opSuccs;
+  auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (!parser.parseOptionalLSquare()) {
     do {
+      StringRef name;
       Attribute opSucc;
-      if (parseOpSuccessor(parser, opSucc))
+      if (parser.parseKeyword(&name) || parser.parseColon() ||
+          parseOpSuccessor(parser, opSucc))
         return failure();
+      names.push_back(name);
       opSuccs.push_back(opSucc);
     } while (!parser.parseOptionalComma());
     if (parser.parseRSquare())
       return failure();
   }
-  succsAttr = parser.getBuilder().getArrayAttr(opSuccs);
-  return success();
+  opSucc = OpSuccessor::getChecked(loc, names, opSuccs);
+  return success(static_cast<bool>(opSucc));
 }
 
-void printOptionalSuccessorList(OpAsmPrinter &printer,
-                                mlir::ArrayAttr succsAttr) {
-  if (llvm::size(succsAttr)) {
+template <typename PrinterT>
+void printOptionalSuccessorList(PrinterT &printer, OpSuccessor opSucc) {
+  if (opSucc.getNumSuccessors()) {
     printer << " [";
-    llvm::interleaveComma(succsAttr, printer, [&](Attribute succ)
-                          { printOpSuccessor(printer.getStream(), succ); });
+    llvm::interleaveComma(
+        llvm::zip(opSucc.getSuccessorNames(), opSucc.getSuccessorAttrs()),
+        printer, [&](auto val) {
+          printer << std::get<0>(val) << " : ";
+          printOpSuccessor(printer.getStream(), std::get<1>(val));
+        });
     printer << ']';
   }
 }
+
+template void
+printOptionalSuccessorList(OpAsmPrinter &printer, OpSuccessor opSucc);
+template void
+printOptionalSuccessorList(DialectAsmPrinter &printer, OpSuccessor opSucc);
 
 /// OpType parsing.
 template <typename NameList, typename TypeList>
@@ -303,19 +331,14 @@ void printValueList(PrinterT &printer, NameList names, TypeList tys) {
 }
 
 template <typename PrinterT>
-void printOpTypeImpl(PrinterT &printer, OpType opType) {
+void printOpType(PrinterT &printer, OpType opType) {
   printValueList(printer, opType.getOperandNames(), opType.getOperandTypes());
   printer << " -> ";
   printValueList(printer, opType.getResultNames(), opType.getResultTypes());
 }
 
-void printOpType(OpAsmPrinter &printer, OpType opType) {
-  return printOpTypeImpl(printer, opType);
-}
-
-void printOpType(mlir::DialectAsmPrinter &printer, OpType opType) {
-  return printOpTypeImpl(printer, opType);
-}
+template void printOpType(OpAsmPrinter &printer, OpType opType);
+template void printOpType(DialectAsmPrinter &printer, OpType opType);
 
 } // end namespace impl
 } // end namespace dmc

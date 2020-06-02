@@ -162,4 +162,28 @@ Type OpType::getResultType(unsigned idx) {
   return getImpl()->retTys[idx];
 }
 
+ArrayRef<StringRef> OpRegion::getRegionNames() {
+  return getImpl()->names;
+}
+
+ArrayRef<Attribute> OpRegion::getRegionAttrs() {
+  return getImpl()->attrs;
+}
+
+unsigned OpRegion::getNumRegions() {
+  return std::size(getRegionNames());
+}
+
+ArrayRef<StringRef> OpSuccessor::getSuccessorNames() {
+  return getImpl()->names;
+}
+
+ArrayRef<Attribute> OpSuccessor::getSuccessorAttrs() {
+  return getImpl()->attrs;
+}
+
+unsigned OpSuccessor::getNumSuccessors() {
+  return std::size(getSuccessorNames());
+}
+
 } // end namespace dmc

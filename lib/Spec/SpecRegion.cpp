@@ -2,6 +2,7 @@
 #include "dmc/Spec/SpecRegionSwitch.h"
 #include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/Parsing.h"
+#include "dmc/Spec/NamedConstraints.h"
 
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Diagnostics.h>
@@ -96,7 +97,7 @@ namespace impl {
 template <typename VariadicT, typename ListT,
           typename VerifyFcn, typename StringifyFcn>
 LogicalResult verifyConstraintsLastVariadic(
-    Operation *op, ListT vars, mlir::ArrayAttr constraints,
+    Operation *op, ListT vars, ArrayRef<Attribute> constraints,
     VerifyFcn &&verify, StringifyFcn &&toString) {
   auto varIt = std::begin(vars), varEnd = std::end(vars);
   auto attrIt = std::begin(constraints), attrEnd = std::end(constraints);
@@ -118,18 +119,16 @@ LogicalResult verifyConstraintsLastVariadic(
 }
 
 /// Region verification.
-LogicalResult verifyRegionConstraints(Operation *op,
-                                      mlir::ArrayAttr opRegions) {
+LogicalResult verifyRegionConstraints(Operation *op, OpRegion opRegions) {
   return verifyConstraintsLastVariadic<VariadicRegion>(
-      op, op->getRegions(), opRegions,
+      op, op->getRegions(), opRegions.getRegionAttrs(),
       &SpecRegion::delegateVerify, &SpecRegion::toString);
 }
 
 /// Successor verification.
-LogicalResult verifySuccessorConstraints(Operation *op,
-                                         mlir::ArrayAttr opSuccs) {
+LogicalResult verifySuccessorConstraints(Operation *op, OpSuccessor opSuccs) {
   return verifyConstraintsLastVariadic<VariadicSuccessor>(
-      op, op->getSuccessors(), opSuccs,
+      op, op->getSuccessors(), opSuccs.getSuccessorAttrs(),
       &SpecSuccessor::delegateVerify, &SpecSuccessor::toString);
 }
 } // end namespace impl

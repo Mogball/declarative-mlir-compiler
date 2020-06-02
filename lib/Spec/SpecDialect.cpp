@@ -32,7 +32,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
 
       PyType,
 
-      OpType
+      OpType, OpRegion, OpSuccessor
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
@@ -60,9 +60,13 @@ void SpecDialect::printAttribute(
   } else if (SpecSuccessor::is(attr)) {
     PrintAction<llvm::raw_ostream> action{printer.getStream()};
     SpecSuccessor::kindSwitch(action, attr);
-  } else {
+  } else if (SpecAttrs::is(attr)) {
     PrintAction<DialectAsmPrinter> action{printer};
     SpecAttrs::kindSwitch(action, attr);
+  } else if (auto opRegion = attr.dyn_cast<OpRegion>()) {
+    impl::printOptionalRegionList(printer, opRegion);
+  } else {
+    impl::printOptionalSuccessorList(printer, attr.cast<OpSuccessor>());
   }
 }
 

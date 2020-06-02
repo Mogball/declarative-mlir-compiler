@@ -7,6 +7,7 @@
 #include "dmc/Spec/SpecRegion.h"
 #include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/OpType.h"
+#include "dmc/Spec/NamedConstraints.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/OpDefinition.h>
@@ -120,7 +121,7 @@ public:
   static llvm::StringRef getName() { return "RegionConstraintTrait"; }
 
   /// Create a region constraint with constraints in an ArrayAttr.
-  inline explicit RegionConstraintTrait(mlir::ArrayAttr opRegions)
+  inline explicit RegionConstraintTrait(OpRegion opRegions)
       : opRegions{opRegions} {}
 
   /// Check the Op's regions.
@@ -131,7 +132,7 @@ public:
   inline auto getOpRegions() { return opRegions; }
 
 private:
-  mlir::ArrayAttr opRegions;
+  OpRegion opRegions;
 };
 
 /// Top-level successor verifier applies the given constraints on an Operation's
@@ -141,7 +142,7 @@ public:
   static llvm::StringRef getName() { return "SuccessorConstraintTrait"; }
 
   /// Create a successor constraint with constraints in an ArrayAttr.
-  inline explicit SuccessorConstraintTrait(mlir::ArrayAttr opSuccs)
+  inline explicit SuccessorConstraintTrait(OpSuccessor opSuccs)
       : opSuccs{opSuccs} {}
 
   /// Check the Op's successors.
@@ -152,7 +153,7 @@ public:
   inline auto getOpSuccessors() { return opSuccs; }
 
 private:
-  mlir::ArrayAttr opSuccs;
+  OpSuccessor opSuccs;
 };
 
 } // end namespace dmc

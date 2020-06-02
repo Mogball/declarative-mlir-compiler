@@ -12,6 +12,7 @@ class OpAsmPrinter;
 };
 
 namespace dmc {
+class OpSuccessor;
 
 namespace SpecSuccessor {
 bool is(mlir::Attribute base);
@@ -58,7 +59,7 @@ public:
 
 namespace impl {
 mlir::LogicalResult verifySuccessorConstraints(mlir::Operation *op,
-                                               mlir::ArrayAttr opSuccs);
+                                               OpSuccessor opSuccs);
 } // end namespace impl
 
 } // end namespace dmc

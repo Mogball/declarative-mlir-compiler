@@ -8,6 +8,8 @@
 namespace dmc {
 // Forward declarations
 class OpType;
+class OpRegion;
+class OpSuccessor;
 
 namespace impl {
 
@@ -44,18 +46,18 @@ mlir::ParseResult parseOpRegion(mlir::OpAsmParser &parser,
                                 mlir::Attribute &opRegion);
 void printOpRegion(llvm::raw_ostream &os, mlir::Attribute opRegion);
 mlir::ParseResult parseOptionalRegionList(mlir::OpAsmParser &parser,
-                                          mlir::ArrayAttr &regionsAttr);
-void printOptionalRegionList(mlir::OpAsmPrinter &printer,
-                             mlir::ArrayAttr regionsAttr);
+                                          OpRegion &opRegion);
+template <typename PrinterT>
+void printOptionalRegionList(PrinterT &printer, OpRegion opRegion);
 
 /// Parse and print an op successor attribute list.
 mlir::ParseResult parseOpSuccessor(mlir::OpAsmParser &parser,
                                    mlir::Attribute &opSucc);
 void printOpSuccessor(llvm::raw_ostream &os, mlir::Attribute opSucc);
 mlir::ParseResult parseOptionalSuccessorList(mlir::OpAsmParser &parser,
-                                             mlir::ArrayAttr &succsAttr);
-void printOptionalSuccessorList(mlir::OpAsmPrinter &printer,
-                                mlir::ArrayAttr succsAttr);
+                                             OpSuccessor &opSucc);
+template <typename PrinterT>
+void printOptionalSuccessorList(PrinterT &printer, OpSuccessor opSucc);
 
 /// Parse and print a list of integers, which may be empty.
 /// int-list ::= (int (`,` int)*)?
@@ -85,8 +87,7 @@ void printIntegerList(mlir::DialectAsmPrinter &printer,
 
 /// Parse and print an OpType.
 mlir::ParseResult parseOpType(mlir::OpAsmParser &parser, OpType &opType);
-void printOpType(mlir::OpAsmPrinter &printer, OpType opType);
-void printOpType(mlir::DialectAsmPrinter &printer, OpType opType);
+template <typename PrinterT> void printOpType(PrinterT &printer, OpType opType);
 
 } // end namespace impl
 } // end namespace dmc

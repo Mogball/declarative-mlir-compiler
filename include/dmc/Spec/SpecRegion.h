@@ -13,6 +13,7 @@ class OpAsmPrinter;
 };
 
 namespace dmc {
+class OpRegion;
 
 namespace SpecRegion {
 bool is(mlir::Attribute base);
@@ -101,7 +102,7 @@ public:
 /// Verify Region constraints.
 namespace impl {
 mlir::LogicalResult verifyRegionConstraints(
-    mlir::Operation *op, mlir::ArrayAttr opRegions);
+    mlir::Operation *op, OpRegion opRegions);
 } // end namespace impl
 
 } // end namespace dmc

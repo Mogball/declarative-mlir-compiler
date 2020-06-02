@@ -2,6 +2,7 @@
 
 #include "HasChildren.h"
 #include "OpType.h"
+#include "NamedConstraints.h"
 #include "ParameterList.h"
 #include "ReparseOpInterface.h"
 #include "dmc/Traits/OpTrait.h"
@@ -113,8 +114,7 @@ public:
   static void build(mlir::OpBuilder &builder, mlir::OperationState &result,
                     llvm::StringRef name, OpType opType,
                     llvm::ArrayRef<mlir::NamedAttribute> opAttrs,
-                    llvm::ArrayRef<mlir::Attribute> opRegions,
-                    llvm::ArrayRef<mlir::Attribute> opSuccs,
+                    OpRegion opRegion, OpSuccessor opSucc,
                     llvm::ArrayRef<mlir::NamedAttribute> config);
 
   /// Operation hooks.
@@ -126,8 +126,8 @@ public:
   /// Getters.
   OpType getOpType();
   mlir::DictionaryAttr getOpAttrs();
-  mlir::ArrayAttr getOpRegions();
-  mlir::ArrayAttr getOpSuccessors();
+  OpRegion getOpRegions();
+  OpSuccessor getOpSuccessors();
   OpTraitsAttr getOpTraits();
 
   bool isTerminator();
@@ -146,9 +146,9 @@ private:
   /// Replace the Op attributes.
   void setOpAttrs(mlir::DictionaryAttr opAttrs);
   /// Replace the Op regions.
-  void setOpRegions(mlir::ArrayAttr opRegions);
+  void setOpRegions(OpRegion opRegions);
   /// Replace the Op successors.
-  void setOpSuccessors(mlir::ArrayAttr opSuccs);
+  void setOpSuccessors(OpSuccessor opSuccs);
 
   /// Attributes.
   static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
