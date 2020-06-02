@@ -259,7 +259,7 @@ LogicalResult verifyConstraintList(Operation *op, ListT vars, CheckFcn &&is,
     if (numVar > 1)
       return op->emitOpError("op can have at most one variadic ") << name
           << " specifier";
-    if (!std::prev(std::end(vars))->template isa<VariadicT>())
+    if (!(*std::prev(std::end(vars))).template isa<VariadicT>())
       return op->emitOpError("expected only the last ") << name
           << " to be variadic";
   }

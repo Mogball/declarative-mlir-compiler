@@ -10,20 +10,33 @@ using namespace mlir;
 
 namespace dmc {
 
-template <typename ArgT>
-LogicalResult verifyNamedRange(Location loc, ArrayRef<StringRef> names,
-                               ArrayRef<ArgT> types, const char *val) {
-  if (llvm::size(names) != llvm::size(types))
-    return emitError(loc) << "expected same number of " << val
-        << " names and types";
+bool operator==(const NamedType &lhs, const NamedType &rhs) {
+  return lhs.name == rhs.name && lhs.type == rhs.type;
+}
+
+bool operator==(const NamedConstraint &lhs, const NamedConstraint &rhs) {
+  return lhs.name == rhs.name && lhs.attr == rhs.attr;
+}
+
+llvm::hash_code hash_value(const NamedType &t) {
+  return hash_combine(t.name, t.type);
+}
+
+llvm::hash_code hash_value(const NamedConstraint &t) {
+  return hash_combine(t.name, t.attr);
+}
+
+template <typename NamedArgT>
+static LogicalResult verifyNamedRange(Location loc, ArrayRef<NamedArgT> args,
+                                      const char *val) {
   // Verify names are unique.
   StringSet<> nameSet;
   unsigned idx{};
-  for (auto name : names) {
-    auto [it, inserted] = nameSet.insert(name);
+  for (auto &arg : args) {
+    auto [it, inserted] = nameSet.insert(arg.name);
     if (!inserted)
       return emitError(loc) << "name of " << val << " #" << idx << ": '"
-          << Twine{name} << "' is not unique";
+          << Twine{arg.name} << "' is not unique";
     ++idx;
   }
   return success();
@@ -31,159 +44,81 @@ LogicalResult verifyNamedRange(Location loc, ArrayRef<StringRef> names,
 
 namespace detail {
 
-struct OpTypeBase {
-  ArrayRef<StringRef> argNames, retNames;
-  ArrayRef<Type> argTys, retTys;
+struct OpTypeStorage : public TypeStorage {
+  using KeyTy = std::pair<ArrayRef<NamedType>, ArrayRef<NamedType>>;
 
-  bool operator==(const OpTypeBase &o) const {
-    return argNames == o.argNames && retNames == o.retNames &&
-        argTys == o.argTys && retTys == o.retTys;
+  explicit OpTypeStorage(ArrayRef<NamedType> operands,
+                         ArrayRef<NamedType> results)
+      : operands{operands}, results{results} {}
+
+  bool operator==(const KeyTy &key) const {
+    return operands == key.first && results == key.second;
   }
-};
-
-struct OpTypeStorage : public TypeStorage, public OpTypeBase {
-  using KeyTy = OpTypeBase;
-
-  explicit OpTypeStorage(const KeyTy &key) : OpTypeBase{key} {}
 
   static llvm::hash_code hashKey(const KeyTy &key) {
-    return llvm::hash_combine(
-        hash_value(key.argNames), hash_value(key.retNames),
-        hash_value(key.argTys), hash_value(key.retTys));
+    return llvm::hash_combine(key.first, key.second);
   }
 
   static OpTypeStorage *construct(TypeStorageAllocator &alloc,
                                   const KeyTy &key) {
-    return new (alloc.allocate<OpTypeStorage>()) OpTypeStorage{{
-      alloc.copyInto(key.argNames), alloc.copyInto(key.retNames),
-      alloc.copyInto(key.argTys), alloc.copyInto(key.retTys)
-    }};
+    return new (alloc.allocate<OpTypeStorage>())
+        OpTypeStorage{alloc.copyInto(key.first), alloc.copyInto(key.second)};
   }
+
+  ArrayRef<NamedType> operands;
+  ArrayRef<NamedType> results;
 };
 
-struct NamedConstraintBase {
-  ArrayRef<StringRef> names;
-  ArrayRef<Attribute> attrs;
-
-  bool operator==(const NamedConstraintBase &o) const {
-    return names == o.names && attrs == o.attrs;
-  }
-};
-
-struct NamedConstraintStorage : public AttributeStorage,
-                                public NamedConstraintBase {
-  using KeyTy = NamedConstraintBase;
+struct NamedConstraintStorage : public AttributeStorage {
+  using KeyTy = ArrayRef<NamedConstraint>;
 
   explicit NamedConstraintStorage(const KeyTy &key)
-      : NamedConstraintBase{key} {}
+      : attrs{key} {}
+
+  bool operator==(const KeyTy &key) const {
+    return attrs == key;
+  }
 
   static llvm::hash_code hashKey(const KeyTy &key) {
-    return llvm::hash_combine(key.names, key.attrs);
+    return llvm::hash_combine(key);
   }
 
   static NamedConstraintStorage *construct(AttributeStorageAllocator &alloc,
                                            const KeyTy &key) {
     return new (alloc.allocate<NamedConstraintStorage>())
-        NamedConstraintStorage{{alloc.copyInto(key.names),
-                                alloc.copyInto(key.attrs)}};
+        NamedConstraintStorage{alloc.copyInto(key)};
   }
+
+  ArrayRef<NamedConstraint> attrs;
 };
 
 } // end namespace detail
 
 OpType OpType::getChecked(
-    mlir::Location loc,
-    ArrayRef<StringRef> argNames, ArrayRef<StringRef> retNames,
-    ArrayRef<Type> argTys, ArrayRef<Type> retTys) {
-  if (failed(verifyNamedRange(loc, argNames, argTys, "operand")) ||
-      failed(verifyNamedRange(loc, retNames, retTys, "result")))
+    Location loc, ArrayRef<NamedType> operands, ArrayRef<NamedType> results) {
+  if (failed(verifyNamedRange(loc, operands, "operand")) ||
+      failed(verifyNamedRange(loc, results, "result")))
     return {};
-  detail::OpTypeBase opType{argNames, retNames, argTys, retTys};
-  return Base::get(loc.getContext(), TypeKinds::OpTypeKind, opType);
+  return Base::get(loc.getContext(), TypeKinds::OpTypeKind, operands, results);
 }
 
-OpRegion OpRegion::getChecked(Location loc, ArrayRef<StringRef> names,
-                              ArrayRef<Attribute> opRegions) {
-  if (failed(verifyNamedRange(loc, names, opRegions, "region")))
+OpRegion OpRegion::getChecked(Location loc, ArrayRef<NamedConstraint> attrs) {
+  if (failed(verifyNamedRange(loc, attrs, "region")))
     return {};
-  return Base::get(loc.getContext(), AttrKinds::OpRegionKind,
-                   detail::NamedConstraintBase{names, opRegions});
+  return Base::get(loc.getContext(), AttrKinds::OpRegionKind, attrs);
 }
 
-OpSuccessor OpSuccessor::getChecked(Location loc, ArrayRef<StringRef> names,
-                                    ArrayRef<Attribute> opSuccs) {
-  if (failed(verifyNamedRange(loc, names, opSuccs, "successor")))
+OpSuccessor OpSuccessor::getChecked(Location loc,
+                                    ArrayRef<NamedConstraint> attrs) {
+  if (failed(verifyNamedRange(loc, attrs, "successor")))
     return {};
-  return Base::get(loc.getContext(), AttrKinds::OpSuccessorKind,
-                   detail::NamedConstraintBase{names, opSuccs});
+  return Base::get(loc.getContext(), AttrKinds::OpSuccessorKind, attrs);
 }
 
-unsigned OpType::getNumOperands() {
-  return llvm::size(getImpl()->argTys);
-}
-
-unsigned OpType::getNumResults() {
-  return llvm::size(getImpl()->retTys);
-}
-
-ArrayRef<StringRef> OpType::getOperandNames() {
-  return getImpl()->argNames;
-}
-
-ArrayRef<StringRef> OpType::getResultNames() {
-  return getImpl()->retNames;
-}
-
-StringRef OpType::getOperandName(unsigned idx) {
-  assert(idx < getNumOperands());
-  return getImpl()->argNames[idx];
-}
-
-StringRef OpType::getResultName(unsigned idx) {
-  assert(idx < getNumResults());
-  return getImpl()->retNames[idx];
-}
-
-ArrayRef<Type> OpType::getOperandTypes() {
-  return getImpl()->argTys;
-}
-
-ArrayRef<Type> OpType::getResultTypes() {
-  return getImpl()->retTys;
-}
-
-Type OpType::getOperandType(unsigned idx) {
-  assert(idx < getNumOperands());
-  return getImpl()->argTys[idx];
-}
-
-Type OpType::getResultType(unsigned idx) {
-  assert(idx < getNumResults());
-  return getImpl()->retTys[idx];
-}
-
-ArrayRef<StringRef> OpRegion::getRegionNames() {
-  return getImpl()->names;
-}
-
-ArrayRef<Attribute> OpRegion::getRegionAttrs() {
-  return getImpl()->attrs;
-}
-
-unsigned OpRegion::getNumRegions() {
-  return std::size(getRegionNames());
-}
-
-ArrayRef<StringRef> OpSuccessor::getSuccessorNames() {
-  return getImpl()->names;
-}
-
-ArrayRef<Attribute> OpSuccessor::getSuccessorAttrs() {
-  return getImpl()->attrs;
-}
-
-unsigned OpSuccessor::getNumSuccessors() {
-  return std::size(getSuccessorNames());
-}
+ArrayRef<NamedType> OpType::getOperands() { return getImpl()->operands; }
+ArrayRef<NamedType> OpType::getResults() { return getImpl()->results; }
+ArrayRef<NamedConstraint> OpRegion::getRegions() { return getImpl()->attrs; }
+ArrayRef<NamedConstraint> OpSuccessor::getSuccessors()
+{ return getImpl()->attrs; }
 
 } // end namespace dmc

@@ -142,8 +142,9 @@ public:
 
   /// Allow querying of traits by temporarily instantiating one.
   std::unique_ptr<DynamicTrait> getTrait(llvm::StringRef name);
-  template <typename TraitT> std::unique_ptr<TraitT> getTrait() {
-    return dynamic_cast<TraitT *>(getTrait(TraitT::getName()).release());
+  template <typename TraitT> auto getTrait() {
+    return std::unique_ptr<TraitT>{dynamic_cast<TraitT *>(
+        getTrait(TraitT::getName()).release())};
   }
 
   /// Reparse types and attributes.

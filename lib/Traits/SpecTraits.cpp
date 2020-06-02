@@ -50,7 +50,7 @@ LogicalResult checkVariadicSegments(
   auto szBegin = szIt;
   for (auto tyIt = std::begin(tys), tyEnd = std::end(tys);
        tyIt != tyEnd; ++tyIt, ++szIt) {
-    if ((*szIt).getZExtValue() != 1 && !tyIt->template isa<VariadicType>())
+    if ((*szIt).getZExtValue() != 1 && !(*tyIt).template isa<VariadicType>())
       return op->emitOpError() << name << " #" << std::distance(szBegin, szIt)
           << " is not variadic but has non-unity segment size "
           << (*szIt).getZExtValue();

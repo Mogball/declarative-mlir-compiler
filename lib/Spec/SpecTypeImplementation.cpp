@@ -26,8 +26,8 @@ LogicalResult delegateVerify(Type base, Type ty) {
 /// Type verification.
 namespace impl {
 
-template <typename TypeRange>
-LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
+template <typename OpTypeRange, typename TypeRange>
+LogicalResult verifyTypeRange(Operation *op, OpTypeRange baseTys,
                               TypeRange tys, StringRef name) {
   auto firstTy = std::begin(tys), tyEnd = std::end(tys);
   auto tyIt = firstTy;
@@ -42,8 +42,8 @@ LogicalResult verifyTypeRange(Operation *op, ArrayRef<Type> baseTys,
   return success();
 }
 
-template <typename GetValueGroup>
-LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
+template <typename OpTypeRange, typename GetValueGroup>
+LogicalResult verifyVariadicTypes(Operation *op, OpTypeRange baseTys,
                                   GetValueGroup getValues, StringRef name) {
   unsigned groupIdx = 0, valIdx = 0;
   auto values = getValues(op, groupIdx);
@@ -51,7 +51,8 @@ LogicalResult verifyVariadicTypes(Operation *op, ArrayRef<Type> baseTys,
        tyIt != tyEnd || std::begin(values) != std::end(values);
        ++tyIt, values = getValues(op, ++groupIdx)) {
     assert(tyIt != tyEnd);
-    assert(std::begin(values) != std::end(values) || tyIt->isa<VariadicType>());
+    assert(std::begin(values) != std::end(values) ||
+           (*tyIt).template isa<VariadicType>());
     for (auto valIt = std::begin(values), valEnd = std::end(values);
          valIt != valEnd; ++valIt, ++valIdx) {
       // TODO custom type descriptions with dynamic types

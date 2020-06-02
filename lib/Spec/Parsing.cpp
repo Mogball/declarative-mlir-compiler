@@ -178,23 +178,20 @@ void printOpRegion(llvm::raw_ostream &os, Attribute opRegion) {
 }
 
 ParseResult parseOptionalRegionList(OpAsmParser &parser, OpRegion &opRegion) {
-  SmallVector<StringRef, 1> names;
-  SmallVector<Attribute, 1> opRegions;
+  SmallVector<NamedConstraint, 1> regions;
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (!parser.parseOptionalLParen()) {
     do {
-      StringRef name;
-      Attribute opRegion;
-      if (parser.parseKeyword(&name) || parser.parseColon() ||
-          parseOpRegion(parser, opRegion))
+      NamedConstraint region;
+      if (parser.parseKeyword(&region.name) || parser.parseColon() ||
+          parseOpRegion(parser, region.attr))
         return failure();
-      names.push_back(name);
-      opRegions.push_back(opRegion);
+      regions.push_back(std::move(region));
     } while (!parser.parseOptionalComma());
     if (parser.parseRParen())
       return failure();
   }
-  opRegion = OpRegion::getChecked(loc, names, opRegions);
+  opRegion = OpRegion::getChecked(loc, regions);
   return success(static_cast<bool>(opRegion));
 }
 
@@ -202,11 +199,10 @@ template <typename PrinterT>
 void printOptionalRegionList(PrinterT &printer, OpRegion opRegion) {
   if (opRegion.getNumRegions()) {
     printer << " (";
-    llvm::interleaveComma(
-        llvm::zip(opRegion.getRegionNames(), opRegion.getRegionAttrs()),
-        printer, [&](auto val) {
-          printer << std::get<0>(val) << " : ";
-          printOpRegion(printer.getStream(), std::get<1>(val));
+    llvm::interleaveComma(opRegion.getRegions(), printer,
+        [&](const NamedConstraint &region) {
+          printer << region.name << " : ";
+          printOpRegion(printer.getStream(), region.attr);
         });
     printer << ')';
   }
@@ -242,23 +238,20 @@ void printOpSuccessor(llvm::raw_ostream &os, Attribute opSucc) {
 
 ParseResult parseOptionalSuccessorList(OpAsmParser &parser,
                                        OpSuccessor &opSucc) {
-  SmallVector<StringRef, 2> names;
-  SmallVector<Attribute, 2> opSuccs;
+  SmallVector<NamedConstraint, 2> succs;
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
   if (!parser.parseOptionalLSquare()) {
     do {
-      StringRef name;
-      Attribute opSucc;
-      if (parser.parseKeyword(&name) || parser.parseColon() ||
-          parseOpSuccessor(parser, opSucc))
+      NamedConstraint succ;
+      if (parser.parseKeyword(&succ.name) || parser.parseColon() ||
+          parseOpSuccessor(parser, succ.attr))
         return failure();
-      names.push_back(name);
-      opSuccs.push_back(opSucc);
+      succs.push_back(std::move(succ));
     } while (!parser.parseOptionalComma());
     if (parser.parseRSquare())
       return failure();
   }
-  opSucc = OpSuccessor::getChecked(loc, names, opSuccs);
+  opSucc = OpSuccessor::getChecked(loc, succs);
   return success(static_cast<bool>(opSucc));
 }
 
@@ -266,11 +259,10 @@ template <typename PrinterT>
 void printOptionalSuccessorList(PrinterT &printer, OpSuccessor opSucc) {
   if (opSucc.getNumSuccessors()) {
     printer << " [";
-    llvm::interleaveComma(
-        llvm::zip(opSucc.getSuccessorNames(), opSucc.getSuccessorAttrs()),
-        printer, [&](auto val) {
-          printer << std::get<0>(val) << " : ";
-          printOpSuccessor(printer.getStream(), std::get<1>(val));
+    llvm::interleaveComma(opSucc.getSuccessors(), printer,
+        [&](const NamedConstraint &succ) {
+          printer << succ.name << " : ";
+          printOpSuccessor(printer.getStream(), succ.attr);
         });
     printer << ']';
   }
@@ -282,26 +274,22 @@ template void
 printOptionalSuccessorList(DialectAsmPrinter &printer, OpSuccessor opSucc);
 
 /// OpType parsing.
-template <typename NameList, typename TypeList>
-ParseResult parseValueList(OpAsmParser &parser,
-                           NameList &names, TypeList &tys) {
-  StringRef name;
-  Type type;
+template <typename NamedTypeList>
+ParseResult parseValueList(OpAsmParser &parser, NamedTypeList &tys) {
+  NamedType ty;
   if (parser.parseLParen())
     return failure();
   // Parse the first value, if present
-  if (!parser.parseOptionalKeyword(&name)) {
-    if (parser.parseColon() || parser.parseType(type))
+  if (!parser.parseOptionalKeyword(&ty.name)) {
+    if (parser.parseColon() || parser.parseType(ty.type))
       return failure();
-    names.push_back(name);
-    tys.push_back(type);
+    tys.push_back(std::move(ty));
     // Parse list values
     while (!parser.parseOptionalComma()) {
-      if (parser.parseKeyword(&name) || parser.parseColon() ||
-          parser.parseType(type))
+      if (parser.parseKeyword(&ty.name) || parser.parseColon() ||
+          parser.parseType(ty.type))
         return failure();
-      names.push_back(name);
-      tys.push_back(type);
+      tys.push_back(std::move(ty));
     }
   }
   return parser.parseRParen();
@@ -311,30 +299,29 @@ ParseResult parseOpType(OpAsmParser &parser, OpType &opType) {
   // op-type ::= `(` value-list `)` `->` `(` value-list `)`
   // value-list ::= (value (`,` value)*)?
   // value ::= identifier `:` type
-  SmallVector<StringRef, 4> argNames, retNames;
-  SmallVector<Type, 4> argTys, retTys;
+  SmallVector<NamedType, 4> operands, results;
   auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
-  if (parseValueList(parser, argNames, argTys) || parser.parseArrow() ||
-      parseValueList(parser, retNames, retTys))
+  if (parseValueList(parser, operands) || parser.parseArrow() ||
+      parseValueList(parser, results))
     return failure();
-  opType = OpType::getChecked(loc, argNames, retNames, argTys, retTys);
+  opType = OpType::getChecked(loc, operands, results);
   return success();
 }
 
-template <typename PrinterT, typename NameList, typename TypeList>
-void printValueList(PrinterT &printer, NameList names, TypeList tys) {
+template <typename PrinterT, typename NamedTypeList>
+void printValueList(PrinterT &printer, NamedTypeList types) {
   printer << '(';
-  llvm::interleaveComma(llvm::zip(names, tys), printer, [&](auto it) {
-    printer << std::get<0>(it)<< " : " << std::get<1>(it);
+  llvm::interleaveComma(types, printer, [&](const NamedType &ty) {
+    printer << ty.name << " : " << ty.type;
   });
   printer << ')';
 }
 
 template <typename PrinterT>
 void printOpType(PrinterT &printer, OpType opType) {
-  printValueList(printer, opType.getOperandNames(), opType.getOperandTypes());
+  printValueList(printer, opType.getOperands());
   printer << " -> ";
-  printValueList(printer, opType.getResultNames(), opType.getResultTypes());
+  printValueList(printer, opType.getResults());
 }
 
 template void printOpType(OpAsmPrinter &printer, OpType opType);

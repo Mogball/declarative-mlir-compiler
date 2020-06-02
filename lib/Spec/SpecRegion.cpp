@@ -94,25 +94,25 @@ namespace impl {
 
 /// Generic function for verifying a list where the last constraint may be
 /// variadic. Used for region and successor verification.
-template <typename VariadicT, typename ListT,
+template <typename VariadicT, typename ListT, typename ConstraintsT,
           typename VerifyFcn, typename StringifyFcn>
 LogicalResult verifyConstraintsLastVariadic(
-    Operation *op, ListT vars, ArrayRef<Attribute> constraints,
+    Operation *op, ListT vars, ConstraintsT constraints,
     VerifyFcn &&verify, StringifyFcn &&toString) {
   auto varIt = std::begin(vars), varEnd = std::end(vars);
   auto attrIt = std::begin(constraints), attrEnd = std::end(constraints);
   for (unsigned idx = 0; attrIt != attrEnd; ++attrIt, ++varIt) {
     /// There can only be one variadic region, and it will always be the last
     /// region. Region counts are verified by another trait.
-    assert(!attrIt->isa<VariadicT>() || attrIt == std::prev(attrEnd));
-    assert(varIt != varEnd || attrIt->isa<VariadicT>());
+    auto attr = *attrIt;
+    assert(!attr.template isa<VariadicT>() || attrIt == std::prev(attrEnd));
+    assert(varIt != varEnd || attr.template isa<VariadicT>());
     /// If the current constraint is not variadic, check one region, otherwise,
     /// iterate over the remaining regions and check the variadic constraint.
     for (auto it = varIt; it != varEnd &&
-         (it == varIt || attrIt->isa<VariadicT>()); ++it, ++idx) {
-      if (failed(verify(*attrIt, *it)))
-        return op->emitOpError("region #") << idx << " expected "
-            << toString(*attrIt);
+         (it == varIt || attr.template isa<VariadicT>()); ++it, ++idx) {
+      if (failed(verify(attr, *it)))
+        return op->emitOpError("region #") << idx << " expected " << toString(attr);
     }
   }
   return success();

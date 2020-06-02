@@ -31,14 +31,14 @@ Attribute reparseAttr(Attribute attr) {
 
 /// OperationOp reparsing.
 namespace {
-template <typename TypeRange, typename TypeContainerT>
-ParseResult reparseTypeRange(OperationOp op, TypeRange types,
+template <typename NamedTypeRange, typename TypeContainerT>
+ParseResult reparseTypeRange(OperationOp op, NamedTypeRange types,
                              TypeContainerT &newTypes, StringRef name) {
   newTypes.reserve(llvm::size(types));
   unsigned idx = 0;
-  for (auto type : types) {
-    if (auto newType = impl::reparseType(type)) {
-      newTypes.push_back(newType);
+  for (auto ty : types) {
+    if (auto newType = impl::reparseType(ty.type)) {
+      newTypes.push_back({ty.name, newType});
     } else {
       return op.emitOpError("failed to parse type for ") << name
           << " #" << idx;
@@ -65,12 +65,11 @@ ParseResult reparseNamedAttrs(OperationOp op, NamedAttrRange attrs,
 ParseResult OperationOp::reparse() {
   /// Reparse operation type. Names will remain the same.
   auto opTy = getOpType();
-  SmallVector<Type, 4> argTys, retTys;
-  if (reparseTypeRange(*this, opTy.getOperandTypes(), argTys, "operand") ||
-      reparseTypeRange(*this, opTy.getResultTypes(), retTys, "result"))
+  SmallVector<NamedType, 4> argTys, retTys;
+  if (reparseTypeRange(*this, opTy.getOperands(), argTys, "operand") ||
+      reparseTypeRange(*this, opTy.getResults(), retTys, "result"))
     return failure();
-  auto newOpTy = OpType::getChecked(getLoc(), opTy.getOperandNames(),
-                                    opTy.getResultNames(), argTys, retTys);
+  auto newOpTy = OpType::getChecked(getLoc(), argTys, retTys);
   if (newOpTy != opTy)
     setOpType(newOpTy);
 
