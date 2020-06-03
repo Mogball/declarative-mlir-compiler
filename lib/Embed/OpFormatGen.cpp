@@ -87,21 +87,6 @@ private:
 // VariableElement
 
 namespace {
-/// This class represents an instance of an variable element. A variable refers
-/// to something registered on the operation itself, e.g. an argument, result,
-/// etc.
-template <typename VarT, Element::Kind kindVal>
-class VariableElement : public Element {
-public:
-  VariableElement(const VarT *var) : Element(kindVal), var(var) {}
-  static bool classof(const Element *element) {
-    return element->getKind() == kindVal;
-  }
-  const VarT *getVar() { return var; }
-
-protected:
-  const VarT *var;
-};
 
 static ::dmc::AttributeMetadata *tryFindAttributeData(Attribute attr) {
   auto *ctx = attr.getContext()->getRegisteredDialect<::dmc::DynamicContext>();
@@ -119,6 +104,22 @@ static ::dmc::TypeMetadata *tryFindTypeData(Type type) {
   return nullptr;
 }
 
+/// This class represents an instance of an variable element. A variable refers
+/// to something registered on the operation itself, e.g. an argument, result,
+/// etc.
+template <typename VarT, Element::Kind kindVal>
+class VariableElement : public Element {
+public:
+  VariableElement(const VarT *var) : Element(kindVal), var(var) {}
+  static bool classof(const Element *element) {
+    return element->getKind() == kindVal;
+  }
+  const VarT *getVar() { return var; }
+
+protected:
+  const VarT *var;
+};
+
 /// This class represents a variable that refers to an attribute argument.
 struct AttributeVariable
     : public VariableElement<NamedAttribute, Element::Kind::AttributeVariable> {
@@ -128,11 +129,11 @@ struct AttributeVariable
   /// Return the constant builder call for the type of this attribute, or None
   /// if it doesn't have one.
   Optional<StringRef> getTypeBuilder() const {
-    /// TODO(jeff) No types are currently "buildable"
-    /*
-    Optional<Type> attrType = var->attr.getValueType();
-    return attrType ? attrType->getBuilderCall() : llvm::None;
-    */
+    llvm::errs() << "\n-- Looking for a type builder for: " << var->first << "\n";
+    if (auto *attrData = tryFindAttributeData(var->second))
+      if (auto ty = attrData->getType())
+        if (auto *typeData = tryFindTypeData(ty))
+          return typeData->getBuilder();
     return llvm::None;
   }
 };
@@ -1614,7 +1615,10 @@ LogicalResult FormatParser::verifyOperands(
 
     // Similarly to results, allow a custom builder for resolving the type if
     // we aren't using the 'operands' directive.
-    Optional<StringRef> builder = /*operand.constraint.getBuilderCall()*/ llvm::None;
+    Optional<StringRef> builder = llvm::None;
+    if (auto *typeData = tryFindTypeData(operand.type))
+      builder = typeData->getBuilder();
+
     if (!builder || (hasAllOperands && operand.isVariadic())) {
       return emitErrorAndNote(
           loc,
@@ -1654,7 +1658,10 @@ LogicalResult FormatParser::verifyResults(
     // If the result is not variable length, allow for the case where the type
     // has a builder that we can use.
     const NamedType &result = *opTy.getResult(i);
-    Optional<StringRef> builder = /*result.constraint.getBuilderCall()*/ llvm::None;
+    Optional<StringRef> builder = llvm::None;
+    if (auto *typeData = tryFindTypeData(result.type))
+      builder = typeData->getBuilder();
+
     if (!builder || result.isVariadic()) {
       return emitErrorAndNote(
           loc,

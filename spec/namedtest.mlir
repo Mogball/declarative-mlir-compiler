@@ -15,4 +15,5 @@ dmc.Dialect @stencil {
 
   /// AccessOp
   dmc.Op @access(temp : !stencil.Temp) -> (res : !stencil.Element) { offset = #stencil.Index }
+      config { fmt = "$temp $offset attr-dict-with-keyword `:` functional-type($temp, $res)" }
 }

@@ -6,6 +6,7 @@
 #include "dmc/Traits/Registry.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
+#include "dmc/Embed/OpFormatGen.h"
 
 using namespace mlir;
 using namespace mlir::dmc;
@@ -100,6 +101,10 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   if (failed(op->finalize()) ||
       failed(dialect->registerDynamicOp(std::move(op))))
     return opOp.emitOpError("an operation with this name already exists");
+
+  if (opOp.getAssemblyFormat())
+    generateOpFormat(opOp, llvm::errs(), llvm::errs());
+
   return success();
 }
 
