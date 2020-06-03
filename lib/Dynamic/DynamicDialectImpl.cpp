@@ -27,8 +27,8 @@ class DynamicDialect::Impl {
   /// registering aliases, map the aliased values back to the metadata.
   ///
   /// TODO This is not an ideal solution.
-  llvm::DenseMap<Type, TypeAlias *> typeAliasData;
-  llvm::DenseMap<Attribute, AttributeAlias *> attrAliasData;
+  llvm::DenseMap<Type, TypeAlias> typeAliasData;
+  llvm::DenseMap<Attribute, AttributeAlias> attrAliasData;
 };
 
 DynamicDialect::~DynamicDialect() = default;
@@ -75,9 +75,14 @@ DynamicAttributeImpl *DynamicDialect::lookupAttr(StringRef name) const {
 }
 
 LogicalResult DynamicDialect::registerTypeAlias(TypeAlias typeAlias) {
-  auto [it, inserted] = impl->typeAliases.try_emplace(typeAlias.getName(),
-                                                      typeAlias);
-  return success(inserted);
+  if (auto [it, inserted] = impl->typeAliases.try_emplace(
+      typeAlias.getName(), typeAlias); !inserted)
+    return failure();
+  if (auto [it, inserted] = impl->typeAliasData.try_emplace(
+      typeAlias.getAliasedType(), typeAlias); !inserted)
+    return failure();
+  return getDynContext()->registerDialectSymbol(this,
+                                                typeAlias.getAliasedType());
 }
 
 TypeAlias *DynamicDialect::lookupTypeAlias(StringRef name) const {
@@ -86,9 +91,14 @@ TypeAlias *DynamicDialect::lookupTypeAlias(StringRef name) const {
 }
 
 LogicalResult DynamicDialect::registerAttrAlias(AttributeAlias attrAlias) {
-  auto [it, inserted] = impl->attrAliases.try_emplace(attrAlias.getName(),
-                                                      attrAlias);
-  return success(inserted);
+  if (auto [it, inserted] = impl->attrAliases.try_emplace(
+      attrAlias.getName(), attrAlias); !inserted)
+    return failure();
+  if (auto [it, inserted] = impl->attrAliasData.try_emplace(
+      attrAlias.getAliasedAttr(), attrAlias); !inserted)
+    return failure();
+  return getDynContext()->registerDialectSymbol(this,
+                                                attrAlias.getAliasedAttr());
 }
 
 AttributeAlias *DynamicDialect::lookupAttrAlias(StringRef name) const {
@@ -103,7 +113,7 @@ TypeMetadata *DynamicDialect::lookupTypeData(mlir::Type type) {
   // Try to back-lookup a type alias
   if (auto it = impl->typeAliasData.find(type);
       it != std::end(impl->typeAliasData)) {
-    return it->second;
+    return &it->second;
   }
   return nullptr;
 }
@@ -115,7 +125,7 @@ AttributeMetadata *DynamicDialect::lookupAttributeData(mlir::Attribute attr) {
   // Try to back-lookup an attribute alias
   if (auto it = impl->attrAliasData.find(attr);
       it != std::end(impl->attrAliasData)) {
-    return it->second;
+    return &it->second;
   }
   return nullptr;
 }
