@@ -463,6 +463,9 @@ void AliasOp::print(OpAsmPrinter &printer) {
   } else {
     printer.printAttribute(getAliasedAttr());
   }
+  printer.printOptionalAttrDict(getAttrs(), {
+    getAliasedTypeAttrName(), getAliasedAttributeAttrName()
+  });
 }
 
 LogicalResult AliasOp::verify() {
