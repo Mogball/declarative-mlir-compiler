@@ -21,6 +21,14 @@ class DynamicDialect::Impl {
   StringMap<std::unique_ptr<DynamicAttributeImpl>> dynAttrs;
   StringMap<TypeAlias> typeAliases;
   StringMap<AttributeAlias> attrAliases;
+
+  /// Since an alias refers to a concrete value which may not be a dynamic
+  /// value, metadata cannot be directly associated with the values. When
+  /// registering aliases, map the aliased values back to the metadata.
+  ///
+  /// TODO This is not an ideal solution.
+  llvm::DenseMap<Type, TypeAlias *> typeAliasData;
+  llvm::DenseMap<Attribute, AttributeAlias *> attrAliasData;
 };
 
 DynamicDialect::~DynamicDialect() = default;
@@ -89,16 +97,26 @@ AttributeAlias *DynamicDialect::lookupAttrAlias(StringRef name) const {
 }
 
 TypeMetadata *DynamicDialect::lookupTypeData(mlir::Type type) {
+  // Metadata directly associated with dynamic types
   if (auto dynTy = type.dyn_cast<DynamicType>())
     return dynTy.getTypeImpl();
-
+  // Try to back-lookup a type alias
+  if (auto it = impl->typeAliasData.find(type);
+      it != std::end(impl->typeAliasData)) {
+    return it->second;
+  }
   return nullptr;
 }
 
 AttributeMetadata *DynamicDialect::lookupAttributeData(mlir::Attribute attr) {
+  // Metadata directly associated with dynamic attributes
   if (auto dynAttr = attr.dyn_cast<DynamicAttribute>())
     return dynAttr.getAttrImpl();
-
+  // Try to back-lookup an attribute alias
+  if (auto it = impl->attrAliasData.find(attr);
+      it != std::end(impl->attrAliasData)) {
+    return it->second;
+  }
   return nullptr;
 }
 

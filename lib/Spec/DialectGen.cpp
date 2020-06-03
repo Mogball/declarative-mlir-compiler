@@ -122,13 +122,15 @@ LogicalResult registerAlias(AliasOp aliasOp, DynamicDialect *dialect) {
   if (auto type = aliasOp.getAliasedType()) {
     if (dialect->lookupType(aliasOp.getName()))
       return aliasOp.emitOpError("a type with this name already exists");
-    if (failed(dialect->registerTypeAlias({aliasOp.getName(), type})))
+    if (failed(dialect->registerTypeAlias({aliasOp.getName(), type,
+                                          aliasOp.getBuilder()})))
       return aliasOp.emitOpError("a type alias with this name already exists");
   } else {
     if (dialect->lookupAttr(aliasOp.getName()))
       return aliasOp.emitOpError("an attribute with this name already exists");
-    if (failed(dialect->registerAttrAlias({aliasOp.getName(),
-                                          aliasOp.getAliasedAttr()})))
+    if (failed(dialect->registerAttrAlias({
+        aliasOp.getName(), aliasOp.getAliasedAttr(), aliasOp.getBuilder(),
+        aliasOp.getAttrType()})))
       return aliasOp.emitOpError(
           "an attribute alias with  this name already exists");
   }
