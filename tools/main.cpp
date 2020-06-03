@@ -27,10 +27,10 @@ static DialectRegistration<TraitRegistry> registerTraits;
 
 int main() {
   MLIRContext mlirContext;
-  DynamicContext ctx{&mlirContext};
+  auto *ctx = new DynamicContext{&mlirContext};
 
-  auto *dialectTest0 = ctx.createDynamicDialect("test0");
-  auto *dialectTest1 = ctx.createDynamicDialect("test1");
+  auto *dialectTest0 = ctx->createDynamicDialect("test0");
+  auto *dialectTest1 = ctx->createDynamicDialect("test1");
   std::cout << "Dialects registered" << std::endl;
 
   {
@@ -57,7 +57,7 @@ int main() {
   std::cout << "Ops registered" << std::endl;
 
   // Test creating modules
-  ModuleWriter writer{&ctx};
+  ModuleWriter writer{ctx};
   OpBuilder b{&mlirContext};
 
   auto *opA = dialectTest0->lookupOp("test0.opA");

@@ -33,7 +33,7 @@ class DynamicContext::Impl {
 DynamicContext::~DynamicContext() = default;
 
 DynamicContext::DynamicContext(MLIRContext *ctx)
-    : ctx{ctx},
+    : Dialect{getDialectNamespace(), ctx},
       typeIdAlloc{getFixedTypeIDAllocator()},
       impl{std::make_unique<Impl>()} {
   // Automatically initialize the interpreter

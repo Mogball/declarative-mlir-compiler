@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   }
 
   MLIRContext ctx;
-  DynamicContext dynCtx{&ctx};
+  auto *dynCtx = new DynamicContext{&ctx};
   SourceMgr srcMgr;
   SourceMgrDiagnosticHandler srcMgrDiagHandler{srcMgr, &ctx};
   auto mlirModule = mlir::parseSourceFile(argv[1], srcMgr, &ctx);
@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   mlirModule->print(llvm::outs());
   llvm::outs() << "\n";
 
-  if (failed(registerAllDialects(*mlirModule, &dynCtx))) {
+  if (failed(registerAllDialects(*mlirModule, dynCtx))) {
     llvm::errs() << "Failed to register dynamic dialects\n";
     return -1;
   }

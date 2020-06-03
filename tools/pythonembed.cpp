@@ -57,7 +57,7 @@ int main() {
   DialectRegistration<SpecDialect>{};
   DialectRegistration<TraitRegistry>{};
   MLIRContext ctx;
-  DynamicContext dynCtx{&ctx};
+  auto *dynCtx = new DynamicContext{&ctx};
   OpBuilder b{&ctx};
 
   StringRef name{"fmt_op"};
@@ -74,7 +74,7 @@ int main() {
   auto opSucc = OpSuccessor::getChecked(loc, {});
   auto opTraits = OpTraitsAttr::getChecked(loc, b.getArrayAttr({}));
 
-  ModuleWriter mw{&dynCtx};
+  ModuleWriter mw{dynCtx};
   auto fcn = mw.createFunction("testFcn", {b.getIntegerType(32)}, {});
   FunctionWriter fw{fcn};
   b.setInsertionPointToStart(&fcn.front());

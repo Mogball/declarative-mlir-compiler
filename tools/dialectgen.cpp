@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   }
 
   MLIRContext ctx;
-  DynamicContext dynCtx{&ctx};
+  auto *dynCtx = new DynamicContext{&ctx}; // MLIRContext takes ownership
 
   SourceMgr dialectSrcMgr;
   SourceMgrDiagnosticHandler dialectDiag{dialectSrcMgr, &ctx};
@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  if (failed(registerAllDialects(*dialectModule, &dynCtx))) {
+  if (failed(registerAllDialects(*dialectModule, dynCtx))) {
     llvm::errs() << "Failed to register dynamic dialects\n";
     return -1;
   }

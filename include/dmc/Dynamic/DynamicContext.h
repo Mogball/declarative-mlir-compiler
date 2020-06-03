@@ -5,6 +5,7 @@
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Attributes.h>
+#include <mlir/IR/Dialect.h>
 
 namespace dmc {
 
@@ -13,13 +14,15 @@ class DynamicDialect;
 
 /// Manages the creation and lifetime of dynamic MLIR objects:
 /// Dialects, Operations, Types, and Attributes.
-class DynamicContext {
+class DynamicContext : public mlir::Dialect {
 public:
   ~DynamicContext();
   DynamicContext(mlir::MLIRContext *ctx);
 
+  /// Subclass dialect to make the dynamic context globally accessible.
+  static llvm::StringRef getDialectNamespace() { return "dyn_context"; }
+
   /// Getters.
-  mlir::MLIRContext *getContext() { return ctx; }
   TypeIDAllocator *getTypeIDAlloc() { return typeIdAlloc; }
 
   /// Create a DynamicDialect and return an instance registered with
@@ -38,7 +41,6 @@ public:
 
 private:
   class Impl;
-  mlir::MLIRContext *ctx;
   TypeIDAllocator *typeIdAlloc;
   std::unique_ptr<Impl> impl;
 };

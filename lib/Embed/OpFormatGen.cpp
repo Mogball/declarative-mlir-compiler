@@ -10,6 +10,9 @@
 #include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
+#include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/Metadata.h"
 #include <mlir/IR/Diagnostics.h>
 
 #include "mlir/Support/LogicalResult.h"
@@ -99,6 +102,22 @@ public:
 protected:
   const VarT *var;
 };
+
+static ::dmc::AttributeMetadata *tryFindAttributeData(Attribute attr) {
+  auto *ctx = attr.getContext()->getRegisteredDialect<::dmc::DynamicContext>();
+  assert(ctx && "Dynamic context has not been instantiated");
+  if (auto *dialect = ctx->lookupDialectFor(attr))
+    return dialect->lookupAttributeData(attr);
+  return nullptr;
+}
+
+static ::dmc::TypeMetadata *tryFindTypeData(Type type) {
+  auto *ctx = type.getContext()->getRegisteredDialect<::dmc::DynamicContext>();
+  assert(ctx && "Dynamic context has not been instantiated");
+  if (auto *dialect = ctx->lookupDialectFor(type))
+    return dialect->lookupTypeData(type);
+  return nullptr;
+}
 
 /// This class represents a variable that refers to an attribute argument.
 struct AttributeVariable
