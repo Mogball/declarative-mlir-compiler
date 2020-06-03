@@ -16,7 +16,7 @@ namespace dmc {
 
 void addAttributesIfNotPresent(ArrayRef<NamedAttribute> attrs,
                                OperationState &result) {
-  llvm::DenseSet<StringRef> present;
+  DenseSet<StringRef> present;
   present.reserve(llvm::size(result.attributes));
   for (auto &namedAttr : result.attributes)
     present.insert(namedAttr.first);
@@ -250,8 +250,8 @@ std::unique_ptr<DynamicTrait> OperationOp::getTrait(StringRef name) {
 /// Trait array manipulation helpers.
 namespace impl {
 template <typename TraitT> bool hasTrait(OpTraitsAttr opTraits) {
-  return llvm::count_if(opTraits.getValue(), [](OpTraitAttr sym)
-                        { return sym.getName() == TraitT::getName(); });
+  return count_if(opTraits.getValue(), [](OpTraitAttr sym)
+                  { return sym.getName() == TraitT::getName(); });
 }
 
 /// Check that all constraints satisfy `is` and only the last is variadic.
@@ -441,16 +441,17 @@ ParseResult AliasOp::parse(mlir::OpAsmParser &parser,
     if (*ret) // found type but failed to parse
       return failure();
     result.addAttribute(getAliasedTypeAttrName(), mlir::TypeAttr::get(type));
-    return success(); // found type and parse succeeded
+  } else {
+    /// Parse an attribute alias.
+    Attribute attr;
+    if (impl::parseSingleAttribute(parser, attr))
+      return parser.emitError(parser.getCurrentLocation(),
+                              "expected a type or an attribute");
+    result.addAttribute(getAliasedAttributeAttrName(), attr);
   }
 
-  /// Parse an attribute alias.
-  Attribute attr;
-  if (impl::parseSingleAttribute(parser, attr))
-    return parser.emitError(parser.getCurrentLocation(),
-                            "expected a type or an attribute");
-  result.addAttribute(getAliasedAttributeAttrName(), attr);
-  return success();
+  /// Parse an attribute dict.
+  return parser.parseOptionalAttrDict(result.attributes);
 }
 
 void AliasOp::print(OpAsmPrinter &printer) {
@@ -469,6 +470,20 @@ LogicalResult AliasOp::verify() {
     return emitOpError("is neither an alias to a type nor an attribute");
   if (getAliasedType() && getAliasedAttr())
     return emitOpError("cannot be an alias to both a type and an attribute");
+
+  // Verify optional builder attribute
+  auto builderAttr = getAttr(getBuilderAttrName());
+  if (builderAttr && !builderAttr.isa<mlir::StringAttr>())
+    return emitOpError("expected a string attribute for `builder`");
+
+  // Verify optional type attribute
+  auto typeAttr = getAttr(getTypeAttrName());
+  if (typeAttr) {
+    if (!getAliasedAttr())
+      return emitOpError("only an attribute alias can specify a type");
+    if (!typeAttr.isa<mlir::TypeAttr>())
+      return emitOpError("expected a type attribute for `type`");
+  }
   return success();
 }
 
@@ -479,6 +494,18 @@ Type AliasOp::getAliasedType() {
 
 Attribute AliasOp::getAliasedAttr() {
   return getAttr(getAliasedAttributeAttrName()); // returns null if DNE
+}
+
+Optional<StringRef> AliasOp::getBuilder() {
+  auto builderAttr = getAttrOfType<mlir::StringAttr>(getBuilderAttrName());
+  if (builderAttr)
+    return builderAttr.getValue();
+  return llvm::None;
+}
+
+Type AliasOp::getAttrType() {
+  auto typeAttr = getAttrOfType<mlir::TypeAttr>(getTypeAttrName());
+  return typeAttr ? typeAttr.getValue() : Type{};
 }
 
 } // end namespace dmc

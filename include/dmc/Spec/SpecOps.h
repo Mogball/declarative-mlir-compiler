@@ -280,10 +280,14 @@ public:
   /// Getters.
   mlir::Type getAliasedType();
   mlir::Attribute getAliasedAttr();
+  llvm::Optional<llvm::StringRef> getBuilder();
+  mlir::Type getAttrType();
 
 private:
-  static llvm::StringRef getAliasedTypeAttrName() { return "type"; }
-  static llvm::StringRef getAliasedAttributeAttrName() { return "attr"; }
+  static llvm::StringRef getAliasedTypeAttrName() { return "aliasedType"; }
+  static llvm::StringRef getAliasedAttributeAttrName() { return "aliasedAttr"; }
+  static llvm::StringRef getBuilderAttrName() { return "builder"; }
+  static llvm::StringRef getTypeAttrName() { return "type"; }
 };
 
 } // end namespace dmc
