@@ -464,7 +464,8 @@ void AliasOp::print(OpAsmPrinter &printer) {
     printer.printAttribute(getAliasedAttr());
   }
   printer.printOptionalAttrDict(getAttrs(), {
-    getAliasedTypeAttrName(), getAliasedAttributeAttrName()
+    getAliasedTypeAttrName(), getAliasedAttributeAttrName(),
+    mlir::SymbolTable::getSymbolAttrName()
   });
 }
 

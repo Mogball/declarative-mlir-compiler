@@ -41,14 +41,11 @@ struct DynamicAttributeStorage : public AttributeStorage {
 } // end namespace detail
 
 DynamicAttributeImpl::DynamicAttributeImpl(
-    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec,
-    Optional<StringRef> builder, Optional<Type> type)
+    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec)
     : DynamicObject{dialect->getDynContext()},
+      AttributeMetadata{name, llvm::None, Type{}},
       dialect{dialect},
-      name{name},
-      paramSpec{paramSpec},
-      builder{builder},
-      type{type} {}
+      paramSpec{paramSpec} {}
 
 Attribute DynamicAttributeImpl::parseAttribute(Location loc,
                                                DialectAsmParser &parser) {
@@ -70,7 +67,7 @@ Attribute DynamicAttributeImpl::parseAttribute(Location loc,
 void DynamicAttributeImpl::printAttribute(Attribute attr,
                                           DialectAsmPrinter &printer) {
   auto dynAttr = attr.cast<DynamicAttribute>();
-  printer << name;
+  printer << getName();
   auto params = dynAttr.getParams();
   if (!params.empty()) {
     auto it = std::begin(params);

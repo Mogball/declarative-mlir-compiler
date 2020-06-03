@@ -88,4 +88,18 @@ AttributeAlias *DynamicDialect::lookupAttrAlias(StringRef name) const {
   return it == std::end(impl->attrAliases) ? nullptr : &it->second;
 }
 
+TypeMetadata *DynamicDialect::lookupTypeData(mlir::Type type) {
+  if (auto dynTy = type.dyn_cast<DynamicType>())
+    return dynTy.getTypeImpl();
+
+  return nullptr;
+}
+
+AttributeMetadata *DynamicDialect::lookupAttributeData(mlir::Attribute attr) {
+  if (auto dynAttr = attr.dyn_cast<DynamicAttribute>())
+    return dynAttr.getAttrImpl();
+
+  return nullptr;
+}
+
 } // end namespace dmc

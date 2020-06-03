@@ -13,6 +13,8 @@ class DynamicTypeImpl;
 class DynamicAttributeImpl;
 class TypeAlias;
 class AttributeAlias;
+class TypeMetadata;
+class AttributeMetadata;
 
 /// Dynamic dialect underlying class. This class hooks Dialect methods
 /// into user-specified functions.
@@ -86,6 +88,11 @@ public:
   mlir::LogicalResult registerAttrAlias(AttributeAlias attrAlias);
   /// Lookup an attribute alias. Returns nullptr if not found.
   AttributeAlias *lookupAttrAlias(llvm::StringRef name) const;
+
+  /// Lookup dynamic type metadata associated with a type, if any.
+  TypeMetadata *lookupTypeData(mlir::Type type);
+  /// Lookup dynamic attribute metadata associated with an attribute, if any.
+  AttributeMetadata *lookupAttributeData(mlir::Attribute attr);
 
 private:
   class Impl;

@@ -46,14 +46,12 @@ struct DynamicTypeStorage : public TypeStorage {
 };
 } // end namespace detail
 
-DynamicTypeImpl::DynamicTypeImpl(
-    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec,
-    Optional<StringRef> builder)
+DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
+                                 ArrayRef<Attribute> paramSpec)
     : DynamicObject{dialect->getDynContext()},
+      TypeMetadata{name, llvm::None},
       dialect{dialect},
-      name{name},
-      paramSpec{paramSpec},
-      builder{builder} {}
+      paramSpec{paramSpec} {}
 
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
   std::vector<Attribute> params;
@@ -73,7 +71,7 @@ Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
 
 void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
   auto dynTy = type.cast<DynamicType>();
-  printer << name;
+  printer << getName();
   auto params = dynTy.getParams();
   if (!params.empty()) {
     auto it = std::begin(params);

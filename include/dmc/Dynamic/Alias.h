@@ -1,7 +1,8 @@
 #pragma once
 
+#include "Metadata.h"
+
 #include <mlir/IR/Attributes.h>
-#include <mlir/IR/Types.h>
 
 namespace dmc {
 
@@ -10,33 +11,32 @@ namespace dmc {
 ///
 /// `DynamicDialect::parseType`, for example, upon parsing a type alias, return
 /// the aliased type.
-class TypeAlias {
+class TypeAlias : public TypeMetadata {
 public:
-  TypeAlias(llvm::StringRef name, mlir::Type aliasedType)
-      : name{name},
+  TypeAlias(llvm::StringRef name, mlir::Type aliasedType,
+            llvm::Optional<llvm::StringRef> builder = {})
+      : TypeMetadata{name, builder},
         aliasedType{aliasedType} {}
 
-  inline auto getName() { return name; }
   inline auto getAliasedType() { return aliasedType; }
 
 private:
-  llvm::StringRef name;
   mlir::Type aliasedType;
 };
 
 /// `DynamicDialect::parseAttribute` will directly return the aliased
 /// attribute.
-class AttributeAlias {
+class AttributeAlias : public AttributeMetadata {
 public:
-  AttributeAlias(llvm::StringRef name, mlir::Attribute aliasedAttr)
-      : name{name},
+  AttributeAlias(llvm::StringRef name, mlir::Attribute aliasedAttr,
+                 llvm::Optional<llvm::StringRef> builder = {},
+                 mlir::Type type = {})
+      : AttributeMetadata{name, builder, type},
         aliasedAttr{aliasedAttr} {}
 
-  inline auto getName() { return name; }
   inline auto getAliasedAttr() { return aliasedAttr; }
 
 private:
-  llvm::StringRef name;
   mlir::Attribute aliasedAttr;
 };
 
