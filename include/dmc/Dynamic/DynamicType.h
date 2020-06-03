@@ -21,12 +21,14 @@ class DynamicTypeImpl : public DynamicObject {
 public:
   /// Create a dynamic type with the provided name and parameter spec.
   explicit DynamicTypeImpl(DynamicDialect *dialect, llvm::StringRef name,
-                           llvm::ArrayRef<mlir::Attribute> paramSpec);
+                           llvm::ArrayRef<mlir::Attribute> paramSpec,
+                           llvm::Optional<llvm::StringRef> builder = {});
 
   /// Getters.
   inline DynamicDialect *getDialect() { return dialect; }
   inline auto getName() { return name; }
   inline auto getParamSpec()  { return paramSpec; }
+  inline auto getBuilder() { return builder; }
 
   /// Delegate parser and printer.
   mlir::Type parseType(mlir::Location loc, mlir::DialectAsmParser &parser);
@@ -40,6 +42,8 @@ private:
   /// The parameters are defined by Attribute constraints. The Attribute
   /// instances must be Spec attributes.
   llvm::ArrayRef<mlir::Attribute> paramSpec;
+  /// An optional constant Python builder for the type.
+  llvm::Optional<llvm::StringRef> builder;
 
   friend class DynamicType;
 };

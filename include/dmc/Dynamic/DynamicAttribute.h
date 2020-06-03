@@ -21,12 +21,16 @@ class DynamicAttributeImpl : public DynamicObject {
 public:
   /// Create a dynamic attribute with the given name and parameter spec.
   explicit DynamicAttributeImpl(DynamicDialect *dialect, llvm::StringRef name,
-                                llvm::ArrayRef<mlir::Attribute> paramSpec);
+                                llvm::ArrayRef<mlir::Attribute> paramSpec,
+                                llvm::Optional<llvm::StringRef> builder = {},
+                                llvm::Optional<mlir::Type> type = {});
 
   /// Getters.
   inline DynamicDialect *getDialect() { return dialect; }
   inline auto getName() { return name; }
   inline auto getParamSpec() { return paramSpec; }
+  inline auto getBuilder () { return builder; }
+  inline auto getType() { return type; }
 
   /// Delegate parse and printer.
   mlir::Attribute parseAttribute(mlir::Location loc,
@@ -41,6 +45,10 @@ private:
   /// The dynamic attribute is formed by composing other attributes. The
   /// attributes must be Spec attributes.
   llvm::ArrayRef<mlir::Attribute> paramSpec;
+  /// An optional constant Python builder for the attribute.
+  llvm::Optional<llvm::StringRef> builder;
+  /// An optional type for the attribute.
+  llvm::Optional<mlir::Type> type;
 
   friend class DynamicAttribute;
 };

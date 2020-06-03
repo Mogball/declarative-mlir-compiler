@@ -46,12 +46,14 @@ struct DynamicTypeStorage : public TypeStorage {
 };
 } // end namespace detail
 
-DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
-                                 ArrayRef<Attribute> paramSpec)
+DynamicTypeImpl::DynamicTypeImpl(
+    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec,
+    Optional<StringRef> builder)
     : DynamicObject{dialect->getDynContext()},
       dialect{dialect},
       name{name},
-      paramSpec{paramSpec} {}
+      paramSpec{paramSpec},
+      builder{builder} {}
 
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
   std::vector<Attribute> params;

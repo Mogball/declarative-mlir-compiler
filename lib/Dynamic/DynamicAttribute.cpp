@@ -41,11 +41,14 @@ struct DynamicAttributeStorage : public AttributeStorage {
 } // end namespace detail
 
 DynamicAttributeImpl::DynamicAttributeImpl(
-  DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec)
+    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec,
+    Optional<StringRef> builder, Optional<Type> type)
     : DynamicObject{dialect->getDynContext()},
       dialect{dialect},
       name{name},
-      paramSpec{paramSpec} {}
+      paramSpec{paramSpec},
+      builder{builder},
+      type{type} {}
 
 Attribute DynamicAttributeImpl::parseAttribute(Location loc,
                                                DialectAsmParser &parser) {
