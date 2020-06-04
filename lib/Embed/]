@@ -393,12 +393,10 @@ static bool canFormatEnumAttr(const NamedAttribute *attr) {
 /// {0}: The name of the attribute.
 /// {1}: The type for the attribute.
 void genAttrParserCode(PythonGenStream &s, StringRef name, StringRef type) {
-  s.line() << name << "Attr, success = parser.parseAttribute(\"" << name
-      << "\"{1})";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.endif();
-  s.line() << "result.attributes.append(" << name << "Attr)";
+  s.line() << "{0}Attr, success = parser.parseAttribute(\"{0}\"{1})";
+  s.if_("not success").line() << "return False";
+  s.endif();
+  s.line() << "result.attributes.append({0}Attr)";
 }
 
 /// The code snippet used to generate a parser call for an enum attribute.
@@ -434,8 +432,9 @@ void genVariadicOperandParserCode(PythonGenStream &s, StringRef name) {
   s.line() << "anOperandList, success = parser.parseOperandList()";
   s.if_("not success"); {
     s.line() << "return False";
-  } s.endif();
-  s.line() << name << "Operands += anOperandList";
+  }
+  s.endif();
+  s.line() << "{0}Operands += anOperandList";
 }
 
 void genOptionalOperandParserCode(PythonGenStream &s, StringRef name) {
@@ -443,92 +442,92 @@ void genOptionalOperandParserCode(PythonGenStream &s, StringRef name) {
   s.if_("tristate.hasValue()"); {
     s.if_("tristate.failed()"); {
       s.line() << "return False";
-    } s.endif();
-    s.line() << name << "Operands.append(anOperand)";
-  } s.endif();
+    } s.end();
+    s.line() << "{0}Operands.append(anOperand)";
+  }
 }
-
-void genOperandParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "anOperand, success = parser.parseOperand()";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.end();
-  s.line() << name << "Operands[0] = anOperand";
-}
+const char *const optionalOperandParserCode = R"(
+  {
+    OpAsmParser::OperandType operand;
+    OptionalParseResult parseResult = parser.parseOptionalOperand(operand);
+    if (parseResult.hasValue()) {
+      if (failed(*parseResult))
+        return failure();
+      {0}Operands.push_back(operand);
+    }
+  }
+)";
+const char *const operandParserCode = R"(
+  if (parser.parseOperand({0}RawOperands[0]))
+    return failure();
+)";
 
 /// The code snippet used to generate a parser call for a type list.
 ///
 /// {0}: The name for the type list.
-void genVariadicTypeParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "aTypeList, success = parser.parseTypeList()";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.endif();
-  s.line() << name << "Types += aTypeList";
-}
-
-void genOptionalTypeParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "aType, tristate = parser.parseOptionalType()";
-  s.if_("tristate.hasValue()"); {
-    s.if_("tristate.failed()"); {
-      s.line() << "return False";
-    } s.endif();
-    s.line() << name << "Types.append(aType)";
-  } s.endif();
-}
-
-void genTypeParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "aType, success = parser.parseType()";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.endif();
-  s.line() << name << "Types[0] = aType";
-}
+const char *const variadicTypeParserCode = R"(
+  if (parser.parseTypeList({0}Types))
+    return failure();
+)";
+const char *const optionalTypeParserCode = R"(
+  {
+    Type optionalType;
+    OptionalParseResult parseResult = parser.parseOptionalType(optionalType);
+    if (parseResult.hasValue()) {
+      if (failed(*parseResult))
+        return failure();
+      {0}Types.push_back(optionalType);
+    }
+  }
+)";
+const char *const typeParserCode = R"(
+  if (parser.parseType({0}RawTypes[0]))
+    return failure();
+)";
 
 /// The code snippet used to generate a parser call for a functional type.
 ///
 /// {0}: The name for the input type list.
 /// {1}: The name for the result type list.
-void genFunctionalTypeParserCode(PythonGenStream &s, StringRef iname,
-                                 StringRef oname) {
-  s.line() << "aFunctionType, success = parser.parseFunctionalType()";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.endif();
-  s.line() << iname << "Types = aFunctionType.inputs";
-  s.line() << oname << "Types = aFunctionType.results";
-}
+const char *const functionalTypeParserCode = R"(
+  FunctionType {0}__{1}_functionType;
+  if (parser.parseType({0}__{1}_functionType))
+    return failure();
+  {0}Types = {0}__{1}_functionType.getInputs();
+  {1}Types = {0}__{1}_functionType.getResults();
+)";
 
 /// The code snippet used to generate a parser call for a successor list.
 ///
 /// {0}: The name for the successor list.
-void genSuccessorListParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "succ, tristate = parser.parseOptionalSuccessor()";
-  s.if_("tristate.hasValue()"); {
-    s.if_("tristate.failed()"); {
-      s.line() << "return False";
-    } s.endif();
-    s.line() << name << "Successors.append(succ)";
-    s.block("while", "parser.parseOptionalComma()"); {
-      s.line() << "succ, success = parser.parseSuccessor()";
-      s.if_("not success"); {
-        s.line() << "return False";
-      } s.endif();
-      s.line() << name << "Successors.append(succ)";
-    } s.endblock();
-  } s.endif();
-}
+const char *successorListParserCode = R"(
+  SmallVector<Block *, 2> {0}Successors;
+  {
+    Block *succ;
+    auto firstSucc = parser.parseOptionalSuccessor(succ);
+    if (firstSucc.hasValue()) {
+      if (failed(*firstSucc))
+        return failure();
+      {0}Successors.emplace_back(succ);
+
+      // Parse any trailing successors.
+      while (succeeded(parser.parseOptionalComma())) {
+        if (parser.parseSuccessor(succ))
+          return failure();
+        {0}Successors.emplace_back(succ);
+      }
+    }
+  }
+)";
 
 /// The code snippet used to generate a parser call for a successor.
 ///
 /// {0}: The name of the successor.
-void genSuccessorParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "succ, success = parser.parseSuccessor()";
-  s.if_("not success"); {
-    s.line() << "return False";
-  } s.endif();
-  s.line() << name << "Successor = succ";
-}
+const char *successorParserCode = R"(
+  Block *{0}Successor = nullptr;
+  if (parser.parseSuccessor({0}Successor))
+    return failure();
+)";
 
 namespace {
 /// The type of length for a given parse argument.
@@ -684,58 +683,47 @@ static void genElementParser(Element *element, PythonGenStream &body,
       os << ", " << tgfmt(*typeBuilder, &attrTypeCtx);
     }
     genAttrParserCode(body, var->first.strref(), attrTypeStr);
-
-    /// Operands
   } else if (auto *operand = dyn_cast<OperandVariable>(element)) {
     ArgumentLengthKind lengthKind = getArgumentLengthKind(operand->getVar());
     StringRef name = operand->getVar()->name;
-    if (lengthKind == ArgumentLengthKind::Variadic) {
-      genVariadicOperandParserCode(body, name);
-    } else if (lengthKind == ArgumentLengthKind::Optional) {
-      genOptionalOperandParserCode(body, name);
-    } else {
-      genOperandParserCode(body, name);
-    }
-
-    /// Successors
+    if (lengthKind == ArgumentLengthKind::Variadic)
+      body << llvm::formatv(variadicOperandParserCode, name);
+    else if (lengthKind == ArgumentLengthKind::Optional)
+      body << llvm::formatv(optionalOperandParserCode, name);
+    else
+      body << formatv(operandParserCode, name);
   } else if (auto *successor = dyn_cast<SuccessorVariable>(element)) {
-    if (successor->getVar()->isVariadic()) {
-      genSuccessorListParserCode(body, successor->getVar()->name);
-    } else {
-      genSuccessorParserCode(body, successor->getVar()->name);
-    }
+    bool isVariadic = successor->getVar()->isVariadic();
+    body << formatv(isVariadic ? successorListParserCode : successorParserCode,
+                    successor->getVar()->name);
 
     /// Directives.
   } else if (auto *attrDict = dyn_cast<AttrDictDirective>(element)) {
-    body.line() << "anAttrList, success = parser.parseOptionalAttrDict"
-        << (attrDict->isWithKeyword() ? "WithKeyword" : "") << "()";
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
-    body.line() << "result.attributes += anAttrList";
+    body << "  if (parser.parseOptionalAttrDict"
+         << (attrDict->isWithKeyword() ? "WithKeyword" : "")
+         << "(result.attributes))\n"
+         << "    return failure();\n";
   } else if (isa<OperandsDirective>(element)) {
-    body.line() << "allOperandLoc = parser.getCurrentLocation()";
-    body.line() << "allOperands, success = parser.parseOperandList()";
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
+    body << "  llvm::SMLoc allOperandLoc = parser.getCurrentLocation();\n"
+         << "  SmallVector<OpAsmParser::OperandType, 4> allOperands;\n"
+         << "  if (parser.parseOperandList(allOperands))\n"
+         << "    return failure();\n";
   } else if (isa<SuccessorsDirective>(element)) {
-    genSuccessorListParserCode(body, "full");
+    body << llvm::formatv(successorListParserCode, "full");
   } else if (auto *dir = dyn_cast<TypeDirective>(element)) {
     ArgumentLengthKind lengthKind;
     StringRef listName = getTypeListName(dir->getOperand(), lengthKind);
-    if (lengthKind == ArgumentLengthKind::Variadic) {
-      genVariadicTypeParserCode(body, listName);
-    } else if (lengthKind == ArgumentLengthKind::Optional) {
-      genOptionalTypeParserCode(body, listName);
-    } else {
-      genTypeParserCode(body, listName);
-    }
+    if (lengthKind == ArgumentLengthKind::Variadic)
+      body << llvm::formatv(variadicTypeParserCode, listName);
+    else if (lengthKind == ArgumentLengthKind::Optional)
+      body << llvm::formatv(optionalTypeParserCode, listName);
+    else
+      body << formatv(typeParserCode, listName);
   } else if (auto *dir = dyn_cast<FunctionalTypeDirective>(element)) {
     ArgumentLengthKind ignored;
-    genFunctionalTypeParserCode(body,
-                                getTypeListName(dir->getInputs(), ignored)
-                                getTypeListName(dir->getResults(), ignored));
+    body << formatv(functionalTypeParserCode,
+                    getTypeListName(dir->getInputs(), ignored),
+                    getTypeListName(dir->getResults(), ignored));
   } else {
     llvm_unreachable("unknown format element");
   }
@@ -804,36 +792,33 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   if (!buildableTypes.empty()) {
     FmtContext typeBuilderCtx;
     typeBuilderCtx.withBuilder("parser.getBuilder()");
-    for (auto &it : buildableTypes) {
-      body.line() << "odsBuildableType" << it.second << " = "
-          << tgfmt(it.first, &typeBuilderCtx);
-    }
+    for (auto &it : buildableTypes)
+      body << "  Type odsBuildableType" << it.second << " = "
+           << tgfmt(it.first, &typeBuilderCtx) << ";\n";
   }
 
   // Emit the code necessary for a type resolver.
-  auto emitTypeResolver = [](PythonGenStream::Line &line,
-                             TypeResolution &resolver, StringRef curVar) {
+  auto emitTypeResolver = [&](TypeResolution &resolver, StringRef curVar) {
     if (Optional<int> val = resolver.getBuilderIdx()) {
-      line << "odsBuildableType" << *val;
+      body << "odsBuildableType" << *val;
     } else if (const NamedType *var = resolver.getVariable()) {
-      if (Optional<StringRef> tform = resolver.getVarTransformer()) {
-        line << tgfmt(*tform, &FmtContext().withSelf(var->name + "Types[0]"));
-      } else {
-        line << var->name << "Types";
-      }
+      if (Optional<StringRef> tform = resolver.getVarTransformer())
+        body << tgfmt(*tform, &FmtContext().withSelf(var->name + "Types[0]"));
+      else
+        body << var->name << "Types";
     } else {
-      line << curVar << "Types";
+      body << curVar << "Types";
     }
   };
 
   // Resolve each of the result types.
   if (allResultTypes) {
-    body.line() << "result.types += allResultTypes";
+    body << "  result.addTypes(allResultTypes);\n";
   } else {
     for (unsigned i = 0, e = opTy.getNumResults(); i != e; ++i) {
-      auto line = body.line() << "result.types.append(";
-      emitTypeResolver(line, resultTypes[i], opTy.getResultName(i));
-      line << ")";
+      body << "  result.addTypes(";
+      emitTypeResolver(resultTypes[i], opTy.getResultName(i));
+      body << ");\n";
     }
   }
 
@@ -845,48 +830,50 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   if (allOperandTypes) {
     // If we have all operands together, use the full operand list directly.
     if (allOperands) {
-      body.line() << "resolvedOperands, success = parser.resolveOperands("
-          << "allOperands, allOperandTypes, allOperandLoc)";
-      body.if_("not success"); {
-        body.line() << "return False";
-      } body.endif();
-      body.line() << "result.operands += resolvedOperands";
+      body << "  if (parser.resolveOperands(allOperands, allOperandTypes, "
+              "allOperandLoc, result.operands))\n"
+              "    return failure();\n";
       return;
     }
 
     // Otherwise, use llvm::concat to merge the disjoint operand lists together.
     // llvm::concat does not allow the case of a single range, so guard it here.
-    body.line() << "operandsToResolve = []";
-    for (auto &operand : opTy.getOperands()) {
-      body.line() << "operandsToResolve += " << operand.name << "Operands";
+    body << "  if (parser.resolveOperands(";
+    if (opTy.getNumOperands() > 1) {
+      body << "llvm::concat<const OpAsmParser::OperandType>(";
+      llvm::interleaveComma(opTy.getOperands(), body, [&](auto &operand) {
+        body << operand.name << "Operands";
+      });
+      body << ")";
+    } else {
+      body << opTy.operand_begin()->name << "Operands";
     }
-    body.line() << "resolvedOperands, success = parser.resolveOperands("
-        << "operandsToResolve, allOperandTypes, parser.getNameLoc())";
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
-    body.line() << "result.operands += resolvedOperands";
+    body << ", allOperandTypes, parser.getNameLoc(), result.operands))\n"
+         << "    return failure();\n";
     return;
   }
   // Handle the case where all of the operands were grouped together.
   if (allOperands) {
-    body.line() << "typesToResolve = []";
-    for (unsigned i = 0; i < opTy.getNumOperands(); ++i) {
-      auto line = body.line() << "maybeTypeList = ";
-      emitTypeResolver(line, operandTypes[i], opTy.getOperandName(i));
-      body.if_("isinstance(line, list)"); {
-        body.line() << "typesToResolve += maybeTypeList";
-      } body.else_() {
-        body.line() << "typesToResolve.append(maybeTypeList)";
-      } body.endif();
-    }
-    body.line() << "resolvedOperands, success = parser.resolveOperands("
-        << "allOperands, typesToResolve, allOperandLoc)";
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
-    body.line() << "result.operands += resolvedOperands";
+    body << "  if (parser.resolveOperands(allOperands, ";
 
+    // Group all of the operand types together to perform the resolution all at
+    // once. Use llvm::concat to perform the merge. llvm::concat does not allow
+    // the case of a single range, so guard it here.
+    if (opTy.getNumOperands() > 1) {
+      body << "llvm::concat<const Type>(";
+      llvm::interleaveComma(
+          llvm::seq<int>(0, opTy.getNumOperands()), body, [&](int i) {
+            body << "ArrayRef<Type>(";
+            emitTypeResolver(operandTypes[i], opTy.getOperandName(i));
+            body << ")";
+          });
+      body << ")";
+    } else {
+      emitTypeResolver(operandTypes.front(), opTy.getOperandName(0));
+    }
+
+    body << ", allOperandLoc, result.operands))\n"
+         << "    return failure();\n";
     return;
   }
 
@@ -894,18 +881,13 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   // separately.
   for (unsigned i = 0, e = opTy.getNumOperands(); i != e; ++i) {
     const NamedType &operand = *opTy.getOperand(i);
-    auto line = body.line() << "aResolvedOperand, success = "
-        << "parser.resolveOperands(" << operand.name << "Operands, ";
-    emitTypeResolver(line, operandTypes[i], operand.name);
+    body << "  if (parser.resolveOperands(" << operand.name << "Operands, ";
+    emitTypeResolver(operandTypes[i], operand.name);
 
     // If this isn't a buildable type, verify the sizes match by adding the loc.
     if (!operandTypes[i].getBuilderIdx())
-      line << ", " << operand.name << "OperandsLoc";
-    line << ")";
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
-    body.line() << "result.operands += aResolvedOperand";
+      body << ", " << operand.name << "OperandsLoc";
+    body << ", result.operands))\n    return failure();\n";
   }
 }
 
@@ -915,36 +897,33 @@ void OperationFormat::genParserSuccessorResolution(OperationOp op,
   bool hasAllSuccessors = llvm::any_of(
       elements, [](auto &elt) { return isa<SuccessorsDirective>(elt.get()); });
   if (hasAllSuccessors) {
-    body.line() << "result.successors += fullSuccessors";
+    body << "  result.addSuccessors(fullSuccessors);\n";
     return;
   }
 
   // Otherwise, handle each successor individually.
   for (const NamedConstraint &successor : op.getOpSuccessors().getSuccessors()) {
-    if (successor.isVariadic()) {
-      body.line() << "result.successors += " << successor.name << "Successors";
-    } else {
-      body.line() << "result.successors.append(" << successor.name
-          << "Successor)";
-    }
+    if (successor.isVariadic())
+      body << "  result.addSuccessors(" << successor.name << "Successors);\n";
+    else
+      body << "  result.addSuccessors(" << successor.name << "Successor);\n";
   }
 }
 
 void OperationFormat::genParserVariadicSegmentResolution(OperationOp op,
                                                          PythonGenStream &body) {
   if (!allOperands && op.getTrait<::dmc::SizedOperandSegments>()) {
-    auto line = body.line() << "result.addAttribute(\"operand_segment_sizes\", "
-        << "parser.getI32VectorAttr([";
+    body << "  result.addAttribute(\"operand_segment_sizes\", "
+         << "parser.getBuilder().getI32VectorAttr({";
     auto interleaveFn = [&](const NamedType &operand) {
       // If the operand is variadic emit the parsed size.
-      if (operand.isVariadic()) {
-        line << "len(" << operand.name << "Operands)";
-      } else {
-        line << "1";
-      }
+      if (operand.isVariadic())
+        body << "static_cast<int32_t>(" << operand.name << "Operands.size())";
+      else
+        body << "1";
     };
-    llvm::interleaveComma(op.getOpType().getOperands(), line, interleaveFn);
-    line << "]))";
+    llvm::interleaveComma(op.getOpType().getOperands(), body, interleaveFn);
+    body << "}));\n";
   }
 }
 

@@ -3,6 +3,7 @@ add_library(DMCEmbed
   Spec.cpp
   Init.cpp
   OpFormatGen.cpp
+  PythonGen.cpp
   )
 
 target_link_libraries(DMCEmbed PUBLIC
