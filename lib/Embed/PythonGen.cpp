@@ -1,4 +1,4 @@
-#include "PythonGen.h"
+#include "dmc/Embed/PythonGen.h"
 
 using namespace llvm;
 
@@ -27,7 +27,7 @@ PythonGenStream::Line PythonGenStream::line() {
   return Line{*this};
 }
 
-PythonGenStream &PythonGenStream::block(StringRef ty, StringRef expr) {
+PythonGenStream &PythonGenStream::block(StringRef ty, Twine expr) {
   line() << ty << " " << expr << ":";
   incr();
   return *this;

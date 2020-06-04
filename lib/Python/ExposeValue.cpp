@@ -68,6 +68,7 @@ void exposeValue(module &m) {
       .def("__hash__", overload<hash_code(Value)>(&hash_value))
       .def(self == self)
       .def(self != self)
+      .def("getType", nullcheck(&Value::getType))
       .def_property("type", nullcheck(&Value::getType),
                     nullcheck(&Value::setType))
       .def_property_readonly("definingOp", nullcheck(

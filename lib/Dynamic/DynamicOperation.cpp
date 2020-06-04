@@ -1,6 +1,7 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 #include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Embed/ParserPrinter.h"
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
@@ -29,7 +30,7 @@ public:
 
   static void printAssembly(Operation *op, OpAsmPrinter &p) {
     // Assume we have the correct Op
-    p.printGenericOp(op);
+    DynamicOperation::of(op)->printOperation(p, op);
   }
 
   static LogicalResult verifyInvariants(Operation *op) {
@@ -75,6 +76,12 @@ DynamicTrait *DynamicOperation::getTrait(StringRef name) {
   return nullptr;
 }
 
+void DynamicOperation::setOpFormat(std::string parserName,
+                                   std::string printerName) {
+  parserFcn = std::move(parserName);
+  printerFcn = std::move(printerName);
+}
+
 LogicalResult DynamicOperation::finalize() {
   // Check that the operation name is unused.
   if (AbstractOperation::lookup(name, dialect->getContext()))
@@ -108,6 +115,24 @@ AbstractOperation::OperationProperties DynamicOperation::getOpProperties() const
     props |= trait.second->getTraitProperties();
   }
   return props;
+}
+
+ParseResult DynamicOperation::parseOperation(OpAsmParser &parser,
+                                             OperationState &result) {
+  if (parserFcn) {
+    return success(py::execParser(*parserFcn, parser, result));
+  } else {
+    return parser.emitError(parser.getCurrentLocation(),
+                            "op does not have a custom parser");
+  }
+}
+
+void DynamicOperation::printOperation(OpAsmPrinter &printer, Operation *op) {
+  if (printerFcn) {
+    py::execPrinter(*printerFcn, printer, op, this);
+  } else {
+    printer.printGenericOp(op);
+  }
 }
 
 } // end namespace dmc

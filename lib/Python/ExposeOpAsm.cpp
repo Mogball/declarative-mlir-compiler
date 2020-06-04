@@ -1,11 +1,15 @@
 #include "Utility.h"
 #include "Identifier.h"
+#include "dmc/Python/OpAsm.h"
+#include "dmc/Traits/SpecTraits.h"
 
 #include <mlir/IR/OpImplementation.h>
 #include <pybind11/pybind11.h>
 
 using namespace pybind11;
 using namespace mlir;
+
+using dmc::py::OperationWrap;
 
 namespace mlir {
 namespace py {
@@ -66,6 +70,44 @@ void genericPrint(OpAsmPrinter &printer, const object &obj) {
   }
 }
 
+static Value getOperand(OperationWrap &op, unsigned idx) {
+  ValueRange (*getGroup)(Operation *, unsigned){};
+  if (op.getSpec()->getTrait<dmc::SizedOperandSegments>()) {
+    getGroup = &dmc::SizedOperandSegments::getOperandGroup;
+  } else if (op.getSpec()->getTrait<dmc::SameVariadicOperandSizes>()) {
+    getGroup = &dmc::SameVariadicOperandSizes::getOperandGroup;
+  } else {
+    if (idx >= op.getOp()->getNumOperands()) {
+      throw std::invalid_argument{
+          "Op does not have the expected number of operands"};
+    }
+    return op.getOp()->getOperand(idx); // no variadic operands
+  }
+  auto group = getGroup(op.getOp(), idx);
+  if (llvm::size(group) != 1)
+    throw std::invalid_argument{"Expected a singular operand group"};
+  return *group.begin();
+}
+
+static Value getResult(OperationWrap &op, unsigned idx) {
+  ValueRange (*getGroup)(Operation *, unsigned){};
+  if (op.getSpec()->getTrait<dmc::SizedResultSegments>()) {
+    getGroup = &dmc::SizedResultSegments::getResultGroup;
+  } else if (op.getSpec()->getTrait<dmc::SameVariadicResultSizes>()) {
+    getGroup = &dmc::SameVariadicResultSizes::getResultGroup;
+  } else {
+    if (idx >= op.getOp()->getNumResults()) {
+      throw std::invalid_argument{
+          "Op does not have the expected number of results"};
+    }
+    return op.getOp()->getResult(idx);
+  }
+  auto group = getGroup(op.getOp(), idx);
+  if (llvm::size(group) != 1)
+    throw std::invalid_argument{"Expected a singular result group"};
+  return *group.begin();
+}
+
 void exposeOpAsm(module &m) {
   class_<OpAsmPrinter, std::unique_ptr<OpAsmPrinter, nodelete>>(m, "OpAsmPrinter")
       .def("printOperand", overload<void(OpAsmPrinter::*)(Value)>(
@@ -112,6 +154,50 @@ void exposeOpAsm(module &m) {
       .def("print", [](OpAsmPrinter &printer, pybind11::args args) {
         for (auto &val : args)
           genericPrint(printer, reinterpret_borrow<object>(val));
+      });
+
+  class_<OperationWrap>(m, "OperationWrap")
+      .def("getAttrs", [](OperationWrap &op) {
+        return pybind11::cast(op.getOp()).attr("getAttrs")().cast<dict>();
+      })
+      .def("getAttr", [](OperationWrap &op, std::string name) {
+        return op.getOp()->getAttr(name);
+      })
+      .def("getOperandTypes", [](OperationWrap &op) {
+        list types;
+        for (auto type : op.getOp()->getOperandTypes())
+          types.append(pybind11::cast(type));
+        return types;
+      })
+      .def("getResultTypes", [](OperationWrap &op) {
+        list types;
+        for (auto type : op.getOp()->getResultTypes())
+          types.append(pybind11::cast(type));
+        return types;
+      })
+      .def("getOperand", [](OperationWrap &op, std::string name) {
+        auto opTy = op.getType()->getOpType();
+        unsigned idx = 0;
+        for (auto &operand : opTy.getOperands()) {
+          if (operand.name == name)
+            return getOperand(op, idx);
+          ++idx;
+        }
+        throw std::invalid_argument{op.getSpec()->getName() +
+                                    " does not have an operand named '" +
+                                    name + "'"};
+      })
+      .def("getResult", [](OperationWrap &op, std::string name) {
+        auto opTy = op.getType()->getOpType();
+        unsigned idx = 0;
+        for (auto &result : opTy.getResults()) {
+          if (result.name == name)
+            return getResult(op, idx);
+          ++idx;
+        }
+        throw std::invalid_argument{op.getSpec()->getName() +
+                                    " does not have a result named '" +
+                                    name + "'"};
       });
 }
 

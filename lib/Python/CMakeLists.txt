@@ -16,6 +16,7 @@ add_library(pymlir
   Attribute.cpp
   Attribute.h
 
+  OpAsm.cpp
   Utility.h
 
   # Reduce compilation time by splitting the functions

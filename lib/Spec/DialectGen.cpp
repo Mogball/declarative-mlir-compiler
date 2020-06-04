@@ -7,6 +7,7 @@
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Embed/OpFormatGen.h"
+#include "dmc/Embed/InMemoryDef.h"
 
 using namespace mlir;
 using namespace mlir::dmc;
@@ -97,13 +98,22 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   op->addOpTrait<RegionConstraintTrait>(opRegions);
   op->addOpTrait<SuccessorConstraintTrait>(opSuccs);
 
+  /// Generate a custom op format, if one is specified.
+  if (opOp.getAssemblyFormat()) {
+    auto prefix = (dialect->getNamespace() + "__" + opOp.getName()).str();
+    auto parserName = "parse__" + prefix;
+    auto printerName = "print__" + prefix;
+    py::InMemoryDef parser{parserName, "(parser)"};
+    py::InMemoryDef printer{printerName, "(p, op)"};
+    if (failed(generateOpFormat(opOp, parser.stream(), printer.stream())))
+      return opOp.emitOpError("failed to generate op format");
+    op->setOpFormat(std::move(parserName), std::move(printerName));
+  }
+
   /// Finally, register the Op.
   if (failed(op->finalize()) ||
       failed(dialect->registerDynamicOp(std::move(op))))
     return opOp.emitOpError("an operation with this name already exists");
-
-  if (opOp.getAssemblyFormat())
-    generateOpFormat(opOp, llvm::errs(), llvm::errs());
 
   return success();
 }

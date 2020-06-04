@@ -28,13 +28,12 @@ public:
     dict fmtArgs{"self"_a = "arg"};
     auto pyExpr = pybind11::cast(expr).cast<str>().format(**fmtArgs);
     // Wrap in a function and register it in the main scope
-    auto scope = getMainScope();
     std::string funcName{"anonymous_constraint_"};
     funcName += std::to_string(idx++);
     dict funcExpr{"func_name"_a = funcName, "expr"_a = pyExpr};
     auto funcStr = "def {func_name}(arg): return {expr}"_s
         .format(**funcExpr);
-    exec(funcStr, scope);
+    exec(funcStr, getMainScope());
     return funcName;
   }
 

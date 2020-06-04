@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/ADT/Twine.h>
 #include <llvm/Support/raw_ostream.h>
 
 namespace dmc {
@@ -44,7 +45,7 @@ public:
 
   Line line();
 
-  PythonGenStream &block(llvm::StringRef ty, llvm::StringRef expr);
+  PythonGenStream &block(llvm::StringRef ty, llvm::Twine expr);
   PythonGenStream &endblock();
 
   inline PythonGenStream &if_(llvm::StringRef expr) {
@@ -54,7 +55,7 @@ public:
     endif();
     return block("else", "");
   }
-  inline PythonGenStream &def(llvm::StringRef decl) {
+  inline PythonGenStream &def(llvm::Twine decl) {
     return block("def", decl);
   }
 

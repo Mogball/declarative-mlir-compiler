@@ -18,7 +18,6 @@ target_link_libraries(spec
   DMCEmbed
   LLVMSupport
   MLIRParser
-  LLVMMLIRTableGen
   )
 
 add_executable(gen dialectgen.cpp)
@@ -45,5 +44,4 @@ target_link_libraries(pyembed
   DMCEmbed
   DMCTraits
   DMCIO
-  LLVMMLIRTableGen
   )

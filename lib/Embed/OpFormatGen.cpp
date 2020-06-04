@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PythonGen.h"
+#include "dmc/Embed/PythonGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Traits/StandardTraits.h"
@@ -1007,13 +1007,21 @@ static void genTypeOperandPrinter(Element *arg, PythonGenStream::Line &line) {
     line << "op.getResultTypes()";
     return;
   }
-  auto *operand = dyn_cast<OperandVariable>(arg);
-  auto *var = operand ? operand->getVar() : cast<ResultVariable>(arg)->getVar();
-  if (var->isVariadic()) {
-    line << "op.getOperandGroup(\"" << var->name << "\").getTypes()";
-    return;
+  if (auto *operand = dyn_cast<OperandVariable>(arg)) {
+    auto *var = operand->getVar();
+    if (var->isVariadic()) {
+      line << "op.getOperandGroup(\"" << var->name << "\").getTypes()";
+    } else {
+      line << "[op.getOperand(\"" << var->name << "\").getType()]";
+    }
+  } else {
+    auto *var = cast<ResultVariable>(arg)->getVar();
+    if (var->isVariadic()) {
+      line << "op.getResultGroup(\"" << var->name << "\").getTypes()";
+    } else {
+      line << "[op.getResult(\"" << var->name << "\").getType()]";
+    }
   }
-  line << "[op.getOperand(\"" << var->name << "\").getType()]";
 }
 
 /// Generate the code for printing the given element.
@@ -2130,8 +2138,8 @@ FormatParser::parseTypeDirectiveOperand(std::unique_ptr<Element> &element) {
 //===----------------------------------------------------------------------===//
 
 LogicalResult generateOpFormat(OperationOp op,
-                               llvm::raw_ostream &parserOs,
-                               llvm::raw_ostream &printerOs) {
+                               PythonGenStream &parserOs,
+                               PythonGenStream &printerOs) {
   llvm::SourceMgr mgr;
   mgr.AddNewSourceBuffer(
       llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat().getValue()),
@@ -2140,9 +2148,7 @@ LogicalResult generateOpFormat(OperationOp op,
   if (failed(FormatParser(mgr, format, op).parse()))
     return failure();
 
-  PythonGenStream parser{parserOs};
-  PythonGenStream printer{printerOs};
-  format.genParser(op, parser);
-  format.genPrinter(op, printer);
+  format.genParser(op, parserOs);
+  format.genPrinter(op, printerOs);
   return success();
 }
