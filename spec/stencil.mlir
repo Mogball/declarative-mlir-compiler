@@ -10,33 +10,44 @@ dmc.Dialect @stencil {
   dmc.Alias @Temp  -> !dmc.Isa<@stencil::@temp>
 
   /// Element type and index attribute constraints.
+  dmc.Alias @None -> !dmc.None { builder = "NoneType()" }
   dmc.Alias @Element -> !dmc.AnyOf<f32, f64>
   dmc.Alias @Index -> #dmc.AllOf<#dmc.ArrayOf<#dmc.APInt>, #stencil.ArrayCount3>
+    { type = !stencil.None }
   dmc.Alias @OptionalIndex -> #dmc.Optional<#stencil.Index>
+    { type = !stencil.None }
 
   /// AssertOp
-  dmc.Op @assert(!stencil.Field) -> () { lb = #stencil.Index,
-                                         ub = #stencil.Index }
+  dmc.Op @assert(field : !stencil.Field) -> () { lb = #stencil.Index,
+                                                 ub = #stencil.Index }
+    config { fmt = "$field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($field)" }
 
   /// AccessOp
-  dmc.Op @access(!stencil.Temp) -> (!stencil.Element) { offset = #stencil.Index }
+  dmc.Op @access(temp : !stencil.Temp) -> (res : !stencil.Element)
+    { offset = #stencil.Index }
+    config { fmt = "$temp $offset attr-dict-with-keyword `:` functional-type($temp, $res)" }
 
   /// LoadOp
-  dmc.Op @load(!stencil.Field) -> (!stencil.Temp) { lb = #stencil.OptionalIndex,
-                                                    ub = #stencil.OptionalIndex }
+  dmc.Op @load(field : !stencil.Field) -> (res : !stencil.Temp)
+    { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
+    config { fmt = "$field (`(` $lb^ `:` $ub `)`)? attr-dict-with-keyword `:` functional-type($field, $res)" }
 
   /// StoreOp
-  dmc.Op @store(!stencil.Temp, !stencil.Field) -> () { lb = #stencil.Index,
-                                                       ub = #stencil.Index }
+  dmc.Op @store(temp : !stencil.Temp, field : !stencil.Field) -> ()
+    { lb = #stencil.Index, ub = #stencil.Index }
+    config { fmt = "$temp `to` $field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)" }
 
   /// ApplyOp
-  dmc.Op @apply(!dmc.Variadic<!dmc.Any>) -> (!dmc.Variadic<!stencil.Temp>)
-      { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
-      (Sized<1>)
-      traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
-      config { is_isolated_from_above = true }
+  dmc.Op @apply(opearnds : !dmc.Variadic<!dmc.Any>) -> (res : !dmc.Variadic<!stencil.Temp>)
+    { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
+    (region : Sized<1>)
+    traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
+    config { is_isolated_from_above = true }
 
   /// ReturnOp
-  dmc.Op @return(!stencil.Element) -> () { unroll = #stencil.OptionalIndex }
-      config { is_terminator = true }
+  dmc.Op @return(operands : !dmc.Variadic<!stencil.Element>) -> ()
+    { unroll = #stencil.OptionalIndex }
+    traits [@SameVariadicOperandSizes]
+    config { is_terminator = true,
+             fmt = "(`unroll` $unroll^)? $operands attr-dict-with-keyword `:` type($operands)" }
 }

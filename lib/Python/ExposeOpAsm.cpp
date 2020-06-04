@@ -108,6 +108,15 @@ static Value getResult(OperationWrap &op, unsigned idx) {
   return *group.begin();
 }
 
+static ValueRange getOperandGroup(OperationWrap &op, unsigned idx) {
+  if (op.getSpec()->getTrait<dmc::SizedOperandSegments>()) {
+    return dmc::SizedOperandSegments::getOperandGroup(op.getOp(), idx);
+  } else if (op.getSpec()->getTrait<dmc::SameVariadicOperandSizes>()) {
+    return dmc::SameVariadicOperandSizes::getOperandGroup(op.getOp(), idx);
+  }
+  throw std::invalid_argument{"Cannot get operand group of non-variadic op"};
+}
+
 void exposeOpAsm(module &m) {
   class_<OpAsmPrinter, std::unique_ptr<OpAsmPrinter, nodelete>>(m, "OpAsmPrinter")
       .def("printOperand", overload<void(OpAsmPrinter::*)(Value)>(
@@ -116,6 +125,10 @@ void exposeOpAsm(module &m) {
         printer.printOperands(values);
       })
       .def("printType", &OpAsmPrinter::printType)
+      .def("printTypes", [](OpAsmPrinter &printer, list types) {
+        for (auto &type : types)
+          printer.printType(type.cast<Type>());
+      })
       .def("printAttribute", &OpAsmPrinter::printAttribute)
       .def("printAttributeWithoutType", &OpAsmPrinter::printAttributeWithoutType)
       .def("printSuccessor", &OpAsmPrinter::printSuccessor)
@@ -154,6 +167,14 @@ void exposeOpAsm(module &m) {
       .def("print", [](OpAsmPrinter &printer, pybind11::args args) {
         for (auto &val : args)
           genericPrint(printer, reinterpret_borrow<object>(val));
+      });
+
+  class_<ValueRange>(m, "ValueRange")
+      .def("getTypes", [](ValueRange &values) {
+        list types;
+        for (auto value : values)
+          types.append(value.getType());
+        return types;
       });
 
   class_<OperationWrap>(m, "OperationWrap")
@@ -200,6 +221,18 @@ void exposeOpAsm(module &m) {
         }
         throw std::invalid_argument{op.getSpec()->getName() +
                                     " does not have a result named '" +
+                                    name + "'"};
+      })
+      .def("getOperandGroup", [](OperationWrap &op, std::string name) {
+        auto opTy = op.getType()->getOpType();
+        unsigned idx = 0;
+        for (auto &operand : opTy.getOperands()) {
+          if (operand.name == name)
+            return getOperandGroup(op, idx);
+          ++idx;
+        }
+        throw std::invalid_argument{op.getSpec()->getName() +
+                                    " does not have an operand group named '" +
                                     name + "'"};
       });
 }
