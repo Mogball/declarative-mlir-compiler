@@ -6,12 +6,18 @@ namespace dmc {
 namespace py {
 
 PythonGenStream::Line::Line(PythonGenStream &s)
-    : s{s} {
+    : s{s}, newline{true} {
   s.os.indent(s.indent);
 }
 
 PythonGenStream::Line::~Line() {
-  s.os << "\n";
+  if (newline)
+    s.os << "\n";
+}
+
+PythonGenStream::Line::Line(Line &&line)
+    : s{line.s}, newline{line.newline} {
+  line.newline = false;
 }
 
 PythonGenStream::PythonGenStream(raw_ostream &os)

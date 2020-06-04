@@ -9,21 +9,33 @@ class PythonGenStream {
 public:
   class Line {
   public:
-    template <typename ArgT> Line &operator<<(ArgT &&arg) {
+    template <typename ArgT> Line &operator<<(ArgT &&arg) & {
       s.os << std::forward<ArgT>(arg);
       return *this;
     }
 
-    inline Line &operator<<(PythonGenStream &(*fcn)(PythonGenStream &)) {
+    template <typename ArgT> Line &&operator<<(ArgT &&arg) && {
+      return std::move(operator<<(std::forward<ArgT>(arg)));
+    }
+
+    inline Line &operator<<(PythonGenStream &(*fcn)(PythonGenStream &)) & {
       fcn(s);
       return *this;
     }
 
+    inline Line &&operator<<(PythonGenStream &(*fcn)(PythonGenStream &)) && {
+      return std::move(operator<<(fcn));
+    }
+
+    ~Line();
+    Line(Line &&line);
+
   private:
     explicit Line(PythonGenStream &s);
-    ~Line();
+    Line(const Line &) = delete;
 
     PythonGenStream &s;
+    bool newline;
 
     friend class PythonGenStream;
   };

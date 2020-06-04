@@ -32,14 +32,13 @@
 
 using namespace mlir;
 using namespace mlir::tblgen;
-using namespace dmc = ::dmc;
-using namespace py = dmc::py;
 
-using dmc::OperationOp;
-using dmc::OpType;
-using dmc::NamedType;
-using dmc::NamedConstraint;
-using py::PythonGenStream;
+using ::dmc::OperationOp;
+using ::dmc::OpType;
+using ::dmc::NamedType;
+using ::dmc::NamedConstraint;
+
+using namespace ::dmc::py;
 
 static llvm::cl::opt<bool> formatErrorIsFatal(
     "asmformat-error-is-fatal",
@@ -394,7 +393,7 @@ static bool canFormatEnumAttr(const NamedAttribute *attr) {
 /// {1}: The type for the attribute.
 void genAttrParserCode(PythonGenStream &s, StringRef name, StringRef type) {
   s.line() << name << "Attr, success = parser.parseAttribute(\"" << name
-      << "\"{1})";
+      << "\"" << type << ")";
   s.if_("not success"); {
     s.line() << "return False";
   } s.endif();
@@ -452,7 +451,7 @@ void genOperandParserCode(PythonGenStream &s, StringRef name) {
   s.line() << "anOperand, success = parser.parseOperand()";
   s.if_("not success"); {
     s.line() << "return False";
-  } s.end();
+  } s.endif();
   s.line() << name << "Operands[0] = anOperand";
 }
 
@@ -634,10 +633,10 @@ static void genElementParser(Element *element, PythonGenStream &body,
     if (auto *literal = dyn_cast<LiteralElement>(&*elements.begin())) {
       auto line = body.line() << "if parser.parseOptional";
       genLiteralParser(literal->getLiteral(), line);
-      line << ":" << py::incr;
+      line << ":" << incr;
     } else if (auto *opVar = dyn_cast<OperandVariable>(&*elements.begin())) {
       body.line() << "if len(" << opVar->getVar()->name << "Operands) > 0:"
-          << py::incr;
+          << incr;
     }
 
     // Generate the rest of the elements normally.
@@ -647,10 +646,12 @@ static void genElementParser(Element *element, PythonGenStream &body,
 
     /// Literals.
   } else if (LiteralElement *literal = dyn_cast<LiteralElement>(element)) {
-    auto line = body.line() << "if not parser.parse";
-    genLiteralParser(literal->getLiteral(), line);
-    line << ":" << py::incr;
-    body.line() << "return False" << py::decr;
+    {
+      auto line = body.line() << "if not parser.parse";
+      genLiteralParser(literal->getLiteral(), line);
+      line << ":" << incr;
+    }
+    body.line() << "return False" << decr;
 
     /// Arguments.
   } else if (auto *attr = dyn_cast<AttributeVariable>(element)) {
@@ -734,7 +735,7 @@ static void genElementParser(Element *element, PythonGenStream &body,
   } else if (auto *dir = dyn_cast<FunctionalTypeDirective>(element)) {
     ArgumentLengthKind ignored;
     genFunctionalTypeParserCode(body,
-                                getTypeListName(dir->getInputs(), ignored)
+                                getTypeListName(dir->getInputs(), ignored),
                                 getTypeListName(dir->getResults(), ignored));
   } else {
     llvm_unreachable("unknown format element");
@@ -762,7 +763,7 @@ void OperationFormat::genParser(OperationOp op, PythonGenStream &body) {
   genParserSuccessorResolution(op, body);
   genParserVariadicSegmentResolution(op, body);
 
-  body << "  return success();\n";
+  body.line() << "return True";
 }
 
 void OperationFormat::genParserTypeResolution(OperationOp op,
@@ -814,10 +815,12 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   auto emitTypeResolver = [](PythonGenStream::Line &line,
                              TypeResolution &resolver, StringRef curVar) {
     if (Optional<int> val = resolver.getBuilderIdx()) {
-      line << "odsBuildableType" << *val;
+      line << "[odsBuildableType" << *val << "]";
     } else if (const NamedType *var = resolver.getVariable()) {
       if (Optional<StringRef> tform = resolver.getVarTransformer()) {
-        line << tgfmt(*tform, &FmtContext().withSelf(var->name + "Types[0]"));
+        line << "["
+            << tgfmt(*tform, &FmtContext().withSelf(var->name + "Types[0]"))
+            << "]";
       } else {
         line << var->name << "Types";
       }
@@ -831,9 +834,8 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
     body.line() << "result.types += allResultTypes";
   } else {
     for (unsigned i = 0, e = opTy.getNumResults(); i != e; ++i) {
-      auto line = body.line() << "result.types.append(";
+      auto line = body.line() << "result.types += ";
       emitTypeResolver(line, resultTypes[i], opTy.getResultName(i));
-      line << ")";
     }
   }
 
@@ -872,13 +874,8 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   if (allOperands) {
     body.line() << "typesToResolve = []";
     for (unsigned i = 0; i < opTy.getNumOperands(); ++i) {
-      auto line = body.line() << "maybeTypeList = ";
+      auto line = body.line() << "typesToResolve += ";
       emitTypeResolver(line, operandTypes[i], opTy.getOperandName(i));
-      body.if_("isinstance(line, list)"); {
-        body.line() << "typesToResolve += maybeTypeList";
-      } body.else_() {
-        body.line() << "typesToResolve.append(maybeTypeList)";
-      } body.endif();
     }
     body.line() << "resolvedOperands, success = parser.resolveOperands("
         << "allOperands, typesToResolve, allOperandLoc)";
@@ -894,14 +891,16 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   // separately.
   for (unsigned i = 0, e = opTy.getNumOperands(); i != e; ++i) {
     const NamedType &operand = *opTy.getOperand(i);
-    auto line = body.line() << "aResolvedOperand, success = "
-        << "parser.resolveOperands(" << operand.name << "Operands, ";
-    emitTypeResolver(line, operandTypes[i], operand.name);
+    {
+      auto line = body.line() << "aResolvedOperand, success = "
+          << "parser.resolveOperands(" << operand.name << "Operands, ";
+      emitTypeResolver(line, operandTypes[i], operand.name);
 
-    // If this isn't a buildable type, verify the sizes match by adding the loc.
-    if (!operandTypes[i].getBuilderIdx())
-      line << ", " << operand.name << "OperandsLoc";
-    line << ")";
+      // If this isn't a buildable type, verify the sizes match by adding the loc.
+      if (!operandTypes[i].getBuilderIdx())
+        line << ", " << operand.name << "OperandsLoc";
+      line << ")";
+    }
     body.if_("not success"); {
       body.line() << "return False";
     } body.endif();
@@ -960,15 +959,16 @@ static void genAttrDictPrinter(OperationFormat &fmt, OperationOp op,
     if (auto *attr = dyn_cast<AttributeVariable>(it.get()))
       usedAttributes.push_back(attr->getVar());
 
-  body << "  p.printOptionalAttrDict" << (withKeyword ? "WithKeyword" : "")
-       << "(getAttrs(), /*elidedAttrs=*/{";
+  auto line = body.line() << "p.printOptionalAttrDict"
+      << (withKeyword ? "WithKeyword" : "") << "(op.getAttrs(), [";
   // Elide the variadic segment size attributes if necessary.
-  if (!fmt.allOperands && op.getTrait<::dmc::SizedOperandSegments>())
-    body << "\"operand_segment_sizes\", ";
-  llvm::interleaveComma(usedAttributes, body, [&](const NamedAttribute *attr) {
-    body << "\"" << attr->first.strref() << "\"";
+  if (!fmt.allOperands && op.getTrait<::dmc::SizedOperandSegments>()) {
+    line << "\"operand_segment_sizes\", ";
+  }
+  llvm::interleaveComma(usedAttributes, line, [&](const NamedAttribute *attr) {
+    line << "\"" << attr->first.strref() << "\"";
   });
-  body << "});\n";
+  line << "])";
 }
 
 /// Generate the printer for a literal value. `shouldEmitSpace` is true if a
@@ -976,19 +976,20 @@ static void genAttrDictPrinter(OperationFormat &fmt, OperationOp op,
 /// the previous element was a punctuation literal.
 static void genLiteralPrinter(StringRef value, PythonGenStream &body,
                               bool &shouldEmitSpace, bool &lastWasPunctuation) {
-  body << "  p";
-
   // Don't insert a space for certain punctuation.
   auto shouldPrintSpaceBeforeLiteral = [&] {
-    if (value.size() != 1 && value != "->")
+    if (value.size() != 1 && value != "->") {
       return true;
-    if (lastWasPunctuation)
+    }
+    if (lastWasPunctuation) {
       return !StringRef(">)}],").contains(value.front());
+    }
     return !StringRef("<>(){}[],").contains(value.front());
   };
-  if (shouldEmitSpace && shouldPrintSpaceBeforeLiteral())
-    body << " << \" \"";
-  body << " << \"" << value << "\";\n";
+  if (shouldEmitSpace && shouldPrintSpaceBeforeLiteral()) {
+    body.line() << "p.print(\" \")";
+  }
+  body.line() << "p.print(\"" << value << "\")";
 
   // Insert a space after certain literals.
   shouldEmitSpace =
@@ -997,16 +998,22 @@ static void genLiteralPrinter(StringRef value, PythonGenStream &body,
 }
 
 /// Generate the C++ for an operand to a (*-)type directive.
-static PythonGenStream &genTypeOperandPrinter(Element *arg, PythonGenStream &body) {
-  if (isa<OperandsDirective>(arg))
-    return body << "getOperation()->getOperandTypes()";
-  if (isa<ResultsDirective>(arg))
-    return body << "getOperation()->getResultTypes()";
+static void genTypeOperandPrinter(Element *arg, PythonGenStream::Line &line) {
+  if (isa<OperandsDirective>(arg)) {
+    line << "op.getOperandTypes()";
+    return;
+  }
+  if (isa<ResultsDirective>(arg)) {
+    line << "op.getResultTypes()";
+    return;
+  }
   auto *operand = dyn_cast<OperandVariable>(arg);
   auto *var = operand ? operand->getVar() : cast<ResultVariable>(arg)->getVar();
-  if (var->isVariadic())
-    return body << var->name << "().getTypes()";
-  return body << "ArrayRef<Type>(" << var->name << "().getType())";
+  if (var->isVariadic()) {
+    line << "op.getOperandGroup(\"" << var->name << "\").getTypes()";
+    return;
+  }
+  line << "[op.getOperand(\"" << var->name << "\").getType()]";
 }
 
 /// Generate the code for printing the given element.
@@ -1023,18 +1030,21 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
     Element *anchor = optional->getAnchor();
     if (auto *operand = dyn_cast<OperandVariable>(anchor)) {
       const NamedType *var = operand->getVar();
-      if (var->isVariadic())
-        body << "  if (!" << var->name << "().empty()) {\n";
+      if (var->isVariadic()) {
+        body.line() << "if len(op.getOperandGroup(\"" << var->name
+            << "\")) > 0:" << incr;
+      }
     } else {
-      body << "  if (getAttr(\""
-           << cast<AttributeVariable>(anchor)->getVar()->first.strref() << "\")) {\n";
+      body.line() << "if op.getAttr(\""
+           << cast<AttributeVariable>(anchor)->getVar()->first.strref()
+           << "\"):" << incr;
     }
 
     // Emit each of the elements.
     for (Element &childElement : optional->getElements())
       genElementPrinter(&childElement, body, fmt, op, shouldEmitSpace,
                         lastWasPunctuation);
-    body << "  }\n";
+    body.endif();
     return;
   }
 
@@ -1048,7 +1058,7 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
   // Optionally insert a space before the next element. The AttrDict printer
   // already adds a space as necessary.
   if (shouldEmitSpace || !lastWasPunctuation)
-    body << "  p << \" \";\n";
+    body.line() << "p.print(\" \")";
   lastWasPunctuation = false;
   shouldEmitSpace = true;
 
@@ -1067,29 +1077,39 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
     }
 
     // Elide the attribute type if it is buildable.
-    if (attr->getTypeBuilder())
-      body << "  p.printAttributeWithoutType(" << var->first.strref() << "Attr());\n";
-    else
-      body << "  p.printAttribute(" << var->first.strref() << "Attr());\n";
+    if (attr->getTypeBuilder()) {
+      body.line() << "p.printAttributeWithoutType(op.getAttr(\""
+          << var->first.strref() << "\"))";
+    } else {
+      body.line() << "p.printAttribute(op.getAttr(\"" << var->first.strref()
+          << "\"))";
+    }
   } else if (auto *operand = dyn_cast<OperandVariable>(element)) {
-    body << "  p << " << operand->getVar()->name << "();\n";
+    body.line() << "p.printOperand(op.getOperand(\"" << operand->getVar()->name
+        << "\"))";
   } else if (auto *successor = dyn_cast<SuccessorVariable>(element)) {
     const NamedConstraint *var = successor->getVar();
-    if (var->isVariadic())
-      body << "  llvm::interleaveComma(" << var->name << "(), p);\n";
-    else
-      body << "  p << " << var->name << "();\n";
+    if (var->isVariadic()) {
+      body.line() << "p.printSuccessors(op.getSuccessorGroup(\"" << var->name
+          << "\"))";
+    } else {
+      body.line() << "p.printSuccessor(op.getSuccessor(\"" << var->name
+          << "\"))";
+    }
   } else if (isa<OperandsDirective>(element)) {
-    body << "  p << getOperation()->getOperands();\n";
+    body.line() << "p.printOperands(op.getOperands())";
   } else if (isa<SuccessorsDirective>(element)) {
-    body << "  llvm::interleaveComma(getOperation()->getSuccessors(), p);\n";
+    body.line() << "p.printSuccessors(op.getSuccessors())";
   } else if (auto *dir = dyn_cast<TypeDirective>(element)) {
-    body << "  p << ";
-    genTypeOperandPrinter(dir->getOperand(), body) << ";\n";
+    auto line = body.line() << "p.printTypes(";
+    genTypeOperandPrinter(dir->getOperand(), line);
+    line << ")";
   } else if (auto *dir = dyn_cast<FunctionalTypeDirective>(element)) {
-    body << "  p.printFunctionalType(";
-    genTypeOperandPrinter(dir->getInputs(), body) << ", ";
-    genTypeOperandPrinter(dir->getResults(), body) << ");\n";
+    auto line = body.line() << "p.printFunctionalType(";
+    genTypeOperandPrinter(dir->getInputs(), line);
+    line << ", ";
+    genTypeOperandPrinter(dir->getResults(), line);
+    line << ")";
   } else {
     llvm_unreachable("unknown format element");
   }
@@ -1099,7 +1119,7 @@ void OperationFormat::genPrinter(OperationOp op, PythonGenStream &body) {
 
   // Emit the operation name, trimming the prefix if this is the standard
   // dialect.
-  body << "  p << \"" << op.getName() << "\";\n";
+  body.line() << "p.print(\"" << op.getName() << "\")";
 
   // Flags for if we should emit a space, and if the last element was
   // punctuation.
@@ -2120,7 +2140,9 @@ LogicalResult generateOpFormat(OperationOp op,
   if (failed(FormatParser(mgr, format, op).parse()))
     return failure();
 
-  format.genParser(op, PythonGenStream{parserOs});
-  format.genPrinter(op, PythonGenStream{printerOs});
+  PythonGenStream parser{parserOs};
+  PythonGenStream printer{printerOs};
+  format.genParser(op, parser);
+  format.genPrinter(op, printer);
   return success();
 }
