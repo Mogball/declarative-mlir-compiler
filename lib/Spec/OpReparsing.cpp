@@ -138,6 +138,14 @@ ParseResult AliasOp::reparse() {
       return emitOpError("failed to parse aliased attribute");
     }
   }
+  /// Reparse the type if it exists.
+  if (auto type = getAttrType()) {
+    if (auto newType = impl::reparseType(type)) {
+      setAttr(getTypeAttrName(), mlir::TypeAttr::get(newType));
+    } else {
+      return emitOpError("failed to parse attribute type");
+    }
+  }
   return success();
 }
 

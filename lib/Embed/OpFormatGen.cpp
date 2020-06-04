@@ -129,7 +129,6 @@ struct AttributeVariable
   /// Return the constant builder call for the type of this attribute, or None
   /// if it doesn't have one.
   Optional<StringRef> getTypeBuilder() const {
-    llvm::errs() << "\n-- Looking for a type builder for: " << var->first << "\n";
     if (auto *attrData = tryFindAttributeData(var->second))
       if (auto ty = attrData->getType())
         if (auto *typeData = tryFindTypeData(ty))
