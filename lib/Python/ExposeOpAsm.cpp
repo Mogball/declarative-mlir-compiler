@@ -157,6 +157,9 @@ void exposeOpAsm(module &m) {
       });
 
   class_<OperationWrap>(m, "OperationWrap")
+      .def("getName", [](OperationWrap &op) {
+        return op.getOp()->getName().getStringRef().str();
+      })
       .def("getAttrs", [](OperationWrap &op) {
         return pybind11::cast(op.getOp()).attr("getAttrs")().cast<dict>();
       })

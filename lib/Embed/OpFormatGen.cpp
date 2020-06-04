@@ -1127,7 +1127,7 @@ void OperationFormat::genPrinter(OperationOp op, PythonGenStream &body) {
 
   // Emit the operation name, trimming the prefix if this is the standard
   // dialect.
-  body.line() << "p.print(\"" << op.getName() << "\")";
+  body.line() << "p.print(op.getName())";
 
   // Flags for if we should emit a space, and if the last element was
   // punctuation.
