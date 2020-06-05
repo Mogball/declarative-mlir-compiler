@@ -1079,8 +1079,13 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
           << "\"))";
     }
   } else if (auto *operand = dyn_cast<OperandVariable>(element)) {
-    body.line() << "p.printOperand(op.getOperand(\"" << operand->getVar()->name
-        << "\"))";
+    if (operand->getVar()->isVariadic()) {
+      body.line() << "p.printOperands(op.getOperandGroup(\""
+          << operand->getVar()->name << "\"))";
+    } else {
+      body.line() << "p.printOperand(op.getOperand(\""
+          << operand->getVar()->name << "\"))";
+    }
   } else if (auto *successor = dyn_cast<SuccessorVariable>(element)) {
     const NamedConstraint *var = successor->getVar();
     if (var->isVariadic()) {

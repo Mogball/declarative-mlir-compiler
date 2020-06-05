@@ -42,8 +42,8 @@ dmc.Dialect @stencil {
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
     (region : Sized<1>)
     traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
-    config { is_isolated_from_above = true,
-             fmt = "`(` $operands `:` type($operands) `)` `->` type($res) attr-dict-with-keyword" }
+    config { is_isolated_from_above = true }
+             //fmt = "`(` $operands `:` type($operands) `)` `->` type($res) attr-dict-with-keyword (`to` `(` $lb^ `:` $ub `)`)?" }
 
   /// ReturnOp
   dmc.Op @return(operands : !dmc.Variadic<!stencil.Element>) -> ()

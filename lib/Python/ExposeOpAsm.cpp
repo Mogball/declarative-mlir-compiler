@@ -102,13 +102,13 @@ void exposeOpAsm(module &m) {
   class_<OpAsmPrinter, std::unique_ptr<OpAsmPrinter, nodelete>>(m, "OpAsmPrinter")
       .def("printOperand", overload<void(OpAsmPrinter::*)(Value)>(
           &OpAsmPrinter::printOperand))
-      .def("printOperands", [](OpAsmPrinter &printer, ValueListRef values) {
+      .def("printOperands", [](OpAsmPrinter &printer, ValueRange values) {
         printer.printOperands(values);
       })
       .def("printType", &OpAsmPrinter::printType)
       .def("printTypes", [](OpAsmPrinter &printer, list types) {
-        for (auto &type : types)
-          printer.printType(type.cast<Type>());
+        llvm::interleaveComma(types, printer, [&](handle type)
+                              { printer.printType(type.cast<Type>()); });
       })
       .def("printAttribute", &OpAsmPrinter::printAttribute)
       .def("printAttributeWithoutType", &OpAsmPrinter::printAttributeWithoutType)
