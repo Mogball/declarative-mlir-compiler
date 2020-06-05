@@ -34,10 +34,13 @@ public:
   /// TODO This is not an ideal solution.
   DynamicDialect *lookupDialectFor(mlir::Type type);
   DynamicDialect *lookupDialectFor(mlir::Attribute attr);
+  DynamicDialect *lookupDialectFor(mlir::OperationName opName);
   mlir::LogicalResult registerDialectSymbol(DynamicDialect *dialect,
                                             mlir::Type type);
   mlir::LogicalResult registerDialectSymbol(DynamicDialect *dialect,
                                             mlir::Attribute attr);
+  mlir::LogicalResult registerDialectSymbol(DynamicDialect *dialect,
+                                            mlir::OperationName opName);
 
 private:
   class Impl;

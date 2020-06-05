@@ -56,6 +56,10 @@ DynamicDialect *DynamicContext::lookupDialectFor(Attribute attr) {
   return impl->lookupDialectFor(attr);
 }
 
+DynamicDialect *DynamicContext::lookupDialectFor(OperationName opName) {
+  return impl->lookupDialectFor(opName);
+}
+
 LogicalResult DynamicContext::registerDialectSymbol(DynamicDialect *dialect,
                                                     Type type) {
   return impl->registerDialectSymbol(dialect, type);
@@ -64,6 +68,11 @@ LogicalResult DynamicContext::registerDialectSymbol(DynamicDialect *dialect,
 LogicalResult DynamicContext::registerDialectSymbol(DynamicDialect *dialect,
                                                     Attribute attr) {
   return impl->registerDialectSymbol(dialect, attr);
+}
+
+LogicalResult DynamicContext::registerDialectSymbol(DynamicDialect *dialect,
+                                                    OperationName opName) {
+  return impl->registerDialectSymbol(dialect, opName);
 }
 
 } // end namespace dmc

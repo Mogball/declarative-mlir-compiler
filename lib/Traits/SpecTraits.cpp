@@ -132,25 +132,25 @@ ValueRange getAttrValueGroup(TypeRange tys, ValueRange vals, unsigned idx,
 }
 
 /// Value group getters for variadic values.
-ValueRange SameVariadicOperandSizes::getOperandGroup(
+ValueRange SameVariadicOperandSizes::getGroup(
     Operation *op, unsigned idx) {
   return getFixedValueGroup<OperandRange>(getOpType(op).getOperandTypes(),
       op->getOperands(), idx);
 }
 
-ValueRange SameVariadicResultSizes::getResultGroup(
+ValueRange SameVariadicResultSizes::getGroup(
     Operation *op, unsigned idx) {
   return getFixedValueGroup<ResultRange>(getOpType(op).getResultTypes(),
       op->getResults(), idx);
 }
 
-ValueRange SizedOperandSegments::getOperandGroup(
+ValueRange SizedOperandSegments::getGroup(
     Operation *op, unsigned idx) {
   return getAttrValueGroup<OperandRange>(getOpType(op).getOperandTypes(),
       op->getOperands(), idx, getSegmentSizesAttr(op));
 }
 
-ValueRange SizedResultSegments::getResultGroup(
+ValueRange SizedResultSegments::getGroup(
     Operation *op, unsigned idx) {
   return getAttrValueGroup<ResultRange>(getOpType(op).getResultTypes(),
       op->getResults(), idx, getSegmentSizesAttr(op));

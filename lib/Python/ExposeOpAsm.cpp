@@ -8,11 +8,22 @@
 
 using namespace pybind11;
 using namespace mlir;
+using namespace llvm;
 
 using dmc::py::OperationWrap;
+using dmc::py::ResultWrap;
+
+namespace dmc {
+namespace py {
+extern void exposeOperationWrap(module &m);
+extern void exposeResultWrap(module &m);
+} // end namespace py
+} // end namespace dmc
 
 namespace mlir {
 namespace py {
+
+namespace {
 
 auto transformAttrStorage(AttrDictRef attrs, StringListRef elidedAttrs) {
   /// Convert unordered_map<string, Attribute> -> vector<{Identifier, Attribute}>
@@ -70,52 +81,22 @@ void genericPrint(OpAsmPrinter &printer, const object &obj) {
   }
 }
 
-static Value getOperand(OperationWrap &op, unsigned idx) {
-  ValueRange (*getGroup)(Operation *, unsigned){};
-  if (op.getSpec()->getTrait<dmc::SizedOperandSegments>()) {
-    getGroup = &dmc::SizedOperandSegments::getOperandGroup;
-  } else if (op.getSpec()->getTrait<dmc::SameVariadicOperandSizes>()) {
-    getGroup = &dmc::SameVariadicOperandSizes::getOperandGroup;
-  } else {
-    if (idx >= op.getOp()->getNumOperands()) {
-      throw std::invalid_argument{
-          "Op does not have the expected number of operands"};
-    }
-    return op.getOp()->getOperand(idx); // no variadic operands
-  }
-  auto group = getGroup(op.getOp(), idx);
-  if (llvm::size(group) != 1)
-    throw std::invalid_argument{"Expected a singular operand group"};
-  return *group.begin();
+template <typename ParserT, typename... ClassTs, typename NameT,
+          typename FcnT>
+void exposeLiteralParser(class_<ParserT, ClassTs...> &cls, NameT name,
+                         FcnT fcn) {
+  cls.def(name, fcn);
 }
 
-static Value getResult(OperationWrap &op, unsigned idx) {
-  ValueRange (*getGroup)(Operation *, unsigned){};
-  if (op.getSpec()->getTrait<dmc::SizedResultSegments>()) {
-    getGroup = &dmc::SizedResultSegments::getResultGroup;
-  } else if (op.getSpec()->getTrait<dmc::SameVariadicResultSizes>()) {
-    getGroup = &dmc::SameVariadicResultSizes::getResultGroup;
-  } else {
-    if (idx >= op.getOp()->getNumResults()) {
-      throw std::invalid_argument{
-          "Op does not have the expected number of results"};
-    }
-    return op.getOp()->getResult(idx);
-  }
-  auto group = getGroup(op.getOp(), idx);
-  if (llvm::size(group) != 1)
-    throw std::invalid_argument{"Expected a singular result group"};
-  return *group.begin();
+template <typename ParserT, typename... ClassTs, typename NameT, typename FcnT,
+          typename... TailTs>
+void exposeLiteralParser(class_<ParserT, ClassTs...> &cls, NameT name,
+                         FcnT fcn, TailTs ...tail) {
+  exposeLiteralParser(cls, name, fcn);
+  exposeLiteralParser(cls, tail...);
 }
 
-static ValueRange getOperandGroup(OperationWrap &op, unsigned idx) {
-  if (op.getSpec()->getTrait<dmc::SizedOperandSegments>()) {
-    return dmc::SizedOperandSegments::getOperandGroup(op.getOp(), idx);
-  } else if (op.getSpec()->getTrait<dmc::SameVariadicOperandSizes>()) {
-    return dmc::SameVariadicOperandSizes::getOperandGroup(op.getOp(), idx);
-  }
-  throw std::invalid_argument{"Cannot get operand group of non-variadic op"};
-}
+} // end anonymous namespace
 
 void exposeOpAsm(module &m) {
   class_<OpAsmPrinter, std::unique_ptr<OpAsmPrinter, nodelete>>(m, "OpAsmPrinter")
@@ -169,72 +150,115 @@ void exposeOpAsm(module &m) {
           genericPrint(printer, reinterpret_borrow<object>(val));
       });
 
-  class_<ValueRange>(m, "ValueRange")
-      .def("getTypes", [](ValueRange &values) {
-        list types;
-        for (auto value : values)
-          types.append(value.getType());
-        return types;
+  class_<OpAsmParser, std::unique_ptr<OpAsmParser, nodelete>>
+      parserCls{m, "OpAsmParser"};
+  parserCls
+      .def("getCurrentLocation",
+           overload<SMLoc(OpAsmParser::*)()>(&OpAsmParser::getCurrentLocation))
+      .def("parseOperand", [](OpAsmParser &parser) {
+        OpAsmParser::OperandType operand;
+        auto ret = parser.parseOperand(operand);
+        return make_tuple(operand, ret);
+      })
+      .def("parseAttribute", [](OpAsmParser &parser, ResultWrap &wrap,
+                                std::string name, Type type) {
+        Attribute attr;
+        return parser.parseAttribute(attr, type, name,
+                                     wrap.getResult().attributes);
+      }, "attributes"_a, "name"_a, "type"_a = Type{})
+      .def("parseOptionalAttrDict", [](OpAsmParser &parser, ResultWrap &wrap) {
+        return parser.parseOptionalAttrDict(wrap.getResult().attributes);
+      })
+      .def("parseOptionalAttrDictWithKeyword", [](OpAsmParser &parser,
+                                                  ResultWrap &wrap) {
+        return parser.parseOptionalAttrDictWithKeyword(
+            wrap.getResult().attributes);
+      })
+      .def("parseType", [](OpAsmParser &parser) {
+        Type type;
+        auto ret = parser.parseType(type);
+        return make_tuple(type, ret);
+      })
+      .def("resolveOperands", [](OpAsmParser &parser, list operands, list types,
+                                 SMLoc loc, ResultWrap &wrap)
+                              -> LogicalResult {
+        if (operands.size() != types.size())
+          return parser.emitError(loc) << operands.size()
+              << " operands present, but expected " << types.size();
+        for (auto [operand, type] : llvm::zip(operands, types)) {
+          if (parser.resolveOperand(operand.cast<OpAsmParser::OperandType>(),
+                                    type.cast<Type>(),
+                                    wrap.getResult().operands))
+            return failure();
+        }
+        return success();
+      })
+      .def("parseFunctionalType", [](OpAsmParser &parser) {
+        FunctionType funcType;
+        auto ret = parser.parseType(funcType);
+        return make_tuple(funcType, ret);
+      })
+      .def("parseKeyword", [](OpAsmParser &parser, std::string keyword) {
+        return parser.parseKeyword(keyword);
+      })
+      .def("parseOptionalKeyword", [](OpAsmParser &parser,
+                                      std::string keyword) {
+        return parser.parseOptionalKeyword(keyword);
+      })
+      .def("parseOperandList", [](OpAsmParser &parser) {
+        // Returned list may interface with result.operands or a Python list,
+        // so we must copy into a py::list.
+        list operandList;
+        SmallVector<OpAsmParser::OperandType, 4> operands;
+        if (failed(parser.parseOperandList(operands)))
+          return make_tuple(operandList, failure());
+        for (auto &operand : operands)
+          operandList.append(pybind11::cast(operand));
+        return make_tuple(operandList, success());
+      })
+      .def("parseTypeList", [](OpAsmParser &parser) {
+        // Returned list may interface with result.types or a Python list.
+        list typeList;
+        SmallVector<Type, 4> types;
+        if (failed(parser.parseTypeList(types)))
+          return make_tuple(typeList, failure());
+        for (auto &type : types)
+          typeList.append(pybind11::cast(type));
+        return make_tuple(typeList, success());
       });
 
-  class_<OperationWrap>(m, "OperationWrap")
-      .def("getName", [](OperationWrap &op) {
-        return op.getOp()->getName().getStringRef().str();
-      })
-      .def("getAttrs", [](OperationWrap &op) {
-        return pybind11::cast(op.getOp()).attr("getAttrs")().cast<dict>();
-      })
-      .def("getAttr", [](OperationWrap &op, std::string name) {
-        return op.getOp()->getAttr(name);
-      })
-      .def("getOperandTypes", [](OperationWrap &op) {
-        list types;
-        for (auto type : op.getOp()->getOperandTypes())
-          types.append(pybind11::cast(type));
-        return types;
-      })
-      .def("getResultTypes", [](OperationWrap &op) {
-        list types;
-        for (auto type : op.getOp()->getResultTypes())
-          types.append(pybind11::cast(type));
-        return types;
-      })
-      .def("getOperand", [](OperationWrap &op, std::string name) {
-        auto opTy = op.getType()->getOpType();
-        unsigned idx = 0;
-        for (auto &operand : opTy.getOperands()) {
-          if (operand.name == name)
-            return getOperand(op, idx);
-          ++idx;
-        }
-        throw std::invalid_argument{op.getSpec()->getName() +
-                                    " does not have an operand named '" +
-                                    name + "'"};
-      })
-      .def("getResult", [](OperationWrap &op, std::string name) {
-        auto opTy = op.getType()->getOpType();
-        unsigned idx = 0;
-        for (auto &result : opTy.getResults()) {
-          if (result.name == name)
-            return getResult(op, idx);
-          ++idx;
-        }
-        throw std::invalid_argument{op.getSpec()->getName() +
-                                    " does not have a result named '" +
-                                    name + "'"};
-      })
-      .def("getOperandGroup", [](OperationWrap &op, std::string name) {
-        auto opTy = op.getType()->getOpType();
-        unsigned idx = 0;
-        for (auto &operand : opTy.getOperands()) {
-          if (operand.name == name)
-            return getOperandGroup(op, idx);
-          ++idx;
-        }
-        throw std::invalid_argument{op.getSpec()->getName() +
-                                    " does not have an operand group named '" +
-                                    name + "'"};
-      });
+  exposeLiteralParser(
+    parserCls,
+    "parseArrow", &OpAsmParser::parseArrow,
+    "parseColon", &OpAsmParser::parseColon,
+    "parseComma", &OpAsmParser::parseComma,
+    "parseEqual", &OpAsmParser::parseEqual,
+    "parseLess", &OpAsmParser::parseLess,
+    "parseGreater", &OpAsmParser::parseGreater,
+    "parseLParen", &OpAsmParser::parseLParen,
+    "parseRParen", &OpAsmParser::parseRParen,
+    "parseLSquare", &OpAsmParser::parseLSquare,
+    "parseRSquare", &OpAsmParser::parseRSquare,
+    "parseOptionalArrow", &OpAsmParser::parseOptionalArrow,
+    "parseOptionalColon", &OpAsmParser::parseOptionalColon,
+    "parseOptionalComma", &OpAsmParser::parseOptionalComma,
+    "parseOptionalLess", &OpAsmParser::parseOptionalLess,
+    "parseOptionalGreater", &OpAsmParser::parseOptionalGreater,
+    "parseOptionalLParen", &OpAsmParser::parseOptionalLParen,
+    "parseOptionalRParen", &OpAsmParser::parseOptionalRParen,
+    "parseOptionalLSquare", &OpAsmParser::parseOptionalLSquare,
+    "parseOptionalRSquare", &OpAsmParser::parseOptionalRSquare,
+    "parseOptionalEllipsis", &OpAsmParser::parseOptionalEllipsis);
+
+  /// Utility types for parsing.
+  class_<SMLoc>(m, "SMLoc");
+  class_<OpAsmParser::OperandType>(m, "OperandType");
+  class_<LogicalResult> logicalResultCls{m, "LogicalResult"};
+  logicalResultCls.def("__bool__", &mlir::succeeded);
+  class_<ParseResult>(m, "ParseResult", logicalResultCls);
+
+  dmc::py::exposeOperationWrap(m);
+  dmc::py::exposeResultWrap(m);
 }
 
 } // end namespace py

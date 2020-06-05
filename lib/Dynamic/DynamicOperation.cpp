@@ -5,6 +5,7 @@
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/IR/Builders.h>
 
 using namespace mlir;
 
@@ -27,6 +28,18 @@ public:
 class BaseOp : public Op<BaseOp, DynamicOpTrait> {
 public:
   using Op::Op;
+
+  static ParseResult parseAssembly(OpAsmParser &parser,
+                                   OperationState &result) {
+    // TODO This is a *three*-step lookup
+    auto *ctx = parser.getBuilder().getContext();
+    auto *dynCtx = ctx->getRegisteredDialect<DynamicContext>();
+    assert(dynCtx && "Dynamic context is not registered");
+    auto *dialect = dynCtx->lookupDialectFor(result.name);
+    assert(dialect && "Not a dynamic operation");
+    auto *dynOp = dialect->lookupOp(result.name);
+    return dynOp->parseOperation(parser, result);
+  }
 
   static void printAssembly(Operation *op, OpAsmPrinter &p) {
     // Assume we have the correct Op
@@ -52,7 +65,7 @@ DynamicOperation *DynamicOperation::of(Operation *op) {
   /// All DynamicOperations must belong to a DynamicDialect.
   auto *dialect = dynamic_cast<DynamicDialect *>(op->getDialect());
   assert(dialect && "Dynamic operation belongs to a non-dynamic dialect?");
-  return dialect->lookupOp(op->getName().getStringRef());
+  return dialect->lookupOp(op->getName());
 }
 
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)

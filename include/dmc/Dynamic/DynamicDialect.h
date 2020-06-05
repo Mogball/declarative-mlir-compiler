@@ -63,7 +63,7 @@ public:
   mlir::LogicalResult registerDynamicOp(std::unique_ptr<DynamicOperation> op);
   /// Lookup the DynamicOperation belonging to an Operation. Returns null if
   /// not found.
-  DynamicOperation *lookupOp(llvm::StringRef name) const;
+  DynamicOperation *lookupOp(mlir::OperationName name) const;
 
   /// Register a DynamicType with the dialect. The dialect takes ownership.
   mlir::LogicalResult

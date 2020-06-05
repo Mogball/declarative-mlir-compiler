@@ -392,12 +392,10 @@ static bool canFormatEnumAttr(const NamedAttribute *attr) {
 /// {0}: The name of the attribute.
 /// {1}: The type for the attribute.
 void genAttrParserCode(PythonGenStream &s, StringRef name, StringRef type) {
-  s.line() << name << "Attr, success = parser.parseAttribute(\"" << name
-      << "\"" << type << ")";
-  s.if_("not success"); {
+  s.line() << "if not parser.parseAttribute(result, \"" << name
+      << "\"" << type << "):" << incr; {
     s.line() << "return False";
   } s.endif();
-  s.line() << "result.attributes.append(" << name << "Attr)";
 }
 
 /// The code snippet used to generate a parser call for an enum attribute.
@@ -708,12 +706,11 @@ static void genElementParser(Element *element, PythonGenStream &body,
 
     /// Directives.
   } else if (auto *attrDict = dyn_cast<AttrDictDirective>(element)) {
-    body.line() << "anAttrList, success = parser.parseOptionalAttrDict"
-        << (attrDict->isWithKeyword() ? "WithKeyword" : "") << "()";
-    body.if_("not success"); {
+    body.line() << "if not parser.parseOptionalAttrDict"
+        << (attrDict->isWithKeyword() ? "WithKeyword" : "")
+        << "(result):" << incr; {
       body.line() << "return False";
     } body.endif();
-    body.line() << "result.attributes += anAttrList";
   } else if (isa<OperandsDirective>(element)) {
     body.line() << "allOperandLoc = parser.getCurrentLocation()";
     body.line() << "allOperands, success = parser.parseOperandList()";
@@ -831,11 +828,12 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
 
   // Resolve each of the result types.
   if (allResultTypes) {
-    body.line() << "result.types += allResultTypes";
+    body.line() << "result.addTypes(allResultTypes)";
   } else {
     for (unsigned i = 0, e = opTy.getNumResults(); i != e; ++i) {
-      auto line = body.line() << "result.types += ";
+      auto line = body.line() << "result.addTypes(";
       emitTypeResolver(line, resultTypes[i], opTy.getResultName(i));
+      line << ")";
     }
   }
 
@@ -847,12 +845,10 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   if (allOperandTypes) {
     // If we have all operands together, use the full operand list directly.
     if (allOperands) {
-      body.line() << "resolvedOperands, success = parser.resolveOperands("
-          << "allOperands, allOperandTypes, allOperandLoc)";
-      body.if_("not success"); {
+      body.if_("not parser.resolveOperands(allOperands, allOperandTypes, "
+               "allOperandLoc, result)"); {
         body.line() << "return False";
       } body.endif();
-      body.line() << "result.operands += resolvedOperands";
       return;
     }
 
@@ -862,12 +858,10 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
     for (auto &operand : opTy.getOperands()) {
       body.line() << "operandsToResolve += " << operand.name << "Operands";
     }
-    body.line() << "resolvedOperands, success = parser.resolveOperands("
-        << "operandsToResolve, allOperandTypes, parser.getNameLoc())";
-    body.if_("not success"); {
+    body.if_("not parser.resolveOperands(operandsToResolve, allOperandTypes, "
+             "parser.getNameLoc(), result)"); {
       body.line() << "return False";
     } body.endif();
-    body.line() << "result.operands += resolvedOperands";
     return;
   }
   // Handle the case where all of the operands were grouped together.
@@ -877,13 +871,10 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
       auto line = body.line() << "typesToResolve += ";
       emitTypeResolver(line, operandTypes[i], opTy.getOperandName(i));
     }
-    body.line() << "resolvedOperands, success = parser.resolveOperands("
-        << "allOperands, typesToResolve, allOperandLoc)";
-    body.if_("not success"); {
+    body.if_("not parser.resolveOperands(allOperands, typesToResolve, "
+             "allOperandLoc, result)"); {
       body.line() << "return False";
     } body.endif();
-    body.line() << "result.operands += resolvedOperands";
-
     return;
   }
 
@@ -892,19 +883,14 @@ void OperationFormat::genParserTypeResolution(OperationOp op,
   for (unsigned i = 0, e = opTy.getNumOperands(); i != e; ++i) {
     const NamedType &operand = *opTy.getOperand(i);
     {
-      auto line = body.line() << "aResolvedOperand, success = "
-          << "parser.resolveOperands(" << operand.name << "Operands, ";
+      auto line = body.line() << "if not parser.resolveOperands("
+          << operand.name << "Operands, ";
       emitTypeResolver(line, operandTypes[i], operand.name);
-
-      // If this isn't a buildable type, verify the sizes match by adding the loc.
       if (!operandTypes[i].getBuilderIdx())
         line << ", " << operand.name << "OperandsLoc";
-      line << ")";
+      line << ", result):" << incr;
     }
-    body.if_("not success"); {
-      body.line() << "return False";
-    } body.endif();
-    body.line() << "result.operands += aResolvedOperand";
+    body.line() << "return False" << decr;
   }
 }
 

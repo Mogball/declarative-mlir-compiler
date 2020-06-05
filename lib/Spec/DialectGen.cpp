@@ -103,7 +103,7 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     auto prefix = (dialect->getNamespace() + "__" + opOp.getName()).str();
     auto parserName = "parse__" + prefix;
     auto printerName = "print__" + prefix;
-    py::InMemoryDef parser{parserName, "(parser)"};
+    py::InMemoryDef parser{parserName, "(parser, result)"};
     py::InMemoryDef printer{printerName, "(p, op)"};
     if (failed(generateOpFormat(opOp, parser.stream(), printer.stream())))
       return opOp.emitOpError("failed to generate op format");

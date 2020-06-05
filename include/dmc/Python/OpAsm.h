@@ -1,7 +1,10 @@
 #pragma once
 
+#include <memory>
+
 namespace mlir {
 class Operation;
+struct OperationState;
 } // end namespace mlir
 
 namespace dmc {
@@ -30,6 +33,17 @@ private:
   AttrConstraintTrait *attr;
   SuccessorConstraintTrait *succ;
   RegionConstraintTrait *region;
+};
+
+class ResultWrap {
+public:
+  explicit ResultWrap(mlir::OperationState &result)
+      : result{result} {}
+
+  auto &getResult() { return result; }
+
+private:
+  mlir::OperationState &result;
 };
 
 } // end namespace py

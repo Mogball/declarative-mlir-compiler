@@ -44,7 +44,7 @@ LogicalResult verifyTypeRange(Operation *op, OpTypeRange baseTys,
 
 template <typename OpTypeRange, typename GetValueGroup>
 LogicalResult verifyVariadicTypes(Operation *op, OpTypeRange baseTys,
-                                  GetValueGroup getValues, StringRef name) {
+                                  GetValueGroup getValues, const char *name) {
   unsigned groupIdx = 0, valIdx = 0;
   auto values = getValues(op, groupIdx);
   for (auto tyIt = std::begin(baseTys), tyEnd = std::end(baseTys);
@@ -65,32 +65,30 @@ LogicalResult verifyVariadicTypes(Operation *op, OpTypeRange baseTys,
   return success();
 }
 
-LogicalResult
-verifyOperandTypes(Operation *op, OpType opTy, DynamicOperation *info) {
-  if (info->getTrait<SizedOperandSegments>()) {
-    return verifyVariadicTypes(op, opTy.getOperandTypes(),
-        SizedOperandSegments::getOperandGroup, "operand");
-  } else if (info->getTrait<SameVariadicOperandSizes>()) {
-    return verifyVariadicTypes(op, opTy.getOperandTypes(),
-        SameVariadicOperandSizes::getOperandGroup, "operand");
+template <typename SizedT, typename SameT, typename TypeRange,
+          typename GetAllFcn>
+LogicalResult verifyGroupTypes(
+    Operation *op, TypeRange types,  DynamicOperation *info, GetAllFcn getAll,
+    const char *name) {
+  if (info->getTrait<SizedT>()) {
+    return verifyVariadicTypes(op, types, SizedT::getGroup, name);
+  } else if (info->getTrait<SameT>()) {
+    return verifyVariadicTypes(op, types, SameT::getGroup, name);
   } else {
-    return verifyTypeRange(op, opTy.getOperandTypes(),
-        op->getOperandTypes(), "operand");
+    return verifyTypeRange(op, types, (op->*getAll)(), name);
   }
 }
 
 LogicalResult
+verifyOperandTypes(Operation *op, OpType opTy, DynamicOperation *info) {
+  return verifyGroupTypes<SizedOperandSegments, SameVariadicOperandSizes>(
+      op, opTy.getOperandTypes(), info, &Operation::getOperandTypes, "operand");
+}
+
+LogicalResult
 verifyResultTypes(Operation *op, OpType opTy, DynamicOperation *info) {
-  if (info->getTrait<SizedResultSegments>()) {
-    return verifyVariadicTypes(op, opTy.getResultTypes(),
-        SizedResultSegments::getResultGroup, "result");
-  } else if (info->getTrait<SameVariadicResultSizes>()) {
-    return verifyVariadicTypes(op, opTy.getResultTypes(),
-        SameVariadicResultSizes::getResultGroup, "result");
-  } else {
-    return verifyTypeRange(op, opTy.getResultTypes(),
-        op->getResultTypes(), "result");
-  }
+  return verifyGroupTypes<SizedResultSegments, SameVariadicResultSizes>(
+      op, opTy.getResultTypes(), info, &Operation::getResultTypes, "result");
 }
 
 LogicalResult verifyTypeConstraints(Operation *op, OpType opTy) {

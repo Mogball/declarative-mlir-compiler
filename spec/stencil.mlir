@@ -38,11 +38,12 @@ dmc.Dialect @stencil {
     config { fmt = "$temp `to` $field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)" }
 
   /// ApplyOp
-  dmc.Op @apply(opearnds : !dmc.Variadic<!dmc.Any>) -> (res : !dmc.Variadic<!stencil.Temp>)
+  dmc.Op @apply(operands : !dmc.Variadic<!dmc.Any>) -> (res : !dmc.Variadic<!stencil.Temp>)
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
     (region : Sized<1>)
     traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
-    config { is_isolated_from_above = true }
+    config { is_isolated_from_above = true,
+             fmt = "`(` $operands `:` type($operands) `)` `->` type($res) attr-dict-with-keyword" }
 
   /// ReturnOp
   dmc.Op @return(operands : !dmc.Variadic<!stencil.Element>) -> ()

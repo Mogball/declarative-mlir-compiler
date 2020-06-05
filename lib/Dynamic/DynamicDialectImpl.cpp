@@ -16,7 +16,7 @@ namespace dmc {
 class DynamicDialect::Impl {
   friend class DynamicDialect;
 
-  StringMap<std::unique_ptr<DynamicOperation>> dynOps;
+  llvm::DenseMap<OperationName, std::unique_ptr<DynamicOperation>> dynOps;
   StringMap<std::unique_ptr<DynamicTypeImpl>> dynTys;
   StringMap<std::unique_ptr<DynamicAttributeImpl>> dynAttrs;
   StringMap<TypeAlias> typeAliases;
@@ -40,12 +40,14 @@ DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
 
 LogicalResult
 DynamicDialect::registerDynamicOp(std::unique_ptr<DynamicOperation> op) {
-  auto [it, inserted] = impl->dynOps.try_emplace(op->getOpInfo()->name,
-                                                 std::move(op));
-  return success(inserted);
+  auto *opInfo = op->getOpInfo();
+  if (auto [it, inserted] = impl->dynOps.try_emplace(
+      op->getOpInfo(), std::move(op)); !inserted)
+    return failure();
+  return getDynContext()->registerDialectSymbol(this, opInfo);
 }
 
-DynamicOperation *DynamicDialect::lookupOp(StringRef name) const {
+DynamicOperation *DynamicDialect::lookupOp(OperationName name) const {
   auto it = impl->dynOps.find(name);
   return it == std::end(impl->dynOps) ? nullptr : it->second.get();
 }
