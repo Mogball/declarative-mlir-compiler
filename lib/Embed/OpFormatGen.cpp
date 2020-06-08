@@ -70,6 +70,7 @@ public:
     OperandVariable,
     ResultVariable,
     SuccessorVariable,
+    RegionVariable,
 
     /// This element is an optional element.
     Optional,
@@ -151,6 +152,10 @@ using ResultVariable =
 /// This class represents a variable that refers to a successor.
 using SuccessorVariable =
     VariableElement<NamedConstraint, Element::Kind::SuccessorVariable>;
+
+/// This class represents a variable that refers to a region.
+using RegionVariable =
+    VariableElement<NamedConstraint, Element::Kind::RegionVariable>;
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -1513,6 +1518,7 @@ private:
   llvm::DenseSet<const NamedType *> seenOperands;
   llvm::DenseSet<const NamedAttribute *> seenAttrs;
   llvm::DenseSet<const NamedConstraint *> seenSuccessors;
+  llvm::DenseSet<const NamedConstraint *> seenRegions;
   llvm::DenseSet<const NamedType *> optionalVariables;
 };
 } // end anonymous namespace
@@ -1842,7 +1848,8 @@ LogicalResult FormatParser::parseVariable(std::unique_ptr<Element> &element,
     return success();
   }
   /// Successors.
-  if (const auto *successor = findArg(op.getOpSuccessors().getSuccessors(), name)) {
+  if (const auto *successor = findArg(op.getOpSuccessors().getSuccessors(),
+                                      name)) {
     if (!isTopLevel)
       return emitError(loc, "successors can only be used at the top level");
     if (hasAllSuccessors || !seenSuccessors.insert(successor).second)
@@ -1850,8 +1857,19 @@ LogicalResult FormatParser::parseVariable(std::unique_ptr<Element> &element,
     element = std::make_unique<SuccessorVariable>(successor);
     return success();
   }
+  /// Regions
+  if (const auto *region = findArg(op.getOpRegions().getRegions(), name)) {
+    if (!isTopLevel)
+      return emitError(loc, "regions can only be used at the top level");
+    if (!seenRegions.insert(region).second)
+      return emitError(loc, "region '" + name + "' is already bound");
+    element = std::make_unique<RegionVariable>(successor);
+    return success();
+  }
   return emitError(
-      loc, "expected variable to refer to an argument, result, or successor");
+      loc,
+      "expected variable to refer to an argument, result, successor, "
+      "or region");
 }
 
 LogicalResult FormatParser::parseDirective(std::unique_ptr<Element> &element,
@@ -1875,7 +1893,7 @@ LogicalResult FormatParser::parseDirective(std::unique_ptr<Element> &element,
   case Token::kw_successors:
     return parseSuccessorsDirective(element, dirTok.getLoc(), isTopLevel);
   case Token::kw_type:
-    return parseTypeDirective(element, dirTok, isTopLevel);
+    return parseTypeDirective(element, dirTok.getLoc(), isTopLevel);
 
   default:
     llvm_unreachable("unknown directive token");
@@ -2074,9 +2092,8 @@ FormatParser::parseSuccessorsDirective(std::unique_ptr<Element> &element,
 }
 
 LogicalResult
-FormatParser::parseTypeDirective(std::unique_ptr<Element> &element, Token tok,
-                                 bool isTopLevel) {
-  llvm::SMLoc loc = tok.getLoc();
+FormatParser::parseTypeDirective(std::unique_ptr<Element> &element,
+                                 llvm::SMLoc loc, bool isTopLevel) {
   if (!isTopLevel)
     return emitError(loc, "'type' is only valid as a top-level directive");
 

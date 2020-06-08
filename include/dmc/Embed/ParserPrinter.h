@@ -6,7 +6,7 @@ namespace mlir {
 class OpAsmParser;
 class OpAsmPrinter;
 class Operation;
-class OperationState;
+struct OperationState;
 } // end namespace mlir
 
 namespace dmc {

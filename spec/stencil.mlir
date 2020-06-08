@@ -18,35 +18,35 @@ dmc.Dialect @stencil {
     { type = !stencil.None }
 
   /// AssertOp
-  dmc.Op @assert(field : !stencil.Field) -> () { lb = #stencil.Index,
+  dmc.Op @assert(field: !stencil.Field) -> () { lb = #stencil.Index,
                                                  ub = #stencil.Index }
     config { fmt = "$field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($field)" }
 
   /// AccessOp
-  dmc.Op @access(temp : !stencil.Temp) -> (res : !stencil.Element)
+  dmc.Op @access(temp: !stencil.Temp) -> (res: !stencil.Element)
     { offset = #stencil.Index }
     config { fmt = "$temp $offset attr-dict-with-keyword `:` functional-type($temp, $res)" }
 
   /// LoadOp
-  dmc.Op @load(field : !stencil.Field) -> (res : !stencil.Temp)
+  dmc.Op @load(field: !stencil.Field) -> (res: !stencil.Temp)
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
     config { fmt = "$field (`(` $lb^ `:` $ub `)`)? attr-dict-with-keyword `:` functional-type($field, $res)" }
 
   /// StoreOp
-  dmc.Op @store(temp : !stencil.Temp, field : !stencil.Field) -> ()
+  dmc.Op @store(temp: !stencil.Temp, field: !stencil.Field) -> ()
     { lb = #stencil.Index, ub = #stencil.Index }
     config { fmt = "$temp `to` $field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)" }
 
   /// ApplyOp
-  dmc.Op @apply(operands : !dmc.Variadic<!dmc.Any>) -> (res : !dmc.Variadic<!stencil.Temp>)
+  dmc.Op @apply(operands: !dmc.Variadic<!dmc.Any>) -> (res: !dmc.Variadic<!stencil.Temp>)
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
-    (region : Sized<1>)
+    (region: Sized<1>)
     traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
     config { is_isolated_from_above = true }
-             //fmt = "`(` $operands `:` type($operands) `)` `->` type($res) attr-dict-with-keyword (`to` `(` $lb^ `:` $ub `)`)?" }
+             //fmt = "`(` $operands `)` `->` type($res) attr-dict-with-keyword (`to` `(` $lb^ `:` $ub `)`)?" }
 
   /// ReturnOp
-  dmc.Op @return(operands : !dmc.Variadic<!stencil.Element>) -> ()
+  dmc.Op @return(operands: !dmc.Variadic<!stencil.Element>) -> ()
     { unroll = #stencil.OptionalIndex }
     traits [@SameVariadicOperandSizes]
     config { is_terminator = true,
