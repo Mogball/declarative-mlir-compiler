@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "FormatUtils.h"
 #include "dmc/Embed/PythonGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecAttrs.h"
@@ -39,11 +40,6 @@ using ::dmc::NamedType;
 using ::dmc::NamedConstraint;
 
 using namespace ::dmc::py;
-
-static llvm::cl::opt<bool> formatErrorIsFatal(
-    "asmformat-error-is-fatal",
-    llvm::cl::desc("Emit a fatal error if format parsing fails"),
-    llvm::cl::init(true));
 
 //===----------------------------------------------------------------------===//
 // Element
@@ -240,36 +236,11 @@ public:
   /// Return the literal for this element.
   StringRef getLiteral() const { return literal; }
 
-  /// Returns true if the given string is a valid literal.
-  static bool isValidLiteral(StringRef value);
-
 private:
   /// The spelling of the literal for this element.
   StringRef literal;
 };
 } // end anonymous namespace
-
-bool LiteralElement::isValidLiteral(StringRef value) {
-  if (value.empty())
-    return false;
-  char front = value.front();
-
-  // If there is only one character, this must either be punctuation or a
-  // single character bare identifier.
-  if (value.size() == 1)
-    return isalpha(front) || StringRef("_:,=<>()[]").contains(front);
-
-  // Check the punctuation that are larger than a single character.
-  if (value == "->")
-    return true;
-
-  // Otherwise, this must be an identifier.
-  if (!isalpha(front) && front != '_')
-    return false;
-  return llvm::all_of(value.drop_front(), [](char c) {
-    return isalnum(c) || c == '_' || c == '$' || c == '.';
-  });
-}
 
 //===----------------------------------------------------------------------===//
 // OptionalElement
@@ -1957,7 +1928,7 @@ LogicalResult FormatParser::parseLiteral(std::unique_ptr<Element> &element) {
 
   // Check that the parsed literal is valid.
   StringRef value = literalTok.getSpelling().drop_front().drop_back();
-  if (!LiteralElement::isValidLiteral(value))
+  if (!fmt::isValidLiteral(value))
     return emitError(literalTok.getLoc(), "expected valid literal");
 
   element = std::make_unique<LiteralElement>(value);

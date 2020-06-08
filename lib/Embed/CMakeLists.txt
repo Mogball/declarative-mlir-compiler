@@ -3,9 +3,12 @@ add_library(DMCEmbed
   Spec.cpp
   Init.cpp
   OpFormatGen.cpp
+  TypeFormatGen.cpp
   PythonGen.cpp
   InMemoryDef.cpp
   ParserPrinter.cpp
+  FormatUtils.cpp
+  FormatUtils.h
   )
 
 target_link_libraries(DMCEmbed PUBLIC
