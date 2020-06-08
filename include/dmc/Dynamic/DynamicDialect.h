@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DynamicObject.h"
+#include "dmc/Spec/ParameterList.h"
 
 #include <mlir/IR/Dialect.h>
 
@@ -30,13 +31,13 @@ public:
 
   /// Create a dynamic type with the given name and parameter spec and add
   /// it to the given dialect.
-  mlir::LogicalResult createDynamicType(
-      llvm::StringRef name, llvm::ArrayRef<mlir::Attribute> paramSpec);
+  mlir::LogicalResult createDynamicType(llvm::StringRef name,
+                                        NamedParameterRange paramSpec);
 
   /// Create a dynamic attribute with the given name and parameter spec and
   /// add it to the given dialect.
-  mlir::LogicalResult createDynamicAttr(
-      llvm::StringRef name, llvm::ArrayRef<mlir::Attribute> paramSpec);
+  mlir::LogicalResult createDynamicAttr(llvm::StringRef name,
+                                        NamedParameterRange paramSpec);
 
   /// Expose configuration methods.
   inline void allowUnknownOperations(bool allow) {

@@ -25,7 +25,7 @@ public:
                            llvm::ArrayRef<NamedType> operands,
                            llvm::ArrayRef<NamedType> results);
 
-  static bool kindof(unsigned kind) { return kind == TypeKinds::OpTypeKind; }
+  static bool kindof(unsigned kind) { return kind == TypeKinds::OpType; }
 
   llvm::ArrayRef<NamedType> getOperands();
   llvm::ArrayRef<NamedType> getResults();

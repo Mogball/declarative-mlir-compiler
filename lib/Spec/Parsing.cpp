@@ -23,17 +23,16 @@ ParseResult parseSingleAttribute(OpAsmParser &parser, Attribute &attr) {
 
 /// Parse an optional parameter list for any parser.
 namespace detail {
-template <typename ParserT, typename ParseAttrFn, typename ModifierFn>
-ParseResult parseOptionalParameterList(
-    ParserT &parser, mlir::ArrayAttr &attr, ParseAttrFn parseAttr,
-    ModifierFn modifier) {
+template <typename ParserT, typename ParseAttrFn>
+ParseResult parseOptionalParameterList(ParserT &parser, mlir::ArrayAttr &attr,
+                                       ParseAttrFn parseAttr) {
   SmallVector<Attribute, 2> params;
   if (!parser.parseOptionalLess()) {
     do {
       Attribute param;
       if (parseAttr(parser, param))
         return failure();
-      params.push_back(modifier(param));
+      params.push_back(param);
     } while (!parser.parseOptionalComma());
     if (parser.parseGreater())
       return failure();
@@ -43,38 +42,21 @@ ParseResult parseOptionalParameterList(
 }
 } // end namespace detail
 
-/// Parse an optional parameter list with an on-the-fly modifier. Callers can
-/// use the modifier to intercept certain parameters without re-traversing the
-/// resultant attribute array.
-ParseResult parseOptionalParameterList(
-    OpAsmParser &parser, mlir::ArrayAttr &attr, ParameterModifier modifier) {
-  return detail::parseOptionalParameterList(parser, attr, parseSingleAttribute,
-                                            modifier);
-}
-
-ParseResult parseOptionalParameterList(
-    DialectAsmParser &parser, mlir::ArrayAttr &attr,
-    ParameterModifier modifier) {
-  auto parseAttr = [](DialectAsmParser &parser, Attribute &attr) {
-    return parser.parseAttribute(attr);
-  };
-  return detail::parseOptionalParameterList(parser, attr, parseAttr, modifier);
-}
-
 /// Parse an optional parameter list. If not found, returns success() and an
 /// empty array attribute.
 ///
 /// parameter-list ::= (`<` attr (`,` attr)* `>`)?
 ParseResult parseOptionalParameterList(OpAsmParser &parser,
                                        mlir::ArrayAttr &attr) {
-  return parseOptionalParameterList(parser, attr,
-                                    [](Attribute attr) { return attr; });
+  return detail::parseOptionalParameterList(parser, attr, parseSingleAttribute);
 }
 
 ParseResult parseOptionalParameterList(DialectAsmParser &parser,
                                        mlir::ArrayAttr &attr) {
-  return parseOptionalParameterList(parser, attr,
-                                    [](Attribute attr) { return attr; });
+  auto parseAttr = [](DialectAsmParser &parser, Attribute &attr) {
+    return parser.parseAttribute(attr);
+  };
+  return detail::parseOptionalParameterList(parser, attr, parseAttr);
 }
 
 /// Print a parameter list for any printer.

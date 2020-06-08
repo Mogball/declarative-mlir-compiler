@@ -87,13 +87,15 @@ ParseResult OperationOp::reparse() {
 /// TypeOp reparsing.
 namespace {
 template <typename OpT, typename ParamRange, typename ParamListT>
-ParseResult reparseParameterList(OpT op, ParamRange params,
-                                 ParamListT &newParams) {
+ParseResult reparseParameters(OpT op, ParamRange params,
+                              ParamListT &newParams) {
+  using mlir::dmc::NamedParameter;
   newParams.reserve(llvm::size(params));
   unsigned idx = 0;
-  for (auto param : params) {
-    if (auto newParam = impl::reparseAttr(param)) {
-      newParams.push_back(newParam);
+  for (auto paramAttr : params) {
+    auto param = paramAttr.template cast<NamedParameter>();
+    if (auto newParam = impl::reparseAttr(param.getConstraint())) {
+      newParams.push_back(NamedParameter::get(param.getName(), newParam));
     } else {
       return op.emitOpError("failed to parse parameter #") << idx;
     }
@@ -102,9 +104,9 @@ ParseResult reparseParameterList(OpT op, ParamRange params,
   return success();
 }
 
-ParseResult reparseParameterList(ParameterList op) {
+ParseResult reparseParameters(ParameterList op) {
   std::vector<Attribute> newParams;
-  if (failed(reparseParameterList(op, op.getParameters(), newParams)))
+  if (failed(reparseParameters(op, op.getParameters(), newParams)))
     return failure();
   op.setParameters(newParams);
   return success();
@@ -113,13 +115,13 @@ ParseResult reparseParameterList(ParameterList op) {
 
 ParseResult TypeOp::reparse() {
   /// Reparse parameter list.
-  return reparseParameterList(cast<ParameterList>(getOperation()));
+  return reparseParameters(cast<ParameterList>(getOperation()));
 }
 
 /// AttributeOp reparsing.
 ParseResult AttributeOp::reparse() {
   /// Reparse parameter list.
-  return reparseParameterList(cast<ParameterList>(getOperation()));
+  return reparseParameters(cast<ParameterList>(getOperation()));
 }
 
 /// AliasOp reparsing.

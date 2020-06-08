@@ -18,16 +18,10 @@ mlir::ParseResult parseSingleAttribute(mlir::OpAsmParser &parser,
                                        mlir::Attribute &attr);
 
 /// Parse an optional parameter list.
-mlir::ParseResult parseOptionalParameterList(mlir::OpAsmParser &parser,
-                                             mlir::ArrayAttr &attr);
 mlir::ParseResult parseOptionalParameterList(mlir::DialectAsmParser &parser,
                                              mlir::ArrayAttr &attr);
-
-/// Parse an optional parameter list with an on-the-fly parameter modifier.
-using ParameterModifier = mlir::Attribute (*)(mlir::Attribute);
-mlir::ParseResult parseOptionalParameterList(
-    mlir::OpAsmParser &parser, mlir::ArrayAttr &attr,
-    ParameterModifier modifier);
+mlir::ParseResult parseOptionalParameterList(mlir::OpAsmParser &parser,
+                                             mlir::ArrayAttr &attr);
 
 /// Print a parameter list.
 void printOptionalParameterList(mlir::OpAsmPrinter &printer,

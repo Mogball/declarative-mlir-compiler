@@ -4,8 +4,10 @@ dmc.Dialect @stencil {
   dmc.Alias @ArrayCount3 -> #dmc.Py<"isinstance({self}, ArrayAttr) and len({self}) == 3">
 
   /// Stencil types: FieldType and TempType, both subclass GridType.
-  dmc.Type @field<#stencil.Shape, #dmc.Type>
-  dmc.Type @temp <#stencil.Shape, #dmc.Type>
+  dmc.Type @field<shape: #stencil.Shape, type: #dmc.Type>
+    { fmt = "`<` dims($shape) $type `>`" }
+  dmc.Type @temp <shape: #stencil.Shape, type: #dmc.Type>
+    { fmt = "`<` dims($shape) $type `>`" }
   dmc.Alias @Field -> !dmc.Isa<@stencil::@field>
   dmc.Alias @Temp  -> !dmc.Isa<@stencil::@temp>
 

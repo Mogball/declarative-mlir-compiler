@@ -3,6 +3,7 @@
 #include "Metadata.h"
 #include "DynamicObject.h"
 #include "dmc/Kind.h"
+#include "dmc/Spec/ParameterList.h"
 
 #include <mlir/IR/DialectImplementation.h>
 
@@ -22,7 +23,7 @@ class DynamicTypeImpl : public DynamicObject, public TypeMetadata {
 public:
   /// Create a dynamic type with the provided name and parameter spec.
   explicit DynamicTypeImpl(DynamicDialect *dialect, llvm::StringRef name,
-                           llvm::ArrayRef<mlir::Attribute> paramSpec);
+                           NamedParameterRange paramSpec);
 
   /// Getters.
   inline DynamicDialect *getDialect() { return dialect; }
@@ -37,7 +38,7 @@ private:
   DynamicDialect *dialect;
   /// The parameters are defined by Attribute constraints. The Attribute
   /// instances must be Spec attributes.
-  llvm::ArrayRef<mlir::Attribute> paramSpec;
+  NamedParameterRange paramSpec;
 
   friend class DynamicType;
 };

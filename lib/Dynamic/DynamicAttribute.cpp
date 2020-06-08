@@ -41,7 +41,7 @@ struct DynamicAttributeStorage : public AttributeStorage {
 } // end namespace detail
 
 DynamicAttributeImpl::DynamicAttributeImpl(
-    DynamicDialect *dialect, StringRef name, ArrayRef<Attribute> paramSpec)
+    DynamicDialect *dialect, StringRef name, NamedParameterRange paramSpec)
     : DynamicObject{dialect->getDynContext()},
       AttributeMetadata{name, llvm::None, Type{}},
       dialect{dialect},
@@ -49,8 +49,7 @@ DynamicAttributeImpl::DynamicAttributeImpl(
 
 Attribute DynamicAttributeImpl::parseAttribute(Location loc,
                                                DialectAsmParser &parser) {
-  std::vector<Attribute> params;
-  params.reserve(std::size(paramSpec));
+  SmallVector<Attribute, 2> params;
   if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
@@ -110,9 +109,10 @@ LogicalResult DynamicAttribute::verifyConstructionInvariants(
         << llvm::size(params);
   unsigned idx = 0;
   for (auto [spec, param] : llvm::zip(impl->paramSpec, params)) {
-    if (failed(SpecAttrs::delegateVerify(spec, param)))
+    if (failed(SpecAttrs::delegateVerify(spec.getConstraint(), param)))
       return emitError(loc) << "attribute construction failed: parameter #"
-           << idx << " expected " << spec << " but got " << param;
+           << idx << " expected " << spec.getConstraint() << " but got "
+           << param;
     ++idx;
   }
   return success();

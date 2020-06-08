@@ -122,7 +122,7 @@ enum Kinds {
 
 namespace TypeKinds {
 enum Kinds {
-  OpTypeKind = SpecTypes::LAST_SPEC_TYPE,
+  OpType = SpecTypes::LAST_SPEC_TYPE,
 
   LAST_KIND
 };
@@ -130,8 +130,9 @@ enum Kinds {
 
 namespace AttrKinds {
 enum Kinds {
-  OpRegionKind = SpecSuccessor::LAST_SPEC_SUCCESSOR,
-  OpSuccessorKind,
+  OpRegion= SpecSuccessor::LAST_SPEC_SUCCESSOR,
+  OpSuccessor,
+  NamedParameter,
 
   LAST_KIND
 };

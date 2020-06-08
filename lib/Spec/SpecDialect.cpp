@@ -47,7 +47,9 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       PyAttr,
 
       AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion,
-      AnySuccessor, VariadicSuccessor
+      AnySuccessor, VariadicSuccessor,
+
+      mlir::dmc::NamedParameter
   >();
 }
 

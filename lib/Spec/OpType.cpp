@@ -102,20 +102,20 @@ OpType OpType::getChecked(
   if (failed(verifyNamedRange(loc, operands, "operand")) ||
       failed(verifyNamedRange(loc, results, "result")))
     return {};
-  return Base::get(loc.getContext(), TypeKinds::OpTypeKind, operands, results);
+  return Base::get(loc.getContext(), TypeKinds::OpType, operands, results);
 }
 
 OpRegion OpRegion::getChecked(Location loc, ArrayRef<NamedConstraint> attrs) {
   if (failed(verifyNamedRange(loc, attrs, "region")))
     return {};
-  return Base::get(loc.getContext(), AttrKinds::OpRegionKind, attrs);
+  return Base::get(loc.getContext(), AttrKinds::OpRegion, attrs);
 }
 
 OpSuccessor OpSuccessor::getChecked(Location loc,
                                     ArrayRef<NamedConstraint> attrs) {
   if (failed(verifyNamedRange(loc, attrs, "successor")))
     return {};
-  return Base::get(loc.getContext(), AttrKinds::OpSuccessorKind, attrs);
+  return Base::get(loc.getContext(), AttrKinds::OpSuccessor, attrs);
 }
 
 ArrayRef<NamedType> OpType::getOperands() { return getImpl()->operands; }

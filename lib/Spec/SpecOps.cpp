@@ -371,7 +371,8 @@ ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      ParameterList::parse(parser, result.attributes))
+      ParameterList::parse(parser, result.attributes) ||
+      parser.parseOptionalAttrDict(result.attributes))
     return failure();
   return success();
 }
@@ -379,7 +380,9 @@ ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
 void TypeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  printParameterList(printer);
+  printParameters(printer);
+  printer.printOptionalAttrDict(
+      getAttrs(), {SymbolTable::getSymbolAttrName(), getParametersAttrName()});
 }
 
 /// AttributeOp
@@ -396,7 +399,8 @@ ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
   mlir::StringAttr nameAttr;
   if (parser.parseSymbolName(nameAttr, SymbolTable::getSymbolAttrName(),
                              result.attributes) ||
-      ParameterList::parse(parser, result.attributes))
+      ParameterList::parse(parser, result.attributes) ||
+      parser.parseOptionalAttrDict(result.attributes))
     return failure();
   return success();
 }
@@ -404,7 +408,7 @@ ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
 void AttributeOp::print(OpAsmPrinter &printer) {
   printer << getOperation()->getName() << ' ';
   printer.printSymbolName(getName());
-  printParameterList(printer);
+  printParameters(printer);
 }
 
 /// AliasOp.

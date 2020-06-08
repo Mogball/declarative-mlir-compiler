@@ -18,14 +18,14 @@ DynamicDialect::createDynamicOp(StringRef name) {
   return std::make_unique<DynamicOperation>(name, this);
 }
 
-LogicalResult DynamicDialect::createDynamicType(
-    StringRef name, ArrayRef<Attribute> paramSpec) {
+LogicalResult DynamicDialect::createDynamicType(StringRef name,
+                                                NamedParameterRange paramSpec) {
   return registerDynamicType(
       std::make_unique<DynamicTypeImpl>(this, name, paramSpec));
 }
 
-LogicalResult DynamicDialect::createDynamicAttr(
-    StringRef name, ArrayRef<Attribute> paramSpec) {
+LogicalResult DynamicDialect::createDynamicAttr(StringRef name,
+                                                NamedParameterRange paramSpec) {
   return registerDynamicAttr(
       std::make_unique<DynamicAttributeImpl>(this, name, paramSpec));
 }

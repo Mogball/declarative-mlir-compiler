@@ -29,7 +29,7 @@ public:
                              llvm::ArrayRef<NamedConstraint> regions);
 
   static bool kindof(unsigned kind)
-  { return kind == AttrKinds::OpRegionKind; }
+  { return kind == AttrKinds::OpRegion; }
 
   llvm::ArrayRef<NamedConstraint> getRegions();
 
@@ -58,7 +58,7 @@ public:
                                 llvm::ArrayRef<NamedConstraint> successors);
 
   static bool kindof(unsigned kind)
-  { return kind == AttrKinds::OpSuccessorKind; }
+  { return kind == AttrKinds::OpSuccessor; }
 
   llvm::ArrayRef<NamedConstraint> getSuccessors();
 

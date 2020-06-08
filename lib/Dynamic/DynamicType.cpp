@@ -47,15 +47,14 @@ struct DynamicTypeStorage : public TypeStorage {
 } // end namespace detail
 
 DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
-                                 ArrayRef<Attribute> paramSpec)
+                                 NamedParameterRange paramSpec)
     : DynamicObject{dialect->getDynContext()},
       TypeMetadata{name, llvm::None},
       dialect{dialect},
       paramSpec{paramSpec} {}
 
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
-  std::vector<Attribute> params;
-  params.reserve(std::size(paramSpec));
+  SmallVector<Attribute, 2> params;
   if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
@@ -118,9 +117,10 @@ LogicalResult DynamicType::verifyConstructionInvariants(
   /// Verify that the provided parameters satisfy the dynamic type spec.
   unsigned idx = 0;
   for (auto [spec, param] : llvm::zip(impl->paramSpec, params)) {
-    if (failed(SpecAttrs::delegateVerify(spec, param)))
+    if (failed(SpecAttrs::delegateVerify(spec.getConstraint(), param)))
       return emitError(loc) << "type construction failed: parameter #"
-          << idx << " expected " << spec << " but got " << param;
+          << idx << " expected " << spec.getConstraint() << " but got "
+          << param;
     ++idx;
   }
   return success();

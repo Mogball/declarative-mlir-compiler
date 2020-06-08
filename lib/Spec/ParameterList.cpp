@@ -9,39 +9,76 @@ namespace dmc {
 
 #include "dmc/Spec/ParameterList.cpp.inc"
 
-namespace impl {
-/// Check that all parameters are SpecAttrs.
-LogicalResult verifyParameterList(Operation *op, ArrayRef<Attribute> params) {
-  unsigned idx = 0;
-  for (auto &param : params) {
-    /// Since the verifier is called before reparse, we have to let opaque
-    /// attributes through since they may resolve to aliases.
-    if (!SpecAttrs::is(param) && !param.isa<OpaqueAttr>())
-      return op->emitOpError("parameter #") << idx << " expected a SpecAttr "
-          << "but got: " << param;
-    ++idx;
+namespace detail {
+struct NamedParameterStorage : public AttributeStorage {
+  using KeyTy = std::pair<StringRef, Attribute>;
+
+  explicit NamedParameterStorage(StringRef name, Attribute constraint)
+      : name{name}, constraint{constraint} {}
+
+  bool operator==(const KeyTy &key) const {
+    return key.first == name && key.second == constraint;
   }
+
+  static llvm::hash_code hashKey(const KeyTy &key) {
+    return llvm::hash_combine(key.first, key.second);
+  }
+
+  static NamedParameterStorage *construct(AttributeStorageAllocator &alloc,
+                                          const KeyTy &key) {
+    return new (alloc.allocate<NamedParameterStorage>())
+        NamedParameterStorage{alloc.copyInto(key.first), key.second};
+  }
+
+  StringRef name;
+  Attribute constraint;
+};
+} // end namespace detail
+
+NamedParameter NamedParameter::get(StringRef name, Attribute constraint) {
+  return Base::get(constraint.getContext(), ::dmc::AttrKinds::NamedParameter,
+                   name, constraint);
+}
+
+NamedParameter NamedParameter::getChecked(Location loc, StringRef name,
+                                          Attribute constraint) {
+  return Base::getChecked(loc, ::dmc::AttrKinds::NamedParameter, name,
+                          constraint);
+}
+
+LogicalResult NamedParameter::verifyConstructionInvariants(
+    Location loc, StringRef name, Attribute constraint) {
+  if (!::dmc::SpecAttrs::is(constraint) && !constraint.isa<OpaqueAttr>())
+    return emitError(loc) << "expected a valid attribute constraint";
   return success();
 }
-} // end namespace impl
+
+StringRef NamedParameter::getName() {
+  return getImpl()->name;
+}
+
+Attribute NamedParameter::getConstraint() {
+  return getImpl()->constraint;
+}
 
 ParseResult ParameterList::parse(OpAsmParser &parser,
                                  NamedAttrList &attrList) {
-  /// TypeOp and AttributeOp parameter lists can use type attributes to specify
-  /// an OfTypeAttr constraint:
-  ///
-  ///   <..., i32, ...> => <..., #dmc.OfType<i32>, ...>
-  ///
-  mlir::ArrayAttr paramAttr;
-  auto ofTypeModifier = [](Attribute attr) -> Attribute {
-    if (auto tyAttr = attr.dyn_cast<mlir::TypeAttr>())
-      return OfTypeAttr::get(tyAttr.getValue());
-    return attr;
-  };
-  if (failed(::dmc::impl::parseOptionalParameterList(parser, paramAttr,
-                                                     ofTypeModifier)))
-    return failure();
-  attrList.append(Trait<int>::getParametersAttrName(), paramAttr);
+  SmallVector<Attribute, 2> params;
+  if (succeeded(parser.parseLess())) {
+    StringRef name;
+    Attribute constraint;
+    do {
+      auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
+      if (parser.parseKeyword(&name) || parser.parseColon() ||
+          ::dmc::impl::parseSingleAttribute(parser, constraint))
+        return failure();
+      params.push_back(NamedParameter::getChecked(loc, name, constraint));
+    } while (succeeded(parser.parseOptionalComma()));
+    if (parser.parseGreater())
+      return failure();
+  }
+  attrList.append(Trait<int>::getParametersAttrName(),
+                  parser.getBuilder().getArrayAttr(params));
   return success();
 }
 

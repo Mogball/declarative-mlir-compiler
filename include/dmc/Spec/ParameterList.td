@@ -14,9 +14,13 @@ def ParameterList : OpInterface<"ParameterList"> {
     InterfaceMethod<[{
         Get the Op's parameter list.
       }],
-      "ArrayRef<Attribute>", "getParameters", (ins), [{}], [{
-        return this->getOperation()->template getAttrOfType<mlir::ArrayAttr>(
-            getParametersAttrName()).getValue();
+      "NamedParameterRange", "getParameters", (ins), [{}], [{
+        auto attr = this->getOperation()->template
+            getAttrOfType<mlir::ArrayAttr>(getParametersAttrName());
+        NamedParameter (*unwrap)(Attribute) = [](Attribute attr) {
+          return attr.cast<NamedParameter>();
+        };
+        return llvm::map_range(attr.getValue(), unwrap);
       }]
     >,
     InterfaceMethod<[{
@@ -31,9 +35,16 @@ def ParameterList : OpInterface<"ParameterList"> {
     InterfaceMethod<[{
         Print the parameter list.
       }],
-      "void", "printParameterList", (ins "OpAsmPrinter &":$printer), [{}], [{
-        auto op = dyn_cast<ConcreteOp>(this->getOperation());
-        ::dmc::impl::printOptionalParameterList(printer, op.getParameters());
+      "void", "printParameters", (ins "OpAsmPrinter &":$printer), [{}], [{
+        auto params = dyn_cast<ConcreteOp>(this->getOperation()).getParameters();
+        if (!params.empty()) {
+          printer << '<';
+          llvm::interleaveComma(params, printer, [&](Attribute attr) {
+            auto param = attr.cast<NamedParameter>();
+            printer << param.getName() << ": " << param.getConstraint();
+          });
+          printer << '>';
+        }
       }]
      >,
   ];
@@ -43,7 +54,7 @@ def ParameterList : OpInterface<"ParameterList"> {
     if (!paramsAttr)
       return $_op->emitOpError("expected an ArrayAttr named: ")
           << getParametersAttrName();
-    return impl::verifyParameterList($_op, paramsAttr.getValue());
+    return success();
   }];
 
   let extraTraitClassDeclaration = [{
