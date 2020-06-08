@@ -106,11 +106,8 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     py::InMemoryDef parser{parserName, "(parser, result)"};
     py::InMemoryDef printer{printerName, "(p, op)"};
     if (failed(generateOpFormat(opOp, parser.stream(), printer.stream())))
-      return opOp.emitOpError("failed to generate op format");
+      return failure();
     op->setOpFormat(std::move(parserName), std::move(printerName));
-
-    llvm::errs() << parser.str() << "\n";
-    llvm::errs() << printer.str() << "\n";
   }
 
   /// Finally, register the Op.

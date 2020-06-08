@@ -2,8 +2,7 @@ func @laplace(%arg0: !stencil.field<[-1, -1, -1],f64>, %arg1: !stencil.field<[-1
   stencil.assert %arg0([-4, -4, -4] : [68, 68, 68]) : !stencil.field<[-1, -1, -1],f64>
   stencil.assert %arg1([-4, -4, -4] : [68, 68, 68]) : !stencil.field<[-1, -1, -1],f64>
   %0 = stencil.load %arg0 : (!stencil.field<[-1, -1, -1],f64>) -> !stencil.temp<[-1, -1, -1],f64>
-  %1 = "stencil.apply"(%0) ( {
-  ^bb0(%arg2: !stencil.temp<[-1, -1, -1],f64>):  // no predecessors
+  %1 = stencil.apply(%0) : (!stencil.temp<[-1, -1, -1],f64>) -> !stencil.temp<[-1, -1, -1],f64> (%arg2: !stencil.temp<[-1, -1, -1],f64>) {
     %2 = stencil.access %arg2 [-1, 0, 0] : (!stencil.temp<[-1, -1, -1],f64>) -> f64
     %3 = stencil.access %arg2 [1, 0, 0] : (!stencil.temp<[-1, -1, -1],f64>) -> f64
     %4 = stencil.access %arg2 [0, 1, 0] : (!stencil.temp<[-1, -1, -1],f64>) -> f64
@@ -16,7 +15,7 @@ func @laplace(%arg0: !stencil.field<[-1, -1, -1],f64>, %arg1: !stencil.field<[-1
     %10 = mulf %6, %cst : f64
     %11 = addf %10, %9 : f64
     stencil.return %11 : f64
-  }) : (!stencil.temp<[-1, -1, -1],f64>) -> !stencil.temp<[-1, -1, -1],f64>
+  }
   stencil.store %1 to %arg1([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[-1, -1, -1],f64> to !stencil.field<[-1, -1, -1],f64>
   return
 }

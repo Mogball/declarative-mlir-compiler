@@ -48,7 +48,7 @@ public:
   PythonGenStream &block(llvm::StringRef ty, llvm::Twine expr);
   PythonGenStream &endblock();
 
-  inline PythonGenStream &if_(llvm::StringRef expr) {
+  inline PythonGenStream &if_(llvm::Twine expr) {
     return block("if", expr);
   }
   inline PythonGenStream &else_() {

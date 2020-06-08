@@ -118,7 +118,20 @@ void exposeOperationWrap(module &m) {
       .def("getResultGroup", [](OperationWrap &op, std::string name) {
         return getValueOrGroup(op, &getResultGroup, std::move(name),
                                op.getType()->getOpType().getResults());
-      });
+      })
+      .def("getRegion", [](OperationWrap &op, std::string name) {
+        unsigned idx{};
+        for (auto &region : op.getRegion()->getOpRegions().getRegions()) {
+          if (region.name == name) {
+            return &op.getOp()->getRegion(idx);
+          }
+          ++idx;
+        }
+        throw std::invalid_argument{"Unable to find a region named '" + name +
+                                    "' for operation '" +
+                                    op.getSpec()->getName() + "'"};
+
+      }, return_value_policy::reference_internal);
 }
 
 void exposeResultWrap(module &m) {
@@ -126,6 +139,12 @@ void exposeResultWrap(module &m) {
       .def("addTypes", [](ResultWrap &wrap, list types) {
         for (auto type : types)
           wrap.getResult().types.push_back(type.cast<Type>());
+      })
+      .def("addRegion", [](ResultWrap &wrap) {
+        return wrap.getResult().addRegion();
+      }, return_value_policy::reference)
+      .def("appendRegion", [](ResultWrap &, Region &) {
+        // `addRegion` will automatically put the region in the OperationState
       });
   class_<NamedAttrList>(m, "NamedAttrList");
 }

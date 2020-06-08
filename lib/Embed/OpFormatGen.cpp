@@ -352,6 +352,8 @@ struct OperationFormat {
   void genParserTypeResolution(OperationOp op, PythonGenStream &body);
   /// Generate the c++ to resolve successors during parsing.
   void genParserSuccessorResolution(OperationOp op, PythonGenStream &body);
+  /// Generate the c++ to resolve regions during parsing.
+  void genParserRegionResolution(OperationOp op, PythonGenStream &body);
   /// Generate the c++ to handling variadic segment size traits.
   void genParserVariadicSegmentResolution(OperationOp op, PythonGenStream &body);
 
@@ -525,11 +527,17 @@ void genSuccessorListParserCode(PythonGenStream &s, StringRef name) {
 ///
 /// {0}: The name of the successor.
 void genSuccessorParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "succ, success = parser.parseSuccessor()";
+  s.line() << name << "Successor, success = parser.parseSuccessor()";
   s.if_("not success"); {
     s.line() << "return False";
   } s.endif();
-  s.line() << name << "Successor = succ";
+}
+
+void genRegionParserCode(PythonGenStream &s, StringRef name) {
+  s.line() << name << "Region = result.addRegion()";
+  s.if_("not parser.parseRegionWithArguments(" + name + "Region)"); {
+    s.line() << "return False";
+  } s.endif();
 }
 
 namespace {
@@ -709,6 +717,10 @@ static void genElementParser(Element *element, PythonGenStream &body,
       genSuccessorParserCode(body, successor->getVar()->name);
     }
 
+    /// Regions
+  } else if (auto *region = dyn_cast<RegionVariable>(element)) {
+    genRegionParserCode(body, region->getVar()->name);
+
     /// Directives.
   } else if (auto *attrDict = dyn_cast<AttrDictDirective>(element)) {
     body.line() << "if not parser.parseOptionalAttrDict"
@@ -763,6 +775,7 @@ void OperationFormat::genParser(OperationOp op, PythonGenStream &body) {
   // that they have been parsed.
   genParserTypeResolution(op, body);
   genParserSuccessorResolution(op, body);
+  genParserRegionResolution(op, body);
   genParserVariadicSegmentResolution(op, body);
 
   body.line() << "return True";
@@ -917,6 +930,13 @@ void OperationFormat::genParserSuccessorResolution(OperationOp op,
       body.line() << "result.successors.append(" << successor.name
           << "Successor)";
     }
+  }
+}
+
+void OperationFormat::genParserRegionResolution(OperationOp op,
+                                                PythonGenStream &body) {
+  for (auto &region : op.getOpRegions().getRegions()) {
+    body.line() << "result.appendRegion(" << region.name << "Region)";
   }
 }
 
@@ -1100,6 +1120,15 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
       body.line() << "p.printSuccessor(op.getSuccessor(\"" << var->name
           << "\"))";
     }
+  } else if (auto *region = dyn_cast<RegionVariable>(element)) {
+    body.line() << "region = op.getRegion(\"" << region->getVar()->name
+        << "\")";
+    body.if_("not region.empty()"); {
+      body.line() << "p.print('(')";
+      body.line() << "p.printBlockArguments(region.getBlock(0))";
+      body.line() << "p.print(')')";
+    } body.endif();
+    body.line() << "p.printRegion(region, False)";
   } else if (isa<OperandsDirective>(element)) {
     body.line() << "p.printOperands(op.getOperands())";
   } else if (isa<SuccessorsDirective>(element)) {
@@ -1426,6 +1455,9 @@ private:
   /// Verify the state of operation successors within the format.
   LogicalResult verifySuccessors(llvm::SMLoc loc);
 
+  /// Verify the state of operation regions within the format.
+  LogicalResult verifyRegions(llvm::SMLoc loc);
+
   /// Given the values of an `AllTypesMatch` trait, check for inferable type
   /// resolution.
   void handleAllTypesMatchConstraint(
@@ -1469,8 +1501,8 @@ private:
                                       llvm::SMLoc loc, bool isTopLevel);
   LogicalResult parseSuccessorsDirective(std::unique_ptr<Element> &element,
                                          llvm::SMLoc loc, bool isTopLevel);
-  LogicalResult parseTypeDirective(std::unique_ptr<Element> &element, Token tok,
-                                   bool isTopLevel);
+  LogicalResult parseTypeDirective(std::unique_ptr<Element> &element,
+                                   llvm::SMLoc tok, bool isTopLevel);
   LogicalResult parseTypeDirectiveOperand(std::unique_ptr<Element> &element);
 
   //===--------------------------------------------------------------------===//
@@ -1556,7 +1588,8 @@ LogicalResult FormatParser::parse() {
   if (failed(verifyAttributes(loc)) ||
       failed(verifyResults(loc, variableTyResolver)) ||
       failed(verifyOperands(loc, variableTyResolver)) ||
-      failed(verifySuccessors(loc)))
+      failed(verifySuccessors(loc)) ||
+      failed(verifyRegions(loc)))
     return failure();
 
   // Check to see if we are formatting all of the operands.
@@ -1734,12 +1767,28 @@ LogicalResult FormatParser::verifySuccessors(llvm::SMLoc loc) {
 
   auto opSucc = op.getOpSuccessors();
   for (unsigned i = 0, e = opSucc.getNumSuccessors(); i != e; ++i) {
-    const NamedConstraint &successor = *opSucc.getSuccessor(i);
-    if (!seenSuccessors.count(&successor)) {
+    auto *successor = opSucc.getSuccessor(i);
+    if (!seenSuccessors.count(successor)) {
       return emitErrorAndNote(loc,
                               "successor #" + Twine(i) + ", named '" +
-                                  successor.name + "', not found",
-                              "suggest adding a '$" + successor.name +
+                                  successor->name + "', not found",
+                              "suggest adding a '$" + successor->name +
+                                  "' directive to the custom assembly format");
+    }
+  }
+  return success();
+}
+
+LogicalResult FormatParser::verifyRegions(llvm::SMLoc loc) {
+  // Check that all of the regions are within the format
+  auto opRegion = op.getOpRegions();
+  for (unsigned i = 0, e = opRegion.getNumRegions(); i != e; ++i) {
+    auto *region = opRegion.getRegion(i);
+    if (!seenRegions.count(region)) {
+      return emitErrorAndNote(loc,
+                              "region #" + Twine(i) + ", named '" +
+                                  region->name + "', not found",
+                              "suggest adding a '$" + region->name +
                                   "' directive to the custom assembly format");
     }
   }
@@ -1863,7 +1912,9 @@ LogicalResult FormatParser::parseVariable(std::unique_ptr<Element> &element,
       return emitError(loc, "regions can only be used at the top level");
     if (!seenRegions.insert(region).second)
       return emitError(loc, "region '" + name + "' is already bound");
-    element = std::make_unique<RegionVariable>(successor);
+    if (region->isVariadic())
+      return emitError(loc, "no support for variadic regions");
+    element = std::make_unique<RegionVariable>(region);
     return success();
   }
   return emitError(

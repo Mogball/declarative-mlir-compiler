@@ -190,6 +190,22 @@ void exposeOps(module &m) {
       .def("getUsers", [](Operation *op) {
         return make_iterator(op->user_begin(), op->user_end());
       }, keep_alive<0, 1>());
+
+  class_<Region, std::unique_ptr<Region, nodelete>>(m, "Region")
+      .def("empty", &Region::empty)
+      .def("getBlock", [](Region &region, unsigned idx) {
+        auto it = std::next(std::begin(region), idx);
+        if (it == std::end(region))
+          throw index_error{};
+        return &*it;
+      }, return_value_policy::reference_internal);
+
+  class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
+      .def("getNumArguments", &Block::getNumArguments)
+      .def("getArgument", &Block::getArgument)
+      .def("getArguments", [](Block &block) {
+        return make_iterator(block.args_begin(), block.args_end());
+      }, keep_alive<0, 1>());
 }
 
 } // end namespace py

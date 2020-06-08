@@ -130,6 +130,11 @@ void exposeOpAsm(module &m) {
       .def("printGenericOp", &OpAsmPrinter::printGenericOp)
       .def("printRegion", &OpAsmPrinter::printRegion, "region"_a,
            "printEntryBlockArgs"_a = true, "printBlockTerminators"_a = true)
+      .def("printBlockArguments", [](OpAsmPrinter &printer, Block &block) {
+        llvm::interleaveComma(block.getArguments(), printer, [&](Value &val) {
+          printer << val << ": " << val.getType();
+        });
+      })
       .def("shadowRegionArgs", [](OpAsmPrinter &printer, Region &region,
                                   ValueListRef namesToUse) {
         printer.shadowRegionArgs(region, namesToUse);
@@ -225,6 +230,31 @@ void exposeOpAsm(module &m) {
         for (auto &type : types)
           typeList.append(pybind11::cast(type));
         return make_tuple(typeList, success());
+      })
+      .def("parseRegionWithArguments", [](OpAsmParser &parser, Region &region)
+                                       -> LogicalResult {
+        SmallVector<OpAsmParser::OperandType, 4> args;
+        SmallVector<Type, 4> tys;
+        if (succeeded(parser.parseOptionalLParen())) {
+          OpAsmParser::OperandType arg;
+          Type ty;
+          auto result = parser.parseOptionalOperand(arg);
+          if (result.hasValue()) {
+            if (*result || parser.parseColonType(ty))
+              return failure();
+            args.push_back(arg);
+            tys.push_back(ty);
+            while (succeeded(parser.parseOptionalComma())) {
+              if (parser.parseOperand(arg) || parser.parseColonType(ty))
+                return failure();
+              args.push_back(arg);
+              tys.push_back(ty);
+            }
+          }
+          if (parser.parseRParen())
+            return failure();
+        }
+        return parser.parseRegion(region, args, tys);
       });
 
   exposeLiteralParser(
