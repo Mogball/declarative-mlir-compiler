@@ -12,23 +12,23 @@ dmc.Dialect @test {
   dmc.Op @op_c(arg0 : !test.CustomType) -> (ret0 : !test.CustomType)
       traits [@HasParent<"func">]
 
-  dmc.Type @Array2D<i64, i64>
+  dmc.Type @Array2D<x: i64, y: i64>
   dmc.Alias @IsArray2D -> !dmc.Isa<@test::@Array2D>
   dmc.Op @transpose(arg0 : !test.IsArray2D) -> (ret0 : !test.IsArray2D)
 
   dmc.Op @get_value() -> (value : !dmc.Any)
 
   dmc.Attr @CustomAttr
-  dmc.Attr @Pair<#dmc.APInt, #dmc.APInt>
+  dmc.Attr @Pair<first: #dmc.APInt, second:#dmc.APInt>
   dmc.Alias @IsPair -> #dmc.Isa<@test::@Pair>
   dmc.Alias @IsCustomAttr -> #dmc.Isa<@test::@CustomAttr>
   dmc.Op @op_d() -> () { attr3 = #test.IsPair,
                          attr4 = #test.IsCustomAttr }
 
-  dmc.Attr @Box<#dmc.Any>
-  dmc.Attr @CustomPair<#dmc.Isa<@test::@Box>, #dmc.Isa<@test::@Box>>
+  dmc.Attr @Box<contents: #dmc.Any>
+  dmc.Attr @CustomPair<first: #dmc.Isa<@test::@Box>, second: #dmc.Isa<@test::@Box>>
 
-  dmc.Type @BoxType<#dmc.Isa<@test::@Box>>
+  dmc.Type @BoxType<box: #dmc.Isa<@test::@Box>>
   dmc.Op @op_e(arg0 : !test.BoxType<#test.Box<6>>) -> ()
 
   dmc.Op @op_regions() -> () {} (r0 : Any, r1 : Sized<2>, Rs : Variadic<IsolatedFromAbove>)

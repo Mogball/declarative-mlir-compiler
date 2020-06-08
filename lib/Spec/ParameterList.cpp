@@ -64,7 +64,7 @@ Attribute NamedParameter::getConstraint() {
 ParseResult ParameterList::parse(OpAsmParser &parser,
                                  NamedAttrList &attrList) {
   SmallVector<Attribute, 2> params;
-  if (succeeded(parser.parseLess())) {
+  if (succeeded(parser.parseOptionalLess())) {
     StringRef name;
     Attribute constraint;
     do {
@@ -72,6 +72,8 @@ ParseResult ParameterList::parse(OpAsmParser &parser,
       if (parser.parseKeyword(&name) || parser.parseColon() ||
           ::dmc::impl::parseSingleAttribute(parser, constraint))
         return failure();
+      if (auto type = constraint.dyn_cast<mlir::TypeAttr>())
+        constraint = ::dmc::OfTypeAttr::get(type.getValue());
       params.push_back(NamedParameter::getChecked(loc, name, constraint));
     } while (succeeded(parser.parseOptionalComma()));
     if (parser.parseGreater())
