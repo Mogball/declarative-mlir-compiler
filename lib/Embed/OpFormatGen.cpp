@@ -2170,9 +2170,12 @@ FormatParser::parseTypeDirectiveOperand(std::unique_ptr<Element> &element) {
 LogicalResult generateOpFormat(OperationOp op,
                                PythonGenStream &parserOs,
                                PythonGenStream &printerOs) {
+  /// Whether the format string is null-terminated is platform-dependent. We
+  /// have to make sure that it is null-terminated.
+  auto fmt = op.getAssemblyFormat().getValue().str();
   llvm::SourceMgr mgr;
   mgr.AddNewSourceBuffer(
-      llvm::MemoryBuffer::getMemBuffer(op.getAssemblyFormat().getValue()),
+      llvm::MemoryBuffer::getMemBuffer(fmt.c_str()),
       llvm::SMLoc{});
   OperationFormat format{op};
   if (failed(FormatParser(mgr, format, op).parse()))
