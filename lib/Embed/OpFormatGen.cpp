@@ -33,6 +33,7 @@
 
 using namespace mlir;
 using namespace mlir::tblgen;
+using namespace fmt;
 
 using ::dmc::OperationOp;
 using ::dmc::OpType;
@@ -46,41 +47,24 @@ using namespace ::dmc::py;
 //===----------------------------------------------------------------------===//
 
 namespace {
-/// This class represents a single format element.
-class Element {
-public:
-  enum class Kind {
-    /// This element is a directive.
-    AttrDictDirective,
-    FunctionalTypeDirective,
-    OperandsDirective,
-    ResultsDirective,
-    SuccessorsDirective,
-    TypeDirective,
+namespace FormatElement {
+enum Kind {
+  /// This element is a directive.
+  AttrDictDirective = fmt::Kind::Last,
+  FunctionalTypeDirective,
+  OperandsDirective,
+  ResultsDirective,
+  SuccessorsDirective,
+  TypeDirective,
 
-    /// This element is a literal.
-    Literal,
-
-    /// This element is an variable value.
-    AttributeVariable,
-    OperandVariable,
-    ResultVariable,
-    SuccessorVariable,
-    RegionVariable,
-
-    /// This element is an optional element.
-    Optional,
-  };
-  Element(Kind kind) : kind(kind) {}
-  virtual ~Element() = default;
-
-  /// Return the kind of this element.
-  Kind getKind() const { return kind; }
-
-private:
-  /// The kind of this element.
-  Kind kind;
+  /// This element is an variable value.
+  AttributeVariable,
+  OperandVariable,
+  ResultVariable,
+  SuccessorVariable,
+  RegionVariable,
 };
+} // end namespace FormatElement
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -104,27 +88,11 @@ static ::dmc::TypeMetadata *tryFindTypeData(Type type) {
   return nullptr;
 }
 
-/// This class represents an instance of an variable element. A variable refers
-/// to something registered on the operation itself, e.g. an argument, result,
-/// etc.
-template <typename VarT, Element::Kind kindVal>
-class VariableElement : public Element {
-public:
-  VariableElement(const VarT *var) : Element(kindVal), var(var) {}
-  static bool classof(const Element *element) {
-    return element->getKind() == kindVal;
-  }
-  const VarT *getVar() { return var; }
-
-protected:
-  const VarT *var;
-};
-
 /// This class represents a variable that refers to an attribute argument.
 struct AttributeVariable
-    : public VariableElement<NamedAttribute, Element::Kind::AttributeVariable> {
+    : public VariableElement<NamedAttribute, FormatElement::AttributeVariable> {
   using VariableElement<NamedAttribute,
-                        Element::Kind::AttributeVariable>::VariableElement;
+                        FormatElement::AttributeVariable>::VariableElement;
 
   /// Return the constant builder call for the type of this attribute, or None
   /// if it doesn't have one.
@@ -139,49 +107,42 @@ struct AttributeVariable
 
 /// This class represents a variable that refers to an operand argument.
 using OperandVariable =
-    VariableElement<NamedType, Element::Kind::OperandVariable>;
+    VariableElement<NamedType, FormatElement::OperandVariable>;
 
 /// This class represents a variable that refers to a result.
 using ResultVariable =
-    VariableElement<NamedType, Element::Kind::ResultVariable>;
+    VariableElement<NamedType, FormatElement::ResultVariable>;
 
 /// This class represents a variable that refers to a successor.
 using SuccessorVariable =
-    VariableElement<NamedConstraint, Element::Kind::SuccessorVariable>;
+    VariableElement<NamedConstraint, FormatElement::SuccessorVariable>;
 
 /// This class represents a variable that refers to a region.
 using RegionVariable =
-    VariableElement<NamedConstraint, Element::Kind::RegionVariable>;
+    VariableElement<NamedConstraint, FormatElement::RegionVariable>;
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
 // DirectiveElement
 
 namespace {
-/// This class implements single kind directives.
-template <Element::Kind type>
-class DirectiveElement : public Element {
-public:
-  DirectiveElement() : Element(type){};
-  static bool classof(const Element *ele) { return ele->getKind() == type; }
-};
 /// This class represents the `operands` directive. This directive represents
 /// all of the operands of an operation.
-using OperandsDirective = DirectiveElement<Element::Kind::OperandsDirective>;
+using OperandsDirective = DirectiveElement<FormatElement::OperandsDirective>;
 
 /// This class represents the `results` directive. This directive represents
 /// all of the results of an operation.
-using ResultsDirective = DirectiveElement<Element::Kind::ResultsDirective>;
+using ResultsDirective = DirectiveElement<FormatElement::ResultsDirective>;
 
 /// This class represents the `successors` directive. This directive represents
 /// all of the successors of an operation.
 using SuccessorsDirective =
-    DirectiveElement<Element::Kind::SuccessorsDirective>;
+    DirectiveElement<FormatElement::SuccessorsDirective>;
 
 /// This class represents the `attr-dict` directive. This directive represents
 /// the attribute dictionary of the operation.
 class AttrDictDirective
-    : public DirectiveElement<Element::Kind::AttrDictDirective> {
+    : public DirectiveElement<FormatElement::AttrDictDirective> {
 public:
   explicit AttrDictDirective(bool withKeyword) : withKeyword(withKeyword) {}
   bool isWithKeyword() const { return withKeyword; }
@@ -195,7 +156,7 @@ private:
 /// two arguments and formats them, respectively, as the inputs and results of a
 /// FunctionType.
 class FunctionalTypeDirective
-    : public DirectiveElement<Element::Kind::FunctionalTypeDirective> {
+    : public DirectiveElement<FormatElement::FunctionalTypeDirective> {
 public:
   FunctionalTypeDirective(std::unique_ptr<Element> inputs,
                           std::unique_ptr<Element> results)
@@ -209,7 +170,7 @@ private:
 };
 
 /// This class represents the `type` directive.
-class TypeDirective : public DirectiveElement<Element::Kind::TypeDirective> {
+class TypeDirective : public DirectiveElement<FormatElement::TypeDirective> {
 public:
   TypeDirective(std::unique_ptr<Element> arg) : operand(std::move(arg)) {}
   Element *getOperand() const { return operand.get(); }
@@ -217,58 +178,6 @@ public:
 private:
   /// The operand that is used to format the directive.
   std::unique_ptr<Element> operand;
-};
-} // end anonymous namespace
-
-//===----------------------------------------------------------------------===//
-// LiteralElement
-
-namespace {
-/// This class represents an instance of a literal element.
-class LiteralElement : public Element {
-public:
-  LiteralElement(StringRef literal)
-      : Element{Kind::Literal}, literal(literal) {}
-  static bool classof(const Element *element) {
-    return element->getKind() == Kind::Literal;
-  }
-
-  /// Return the literal for this element.
-  StringRef getLiteral() const { return literal; }
-
-private:
-  /// The spelling of the literal for this element.
-  StringRef literal;
-};
-} // end anonymous namespace
-
-//===----------------------------------------------------------------------===//
-// OptionalElement
-
-namespace {
-/// This class represents a group of elements that are optionally emitted based
-/// upon an optional variable of the operation.
-class OptionalElement : public Element {
-public:
-  OptionalElement(std::vector<std::unique_ptr<Element>> &&elements,
-                  unsigned anchor)
-      : Element{Kind::Optional}, elements(std::move(elements)), anchor(anchor) {
-  }
-  static bool classof(const Element *element) {
-    return element->getKind() == Kind::Optional;
-  }
-
-  /// Return the nested elements of this grouping.
-  auto getElements() const { return llvm::make_pointee_range(elements); }
-
-  /// Return the anchor of this optional group.
-  Element *getAnchor() const { return elements[anchor].get(); }
-
-private:
-  /// The child elements of this optional.
-  std::vector<std::unique_ptr<Element>> elements;
-  /// The index of the element that acts as the anchor for the optional group.
-  unsigned anchor;
 };
 } // end anonymous namespace
 
@@ -413,16 +322,6 @@ void genVariadicOperandParserCode(PythonGenStream &s, StringRef name) {
   s.line() << name << "Operands += anOperandList";
 }
 
-void genOptionalOperandParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "anOperand, tristate = parser.parseOptionalOperand()";
-  s.if_("tristate.hasValue()"); {
-    s.if_("tristate.failed()"); {
-      s.line() << "return False";
-    } s.endif();
-    s.line() << name << "Operands.append(anOperand)";
-  } s.endif();
-}
-
 void genOperandParserCode(PythonGenStream &s, StringRef name) {
   s.line() << "anOperand, success = parser.parseOperand()";
   s.if_("not success"); {
@@ -440,16 +339,6 @@ void genVariadicTypeParserCode(PythonGenStream &s, StringRef name) {
     s.line() << "return False";
   } s.endif();
   s.line() << name << "Types += aTypeList";
-}
-
-void genOptionalTypeParserCode(PythonGenStream &s, StringRef name) {
-  s.line() << "aType, tristate = parser.parseOptionalType()";
-  s.if_("tristate.hasValue()"); {
-    s.if_("tristate.failed()"); {
-      s.line() << "return False";
-    } s.endif();
-    s.line() << name << "Types.append(aType)";
-  } s.endif();
 }
 
 void genTypeParserCode(PythonGenStream &s, StringRef name) {
@@ -527,10 +416,6 @@ enum class ArgumentLengthKind {
 static ArgumentLengthKind
 getArgumentLengthKind(const NamedType *var) {
   /// `Optional` is considered as `Variadic` with length up to 1.
-  /*
-  if (var->isOptional())
-    return ArgumentLengthKind::Optional;
-  */
   if (var->isVariadic())
     return ArgumentLengthKind::Variadic;
   return ArgumentLengthKind::Single;
@@ -674,8 +559,6 @@ static void genElementParser(Element *element, PythonGenStream &body,
     StringRef name = operand->getVar()->name;
     if (lengthKind == ArgumentLengthKind::Variadic) {
       genVariadicOperandParserCode(body, name);
-    } else if (lengthKind == ArgumentLengthKind::Optional) {
-      genOptionalOperandParserCode(body, name);
     } else {
       genOperandParserCode(body, name);
     }
@@ -712,8 +595,6 @@ static void genElementParser(Element *element, PythonGenStream &body,
     StringRef listName = getTypeListName(dir->getOperand(), lengthKind);
     if (lengthKind == ArgumentLengthKind::Variadic) {
       genVariadicTypeParserCode(body, listName);
-    } else if (lengthKind == ArgumentLengthKind::Optional) {
-      genOptionalTypeParserCode(body, listName);
     } else {
       genTypeParserCode(body, listName);
     }
@@ -1138,231 +1019,12 @@ void OperationFormat::genPrinter(OperationOp op, PythonGenStream &body) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-/// This class represents a specific token in the input format.
-class Token {
+class FormatLexer : public fmt::Lexer {
 public:
-  enum Kind {
-    // Markers.
-    eof,
-    error,
-
-    // Tokens with no info.
-    l_paren,
-    r_paren,
-    caret,
-    comma,
-    equal,
-    question,
-
-    // Keywords.
-    keyword_start,
-    kw_attr_dict,
-    kw_attr_dict_w_keyword,
-    kw_functional_type,
-    kw_operands,
-    kw_results,
-    kw_successors,
-    kw_type,
-    keyword_end,
-
-    // String valued tokens.
-    identifier,
-    literal,
-    variable,
-  };
-  Token(Kind kind, StringRef spelling) : kind(kind), spelling(spelling) {}
-
-  /// Return the bytes that make up this token.
-  StringRef getSpelling() const { return spelling; }
-
-  /// Return the kind of this token.
-  Kind getKind() const { return kind; }
-
-  /// Return a location for this token.
-  llvm::SMLoc getLoc() const {
-    return llvm::SMLoc::getFromPointer(spelling.data());
-  }
-
-  /// Return if this token is a keyword.
-  bool isKeyword() const { return kind > keyword_start && kind < keyword_end; }
-
-private:
-  /// Discriminator that indicates the kind of token this is.
-  Kind kind;
-
-  /// A reference to the entire token contents; this is always a pointer into
-  /// a memory buffer owned by the source manager.
-  StringRef spelling;
-};
-
-/// This class implements a simple lexer for operation assembly format strings.
-class FormatLexer {
-public:
-  FormatLexer(llvm::SourceMgr &mgr, OperationOp op);
-
-  /// Lex the next token and return it.
-  Token lexToken();
-
-  /// Emit an error to the lexer with the given location and message.
-  Token emitError(llvm::SMLoc loc, const Twine &msg);
-  Token emitError(const char *loc, const Twine &msg);
-
-  Token emitErrorAndNote(llvm::SMLoc loc, const Twine &msg, const Twine &note);
-
-private:
-  Token formToken(Token::Kind kind, const char *tokStart) {
-    return Token(kind, StringRef(tokStart, curPtr - tokStart));
-  }
-
-  /// Return the next character in the stream.
-  int getNextChar();
-
-  /// Lex an identifier, literal, or variable.
-  Token lexIdentifier(const char *tokStart);
-  Token lexLiteral(const char *tokStart);
-  Token lexVariable(const char *tokStart);
-
-  llvm::SourceMgr &srcMgr;
-  OperationOp op;
-  OpType opTy;
-  StringRef curBuffer;
-  const char *curPtr;
+  FormatLexer(llvm::SourceMgr &mgr, OperationOp op)
+      : Lexer(mgr, op) {}
 };
 } // end anonymous namespace
-
-FormatLexer::FormatLexer(llvm::SourceMgr &mgr, OperationOp op)
-    : srcMgr(mgr), op(op), opTy(op.getOpType()) {
-  curBuffer = srcMgr.getMemoryBuffer(mgr.getMainFileID())->getBuffer();
-  curPtr = curBuffer.begin();
-}
-
-Token FormatLexer::emitError(llvm::SMLoc loc, const Twine &msg) {
-  srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Error, msg);
-  op.emitOpError("in custom assembly format for this operation");
-  return formToken(Token::error, loc.getPointer());
-}
-Token FormatLexer::emitErrorAndNote(llvm::SMLoc loc, const Twine &msg,
-                                    const Twine &note) {
-  srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Error, msg);
-  op.emitOpError("in custom assembly format for this operation");
-  srcMgr.PrintMessage(loc, llvm::SourceMgr::DK_Note, note);
-  return formToken(Token::error, loc.getPointer());
-}
-Token FormatLexer::emitError(const char *loc, const Twine &msg) {
-  return emitError(llvm::SMLoc::getFromPointer(loc), msg);
-}
-
-int FormatLexer::getNextChar() {
-  char curChar = *curPtr++;
-  switch (curChar) {
-  default:
-    return (unsigned char)curChar;
-  case 0: {
-    // A nul character in the stream is either the end of the current buffer or
-    // a random nul in the file. Disambiguate that here.
-    if (curPtr - 1 != curBuffer.end())
-      return 0;
-
-    // Otherwise, return end of file.
-    --curPtr;
-    return EOF;
-  }
-  case '\n':
-  case '\r':
-    // Handle the newline character by ignoring it and incrementing the line
-    // count. However, be careful about 'dos style' files with \n\r in them.
-    // Only treat a \n\r or \r\n as a single line.
-    if ((*curPtr == '\n' || (*curPtr == '\r')) && *curPtr != curChar)
-      ++curPtr;
-    return '\n';
-  }
-}
-
-Token FormatLexer::lexToken() {
-  const char *tokStart = curPtr;
-
-  // This always consumes at least one character.
-  int curChar = getNextChar();
-  switch (curChar) {
-  default:
-    // Handle identifiers: [a-zA-Z_]
-    if (isalpha(curChar) || curChar == '_')
-      return lexIdentifier(tokStart);
-
-    // Unknown character, emit an error.
-    return emitError(tokStart, "unexpected character");
-  case EOF:
-    // Return EOF denoting the end of lexing.
-    return formToken(Token::eof, tokStart);
-
-  // Lex punctuation.
-  case '^':
-    return formToken(Token::caret, tokStart);
-  case ',':
-    return formToken(Token::comma, tokStart);
-  case '=':
-    return formToken(Token::equal, tokStart);
-  case '?':
-    return formToken(Token::question, tokStart);
-  case '(':
-    return formToken(Token::l_paren, tokStart);
-  case ')':
-    return formToken(Token::r_paren, tokStart);
-
-  // Ignore whitespace characters.
-  case 0:
-  case ' ':
-  case '\t':
-  case '\n':
-    return lexToken();
-
-  case '`':
-    return lexLiteral(tokStart);
-  case '$':
-    return lexVariable(tokStart);
-  }
-}
-
-Token FormatLexer::lexLiteral(const char *tokStart) {
-  assert(curPtr[-1] == '`');
-
-  // Lex a literal surrounded by ``.
-  while (const char curChar = *curPtr++) {
-    if (curChar == '`')
-      return formToken(Token::literal, tokStart);
-  }
-  return emitError(curPtr - 1, "unexpected end of file in literal");
-}
-
-Token FormatLexer::lexVariable(const char *tokStart) {
-  if (!isalpha(curPtr[0]) && curPtr[0] != '_')
-    return emitError(curPtr - 1, "expected variable name");
-
-  // Otherwise, consume the rest of the characters.
-  while (isalnum(*curPtr) || *curPtr == '_')
-    ++curPtr;
-  return formToken(Token::variable, tokStart);
-}
-
-Token FormatLexer::lexIdentifier(const char *tokStart) {
-  // Match the rest of the identifier regex: [0-9a-zA-Z_\-]*
-  while (isalnum(*curPtr) || *curPtr == '_' || *curPtr == '-')
-    ++curPtr;
-
-  // Check to see if this identifier is a keyword.
-  StringRef str(tokStart, curPtr - tokStart);
-  Token::Kind kind =
-      llvm::StringSwitch<Token::Kind>(str)
-          .Case("attr-dict", Token::kw_attr_dict)
-          .Case("attr-dict-with-keyword", Token::kw_attr_dict_w_keyword)
-          .Case("functional-type", Token::kw_functional_type)
-          .Case("operands", Token::kw_operands)
-          .Case("results", Token::kw_results)
-          .Case("successors", Token::kw_successors)
-          .Case("type", Token::kw_type)
-          .Default(Token::identifier);
-  return Token(kind, str);
-}
 
 //===----------------------------------------------------------------------===//
 // FormatParser
@@ -1383,10 +1045,13 @@ template <typename RangeT> static auto findAttr(RangeT &&range, StringRef name) 
 namespace {
 /// This class implements a parser for an instance of an operation assembly
 /// format.
-class FormatParser {
+class FormatParser : public fmt::Parser {
 public:
-  FormatParser(llvm::SourceMgr &mgr, OperationFormat &format, OperationOp op)
-      : lexer(mgr, op), curToken(lexer.lexToken()), fmt(format), op(op), opTy(op.getOpType()),
+  FormatParser(Lexer &lexer, OperationFormat &format, OperationOp op)
+      : Parser{lexer},
+
+        fmt(format),
+        op(op), opTy(op.getOpType()),
         seenOperandTypes(opTy.getNumOperands()),
         seenResultTypes(opTy.getNumResults()) {}
 
@@ -1447,7 +1112,7 @@ private:
 
   /// Parse a specific element.
   LogicalResult parseElement(std::unique_ptr<Element> &element,
-                             bool isTopLevel);
+                             bool isTopLevel) override;
   LogicalResult parseVariable(std::unique_ptr<Element> &element,
                               bool isTopLevel);
   LogicalResult parseDirective(std::unique_ptr<Element> &element,
@@ -1477,38 +1142,9 @@ private:
   LogicalResult parseTypeDirectiveOperand(std::unique_ptr<Element> &element);
 
   //===--------------------------------------------------------------------===//
-  // Lexer Utilities
-  //===--------------------------------------------------------------------===//
-
-  /// Advance the current lexer onto the next token.
-  void consumeToken() {
-    assert(curToken.getKind() != Token::eof &&
-           curToken.getKind() != Token::error &&
-           "shouldn't advance past EOF or errors");
-    curToken = lexer.lexToken();
-  }
-  LogicalResult parseToken(Token::Kind kind, const Twine &msg) {
-    if (curToken.getKind() != kind)
-      return emitError(curToken.getLoc(), msg);
-    consumeToken();
-    return success();
-  }
-  LogicalResult emitError(llvm::SMLoc loc, const Twine &msg) {
-    lexer.emitError(loc, msg);
-    return failure();
-  }
-  LogicalResult emitErrorAndNote(llvm::SMLoc loc, const Twine &msg,
-                                 const Twine &note) {
-    lexer.emitErrorAndNote(loc, msg, note);
-    return failure();
-  }
-
-  //===--------------------------------------------------------------------===//
   // Fields
   //===--------------------------------------------------------------------===//
 
-  FormatLexer lexer;
-  Token curToken;
   OperationFormat &fmt;
   OperationOp op;
   OpType opTy;
@@ -1529,13 +1165,11 @@ private:
 LogicalResult FormatParser::parse() {
   llvm::SMLoc loc = curToken.getLoc();
 
-  // Parse each of the format elements into the main format.
-  while (curToken.getKind() != Token::eof) {
-    std::unique_ptr<Element> element;
-    if (failed(parseElement(element, /*isTopLevel=*/true)))
-      return failure();
+  auto consumer = [&](std::unique_ptr<Element> element) {
     fmt.elements.push_back(std::move(element));
-  }
+  };
+  if (failed(parseElements(std::move(consumer))))
+    return failure();
 
   // Check that the attribute dictionary is in the format.
   if (!hasAttrDict)
@@ -1918,7 +1552,7 @@ LogicalResult FormatParser::parseDirective(std::unique_ptr<Element> &element,
     return parseTypeDirective(element, dirTok.getLoc(), isTopLevel);
 
   default:
-    llvm_unreachable("unknown directive token");
+    return emitError(dirTok.getLoc(), "unknown directive");
   }
 }
 
@@ -2178,7 +1812,8 @@ LogicalResult generateOpFormat(OperationOp op,
       llvm::MemoryBuffer::getMemBuffer(fmt.c_str()),
       llvm::SMLoc{});
   OperationFormat format{op};
-  if (failed(FormatParser(mgr, format, op).parse()))
+  FormatLexer lexer{mgr, op};
+  if (failed(FormatParser(lexer, format, op).parse()))
     return failure();
 
   format.genParser(op, parserOs);
