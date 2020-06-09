@@ -82,7 +82,7 @@ private:
   std::vector<std::pair<llvm::StringRef, std::unique_ptr<DynamicTrait>>> traits;
 
   /// The function names of the custom parser and printers, if present.
-  std::optional<std::string> parserFcn, printerFcn;
+  llvm::Optional<std::string> parserFcn, printerFcn;
 
   // Operation info
   const mlir::AbstractOperation *opInfo;
