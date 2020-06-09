@@ -100,12 +100,27 @@ public:
         curBuffer{mgr.getMemoryBuffer(mgr.getMainFileID())->getBuffer()},
         curPtr{curBuffer.begin()} {}
 
+  /// Lex one token and return it.
+  Token lexToken();
+
 private:
+  /// Create a token of the given kind, from the start location to the current
+  /// position.
+  Token formToken(Token::Kind kind, const char *tokStart) {
+    return Token{kind, StringRef(tokStart, curPtr - tokStart)};
+  }
+
+  /// Read the next character, skipping lines.
+  int getNextChar();
+
   SourceMgr &mgr;
   const Parameters &parameters;
 
   StringRef curBuffer;
   const char *curPtr;
 };
+
+int Lexer::getNextChar() {
+}
 
 } // end anonymous namespace
