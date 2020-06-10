@@ -53,11 +53,11 @@ LogicalResult NamedParameter::verifyConstructionInvariants(
   return success();
 }
 
-StringRef NamedParameter::getName() {
+StringRef NamedParameter::getName() const {
   return getImpl()->name;
 }
 
-Attribute NamedParameter::getConstraint() {
+Attribute NamedParameter::getConstraint() const {
   return getImpl()->constraint;
 }
 

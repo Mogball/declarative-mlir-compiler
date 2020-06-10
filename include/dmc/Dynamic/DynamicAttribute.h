@@ -33,6 +33,7 @@ public:
   mlir::Attribute parseAttribute(mlir::Location loc,
                                  mlir::DialectAsmParser &parser);
   void printAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter &printer);
+  void setAttrFormat(std::string parserName, std::string printerName);
 
 private:
   /// The dialect to which this attribute belongs.
@@ -40,6 +41,9 @@ private:
   /// The dynamic attribute is formed by composing other attributes. The
   /// attributes must be Spec attributes.
   NamedParameterRange paramSpec;
+
+  /// The function names of the custom parser and printer, if present.
+  llvm::Optional<std::string> parserFcn, printerFcn;
 
   friend class DynamicAttribute;
 };

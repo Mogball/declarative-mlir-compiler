@@ -2,6 +2,7 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
+#include "dmc/Embed/ParserPrinter.h"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Diagnostics.h>
@@ -66,6 +67,14 @@ Attribute DynamicAttributeImpl::parseAttribute(Location loc,
 void DynamicAttributeImpl::printAttribute(Attribute attr,
                                           DialectAsmPrinter &printer) {
   auto dynAttr = attr.cast<DynamicAttribute>();
+
+  /// Try a formated printer.
+  if (printerFcn) {
+    py::execPrinter(*printerFcn, printer, dynAttr);
+    return;
+  }
+
+  /// Generic dynamic attribute printer.
   printer << getName();
   auto params = dynAttr.getParams();
   if (!params.empty()) {
@@ -75,6 +84,12 @@ void DynamicAttributeImpl::printAttribute(Attribute attr,
       printer << ',' << (*it);
     printer << '>';
   }
+}
+
+void DynamicAttributeImpl::setAttrFormat(std::string parserName,
+                                         std::string printerName) {
+  parserFcn = std::move(parserName);
+  printerFcn = std::move(printerName);
 }
 
 /// Since dynamic attributes are not registered with a Dialect or the MLIR

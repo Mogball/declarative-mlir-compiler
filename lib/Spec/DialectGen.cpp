@@ -1,5 +1,7 @@
 #include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/DynamicType.h"
+#include "dmc/Dynamic/DynamicAttribute.h"
 #include "dmc/Spec/DialectGen.h"
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
@@ -101,9 +103,10 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
 
   /// Generate a custom op format, if one is specified.
   if (opOp.getAssemblyFormat()) {
-    auto prefix = (dialect->getNamespace() + "__" + opOp.getName()).str();
-    auto parserName = "parse__" + prefix;
-    auto printerName = "print__" + prefix;
+    auto prefix = ("__" + dialect->getNamespace() + "__op__" +
+                   opOp.getName()).str();
+    auto parserName = "parse" + prefix;
+    auto printerName = "print" + prefix;
     py::InMemoryDef parser{parserName, "(parser, result)"};
     py::InMemoryDef printer{printerName, "(p, op)"};
     if (failed(generateOpFormat(opOp, parser.stream(), printer.stream())))
@@ -119,27 +122,50 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   return success();
 }
 
+template <typename OpT>
+LogicalResult generateFormat(StringRef dialect, OpT op, std::string &parserName,
+                             std::string &printerName, const char *val) {
+  auto prefix = ("__" + dialect + "__" + val + "__" + op.getName()).str();
+  parserName = "parse" + prefix;
+  printerName = "print" + prefix;
+  py::InMemoryDef parser{parserName, "(parser, result)"};
+  py::InMemoryDef printer{printerName, "(p, type)"};
+  return generateTypeFormat(op.getParameters(),
+                            cast<FormatOp>(op.getOperation()),
+                            parser.stream(), printer.stream());
+}
+
 LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
-  if (failed(dialect->createDynamicType(
-        typeOp.getName(), typeOp.getParameters())))
+  if (failed(dialect->createDynamicType(typeOp.getName(),
+                                        typeOp.getParameters())))
     return typeOp.emitOpError("a type with this name already exists");
 
-  /// TODO test code
   if (typeOp.getAssemblyFormat()) {
-    py::InMemoryDef parser{"parse", "(parser, result)"};
-    py::InMemoryDef printer{"print", "(printer, type)"};
-    if (failed(generateTypeFormat(typeOp.getParameters(), cast<FormatOp>(typeOp.getOperation()),
-                                  parser.stream(), printer.stream())))
+    std::string parserName, printerName;
+    if (failed(generateFormat(dialect->getNamespace(), typeOp, parserName,
+                              printerName, "type")))
       return failure();
+    dialect->lookupType(typeOp.getName())->setTypeFormat(
+        std::move(parserName), std::move(printerName));
   }
 
   return success();
 }
 
 LogicalResult registerAttr(AttributeOp attrOp, DynamicDialect *dialect) {
-  if (failed(dialect->createDynamicAttr(
-        attrOp.getName(), attrOp.getParameters())))
+  if (failed(dialect->createDynamicAttr(attrOp.getName(),
+                                        attrOp.getParameters())))
     return attrOp.emitOpError("an attribute with this name already exists");
+
+  if (attrOp.getAssemblyFormat()) {
+    std::string parserName, printerName;
+    if (failed(generateFormat(dialect->getNamespace(), attrOp, parserName,
+                              printerName, "attr")))
+      return failure();
+    dialect->lookupAttr(attrOp.getName())->setAttrFormat(
+        std::move(parserName), std::move(printerName));
+  }
+
   return success();
 }
 

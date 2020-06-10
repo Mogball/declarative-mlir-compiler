@@ -16,10 +16,12 @@ add_library(pymlir
   Attribute.cpp
   Attribute.h
 
+  DialectAsm.cpp
   OpAsm.cpp
   Utility.h
 
   # Reduce compilation time by splitting the functions
+  ExposeDialectAsm.cpp
   ExposeOpAsm.cpp
   ExposeOps.cpp
   ExposeValue.cpp

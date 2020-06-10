@@ -41,6 +41,8 @@ public:
   explicit DimsDirective(std::unique_ptr<Element> var)
       : var{std::move(var)} {}
 
+  auto *getVar() const { return cast<ParameterVariable>(var.get())->getVar(); }
+
 private:
   std::unique_ptr<Element> var;
 };
@@ -107,10 +109,10 @@ LogicalResult FormatParser::parseDimsDirective(
     std::unique_ptr<Element> &element, SMLoc loc) {
   std::unique_ptr<Element> var;
   if (failed(parseToken(Token::l_paren, "expected '(' before argument")) ||
-      failed(parseElement(element, false)) ||
+      failed(parseElement(var, false)) ||
       failed(parseToken(Token::r_paren, "expected ')' after argument")))
     return failure();
-  if (isa<ParameterVariable>(var))
+  if (!isa<ParameterVariable>(var))
     return emitError(loc, "expected a variable as the argument to `dims`");
 
   element = std::make_unique<DimsDirective>(std::move(var));
@@ -157,14 +159,68 @@ LogicalResult FormatParser::verifyParameters(SMLoc loc) {
   return success();
 }
 
+class PrinterGen {
+public:
+  explicit PrinterGen(PythonGenStream &s) : s{s} {}
+
+  void genPrinter(const std::vector<std::unique_ptr<Element>> &elements);
+  void genElementPrinter(Element *el);
+  void genLiteralPrinter(LiteralElement *el);
+  void genVariablePrinter(ParameterVariable *el);
+  void genDimsDirectivePrinter(DimsDirective *el);
+
+private:
+  PythonGenStream &s;
+};
+
+void PrinterGen::genPrinter(
+    const std::vector<std::unique_ptr<Element>> &elements) {
+  /// Print the type name first so that the parser can distinguish between
+  /// different types.
+  for (auto &element : elements) {
+    genElementPrinter(element.get());
+  }
+}
+
+void PrinterGen::genElementPrinter(Element *el) {
+  switch (el->getKind()) {
+  case Kind::Literal:
+    genLiteralPrinter(cast<LiteralElement>(el));
+    break;
+  case FormatElement::ParameterVariable:
+    genVariablePrinter(cast<ParameterVariable>(el));
+    break;
+  case FormatElement::DimsDirective:
+    genDimsDirectivePrinter(cast<DimsDirective>(el));
+    break;
+  default:
+    llvm_unreachable("unknown element kind");
+  }
+}
+
+void PrinterGen::genLiteralPrinter(LiteralElement *el) {
+  s.line() << "p.print(\"" << el->getLiteral() << "\")";
+}
+
+void PrinterGen::genVariablePrinter(ParameterVariable *el) {
+  s.line() << "p.printAttribute(type.getParameter(\""
+      << el->getVar()->getName() << "\"))";
+}
+
+void PrinterGen::genDimsDirectivePrinter(DimsDirective *el) {
+  s.line() << "p.printDimensionListOrRaw(type.getParameter(\""
+      << el->getVar()->getName() << "\"))";
+}
+
 } // end anonymous namespace
 
 LogicalResult generateTypeFormat(NamedParameterRange params, StringRef fmt,
                                  Operation *op, PythonGenStream &parserOs,
                                  PythonGenStream &printerOs) {
-  /// Ensure that the string is null-terminated.
+  /// Ensure that the string is null-terminated. Ensure it is kept on the stack.
+  auto fmtStr = fmt.str();
   SourceMgr mgr;
-  mgr.AddNewSourceBuffer(MemoryBuffer::getMemBuffer(fmt.str().c_str()),
+  mgr.AddNewSourceBuffer(MemoryBuffer::getMemBuffer(fmtStr.c_str()),
                          SMLoc{});
   /// Parse the format.
   Lexer lexer{mgr, op};
@@ -173,6 +229,11 @@ LogicalResult generateTypeFormat(NamedParameterRange params, StringRef fmt,
   std::vector<std::unique_ptr<Element>> elements;
   if (failed(parser.parse(elements)))
     return failure();
+
+  PrinterGen printerGen{printerOs};
+  printerGen.genPrinter(elements);
+
+  parserOs.line() << "pass";
 
   return success();
 }

@@ -3,6 +3,7 @@
 #include "dmc/Dynamic/DynamicAttribute.h"
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Spec/SpecAttrImplementation.h"
+#include "dmc/Embed/ParserPrinter.h"
 
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Diagnostics.h>
@@ -70,6 +71,14 @@ Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
 
 void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
   auto dynTy = type.cast<DynamicType>();
+
+  /// Try a formated printer.
+  if (printerFcn) {
+    py::execPrinter(*printerFcn, printer, dynTy);
+    return;
+  }
+
+  /// Generic dynamic type printer.
   printer << getName();
   auto params = dynTy.getParams();
   if (!params.empty()) {
@@ -79,6 +88,12 @@ void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
       printer << ',' << (*it);
     printer << '>';
   }
+}
+
+void DynamicTypeImpl::setTypeFormat(std::string parserName,
+                                    std::string printerName) {
+  parserFcn = std::move(parserName);
+  printerFcn = std::move(printerName);
 }
 
 /// One instance of DynamicType needs to be registered for each DynamicDialect,

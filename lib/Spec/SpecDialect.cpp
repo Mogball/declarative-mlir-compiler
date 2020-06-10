@@ -67,8 +67,13 @@ void SpecDialect::printAttribute(
     SpecAttrs::kindSwitch(action, attr);
   } else if (auto opRegion = attr.dyn_cast<OpRegion>()) {
     impl::printOptionalRegionList(printer, opRegion);
+  } else if (auto opSucc = attr.dyn_cast<OpSuccessor>()) {
+    impl::printOptionalSuccessorList(printer, opSucc);
+  } else if (auto param = attr.dyn_cast<mlir::dmc::NamedParameter>()) {
+    printer << "NamedParameter" << '<' << param.getName() << ": "
+        << param.getConstraint() << '>';
   } else {
-    impl::printOptionalSuccessorList(printer, attr.cast<OpSuccessor>());
+    llvm_unreachable("Unknown attribute kind");
   }
 }
 

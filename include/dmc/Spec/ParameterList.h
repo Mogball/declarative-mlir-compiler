@@ -27,11 +27,12 @@ public:
     return kind == ::dmc::AttrKinds::NamedParameter;
   }
 
-  StringRef getName();
-  Attribute getConstraint();
+  StringRef getName() const;
+  Attribute getConstraint() const;
 };
 
-using NamedParameterRange = iterator_range<llvm::mapped_iterator<ArrayRef<Attribute>::iterator, NamedParameter (*)(Attribute)>>;
+using NamedParameterRange = iterator_range<llvm::mapped_iterator<
+    ArrayRef<Attribute>::iterator, NamedParameter (*)(Attribute)>>;
 
 #include "dmc/Spec/ParameterList.h.inc"
 

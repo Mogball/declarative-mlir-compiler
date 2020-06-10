@@ -1,11 +1,7 @@
 #pragma once
 
 #include <memory>
-
-namespace mlir {
-class Operation;
-struct OperationState;
-} // end namespace mlir
+#include <mlir/IR/Operation.h>
 
 namespace dmc {
 class DynamicOperation;

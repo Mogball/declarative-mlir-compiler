@@ -32,6 +32,7 @@ public:
   /// Delegate parser and printer.
   mlir::Type parseType(mlir::Location loc, mlir::DialectAsmParser &parser);
   void printType(mlir::Type type, mlir::DialectAsmPrinter &printer);
+  void setTypeFormat(std::string parserName, std::string printerName);
 
 private:
   /// The dialect to which this type belongs.
@@ -39,6 +40,9 @@ private:
   /// The parameters are defined by Attribute constraints. The Attribute
   /// instances must be Spec attributes.
   NamedParameterRange paramSpec;
+
+  /// The function names of the custom parser and printer, if present.
+  llvm::Optional<std::string> parserFcn, printerFcn;
 
   friend class DynamicType;
 };
