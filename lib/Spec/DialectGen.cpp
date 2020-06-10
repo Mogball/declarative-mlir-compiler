@@ -7,6 +7,7 @@
 #include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Embed/OpFormatGen.h"
+#include "dmc/Embed/TypeFormatGen.h"
 #include "dmc/Embed/InMemoryDef.h"
 
 using namespace mlir;
@@ -122,6 +123,16 @@ LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
   if (failed(dialect->createDynamicType(
         typeOp.getName(), typeOp.getParameters())))
     return typeOp.emitOpError("a type with this name already exists");
+
+  /// TODO test code
+  if (typeOp.getAssemblyFormat()) {
+    py::InMemoryDef parser{"parse", "(parser, result)"};
+    py::InMemoryDef printer{"print", "(printer, type)"};
+    if (failed(generateTypeFormat(typeOp.getParameters(), cast<FormatOp>(typeOp.getOperation()),
+                                  parser.stream(), printer.stream())))
+      return failure();
+  }
+
   return success();
 }
 

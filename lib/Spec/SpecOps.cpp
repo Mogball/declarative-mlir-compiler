@@ -230,10 +230,6 @@ bool OperationOp::isIsolatedFromAbove() {
       .getValue();
 }
 
-mlir::StringAttr OperationOp::getAssemblyFormat() {
-  return getAttrOfType<mlir::StringAttr>("fmt");
-}
-
 std::unique_ptr<DynamicTrait> OperationOp::getTrait(StringRef name) {
   auto *registry = getContext()->getRegisteredDialect<TraitRegistry>();
   for (auto trait : getOpTraits().getValue()) {

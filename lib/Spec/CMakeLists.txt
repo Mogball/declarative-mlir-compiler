@@ -14,6 +14,7 @@ add_library(DMCSpec
   OpReparsing.cpp
   Parsing.cpp
   OpType.cpp
+  FormatOp.cpp
   )
 target_link_libraries(DMCSpec
   MLIRIR
@@ -22,4 +23,5 @@ target_link_libraries(DMCSpec
 add_dependencies(DMCSpec
   DMCParameterListIncGen
   DMCReparseOpInterfaceIncGen
+  DMCFormatOpIncGen
   )

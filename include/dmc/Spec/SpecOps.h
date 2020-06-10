@@ -5,6 +5,7 @@
 #include "NamedConstraints.h"
 #include "ParameterList.h"
 #include "ReparseOpInterface.h"
+#include "FormatOp.h"
 #include "dmc/Traits/OpTrait.h"
 
 #include <mlir/IR/Operation.h>
@@ -106,7 +107,8 @@ class OperationOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait> {
+                      mlir::dmc::ReparseOpInterface::Trait,
+                      mlir::dmc::FormatOp::Trait> {
 public:
   using Op::Op;
 
@@ -134,8 +136,6 @@ public:
   bool isTerminator();
   bool isCommutative();
   bool isIsolatedFromAbove();
-
-  mlir::StringAttr getAssemblyFormat();
 
   /// Allow querying of traits by temporarily instantiating one.
   std::unique_ptr<DynamicTrait> getTrait(llvm::StringRef name);
@@ -203,7 +203,8 @@ class TypeOp
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
                       mlir::dmc::ParameterList::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait> {
+                      mlir::dmc::ReparseOpInterface::Trait,
+                      mlir::dmc::FormatOp::Trait> {
 public:
   using Op::Op;
 
@@ -229,7 +230,8 @@ class AttributeOp
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
                       mlir::dmc::ParameterList::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait> {
+                      mlir::dmc::ReparseOpInterface::Trait,
+                      mlir::dmc::FormatOp::Trait> {
 public:
   using Op::Op;
 

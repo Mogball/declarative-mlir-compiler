@@ -1,5 +1,7 @@
 #include "FormatUtils.h"
+#include "dmc/Embed/PythonGen.h"
 #include "dmc/Spec/ParameterList.h"
+#include "dmc/Spec/SpecOps.h"
 
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/ADT/SmallBitVector.h>
@@ -9,6 +11,8 @@ using namespace llvm;
 using namespace fmt;
 using mlir::dmc::NamedParameter;
 using mlir::dmc::NamedParameterRange;
+using mlir::dmc::FormatOp;
+using ::dmc::py::PythonGenStream;
 
 namespace {
 class Parameters : public std::vector<NamedParameter> {
@@ -58,6 +62,11 @@ public:
                                    SMLoc loc);
   /// Variable parsing.
   LogicalResult parseVariable(std::unique_ptr<Element> &element);
+
+  /// Top-level parse and verification.
+  LogicalResult parse(std::vector<std::unique_ptr<Element>> &elements);
+  /// Verifiers.
+  LogicalResult verifyParameters(SMLoc loc);
 
 private:
   Parameters &parameters;
@@ -123,4 +132,54 @@ LogicalResult FormatParser::parseVariable(std::unique_ptr<Element> &element) {
   return emitError(varTok.getLoc(), "unknown parameter name");
 }
 
+LogicalResult FormatParser::parse(
+    std::vector<std::unique_ptr<Element>> &elements) {
+  auto loc = curToken.getLoc();
+  auto consumer = [&](std::unique_ptr<Element> element) {
+    elements.push_back(std::move(element));
+  };
+  if (failed(parseElements(std::move(consumer))))
+    return failure();
+
+  /// Run verifiers.
+  if (failed(verifyParameters(loc)))
+    return failure();
+
+  return success();
+}
+
+LogicalResult FormatParser::verifyParameters(SMLoc loc) {
+  for (auto b = parameters.begin(), e = parameters.end(), it = b; it != e;
+       ++it) {
+    if (!seenParameters.test(std::distance(b, it)))
+      return emitError(loc, "parameter '" + it->getName() + "' not bound");
+  }
+  return success();
+}
+
 } // end anonymous namespace
+
+LogicalResult generateTypeFormat(NamedParameterRange params, StringRef fmt,
+                                 Operation *op, PythonGenStream &parserOs,
+                                 PythonGenStream &printerOs) {
+  /// Ensure that the string is null-terminated.
+  SourceMgr mgr;
+  mgr.AddNewSourceBuffer(MemoryBuffer::getMemBuffer(fmt.str().c_str()),
+                         SMLoc{});
+  /// Parse the format.
+  Lexer lexer{mgr, op};
+  Parameters parameters{params};
+  FormatParser parser{lexer, parameters};
+  std::vector<std::unique_ptr<Element>> elements;
+  if (failed(parser.parse(elements)))
+    return failure();
+
+  return success();
+}
+
+LogicalResult generateTypeFormat(NamedParameterRange params, FormatOp op,
+                                 PythonGenStream &parserOs,
+                                 PythonGenStream &printerOs) {
+  return generateTypeFormat(params, op.getAssemblyFormat().getValue(),
+                            op, parserOs, printerOs);
+}
