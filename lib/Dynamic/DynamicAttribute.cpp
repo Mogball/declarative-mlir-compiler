@@ -86,8 +86,8 @@ void DynamicAttributeImpl::printAttribute(Attribute attr,
   }
 }
 
-void DynamicAttributeImpl::setAttrFormat(std::string parserName,
-                                         std::string printerName) {
+void DynamicAttributeImpl::setFormat(std::string parserName,
+                                     std::string printerName) {
   parserFcn = std::move(parserName);
   printerFcn = std::move(printerName);
 }
@@ -133,7 +133,7 @@ LogicalResult DynamicAttribute::verifyConstructionInvariants(
   return success();
 }
 
-DynamicAttributeImpl *DynamicAttribute::getAttrImpl() {
+DynamicAttributeImpl *DynamicAttribute::getDynImpl() {
   return getImpl()->impl;
 }
 

@@ -4,7 +4,7 @@
 #include "dmc/Spec/ParameterList.h"
 #include "dmc/Spec/FormatOp.h"
 
-mlir::LogicalResult generateTypeFormat(mlir::dmc::NamedParameterRange params,
-                                       mlir::dmc::FormatOp op,
+template <typename OpT, typename DynamicT>
+mlir::LogicalResult generateTypeFormat(OpT op, DynamicT *impl,
                                        dmc::py::PythonGenStream &parserOs,
                                        dmc::py::PythonGenStream &printerOs);

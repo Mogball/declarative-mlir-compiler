@@ -338,7 +338,7 @@ LogicalResult IsaAttr::verify(Attribute attr) {
     getContext(), getImpl()->getDialectRef(), getImpl()->getAttrRef());
   if (!attrImpl)
     return failure();
-  return success(attrImpl == dynAttr.getAttrImpl());
+  return success(attrImpl == dynAttr.getDynImpl());
 }
 
 /// Attribute printing.

@@ -46,13 +46,13 @@ DynamicDialect *DynamicContext::createDynamicDialect(StringRef name) {
 
 DynamicDialect *DynamicContext::lookupDialectFor(Type type) {
   if (auto dynTy = type.dyn_cast<DynamicType>())
-    return dynTy.getTypeImpl()->getDialect();
+    return dynTy.getDynImpl()->getDialect();
   return impl->lookupDialectFor(type);
 }
 
 DynamicDialect *DynamicContext::lookupDialectFor(Attribute attr) {
   if (auto dynAttr = attr.dyn_cast<DynamicAttribute>())
-    return dynAttr.getAttrImpl()->getDialect();
+    return dynAttr.getDynImpl()->getDialect();
   return impl->lookupDialectFor(attr);
 }
 

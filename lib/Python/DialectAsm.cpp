@@ -11,11 +11,11 @@ namespace py {
 
 TypeWrap::TypeWrap(DynamicType type)
     : params{type.getParams()},
-      paramSpec{type.getTypeImpl()->getParamSpec()} {}
+      paramSpec{type.getDynImpl()->getParamSpec()} {}
 
 TypeWrap::TypeWrap(DynamicAttribute attr)
     : params{attr.getParams()},
-      paramSpec{attr.getAttrImpl()->getParamSpec()} {}
+      paramSpec{attr.getDynImpl()->getParamSpec()} {}
 
 void exposeTypeWrap(module &m) {
   class_<TypeWrap>(m, "TypeWrap")

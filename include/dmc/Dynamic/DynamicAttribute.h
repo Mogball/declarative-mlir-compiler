@@ -33,7 +33,7 @@ public:
   mlir::Attribute parseAttribute(mlir::Location loc,
                                  mlir::DialectAsmParser &parser);
   void printAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter &printer);
-  void setAttrFormat(std::string parserName, std::string printerName);
+  void setFormat(std::string parserName, std::string printerName);
 
 private:
   /// The dialect to which this attribute belongs.
@@ -73,7 +73,7 @@ public:
   static bool kindof(unsigned kind) { return kind == DynamicAttributeKind; }
 
   /// Getters.
-  DynamicAttributeImpl *getAttrImpl();
+  DynamicAttributeImpl *getDynImpl();
   llvm::ArrayRef<mlir::Attribute> getParams();
 };
 

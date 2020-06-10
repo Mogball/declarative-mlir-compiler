@@ -376,7 +376,7 @@ LogicalResult IsaType::verify(Type ty) {
   if (!typeImpl)
     return failure();
   /// Simply compare the type kinds.
-  return success(typeImpl == dynTy.getTypeImpl());
+  return success(typeImpl == dynTy.getDynImpl());
 }
 
 /// Type printing.

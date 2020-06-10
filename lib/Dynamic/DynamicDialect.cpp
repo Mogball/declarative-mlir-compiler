@@ -53,7 +53,7 @@ Type DynamicDialect::parseType(DialectAsmParser &parser) const {
 
 void DynamicDialect::printType(Type type, DialectAsmPrinter &printer) const {
   auto dynTy = type.cast<DynamicType>();
-  dynTy.getTypeImpl()->printType(type, printer);
+  dynTy.getDynImpl()->printType(type, printer);
 }
 
 /// TODO Typed custom attributes. Combining types and attributes requires
@@ -90,7 +90,7 @@ Attribute DynamicDialect::parseAttribute(DialectAsmParser &parser,
 void DynamicDialect::printAttribute(Attribute attr,
                                     DialectAsmPrinter &printer) const {
   auto dynAttr = attr.cast<DynamicAttribute>();
-  dynAttr.getAttrImpl()->printAttribute(attr, printer);
+  dynAttr.getDynImpl()->printAttribute(attr, printer);
 }
 
 } // end namespace dmc

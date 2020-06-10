@@ -90,8 +90,8 @@ void DynamicTypeImpl::printType(Type type, DialectAsmPrinter &printer) {
   }
 }
 
-void DynamicTypeImpl::setTypeFormat(std::string parserName,
-                                    std::string printerName) {
+void DynamicTypeImpl::setFormat(std::string parserName,
+                                std::string printerName) {
   parserFcn = std::move(parserName);
   printerFcn = std::move(printerName);
 }
@@ -141,7 +141,7 @@ LogicalResult DynamicType::verifyConstructionInvariants(
   return success();
 }
 
-DynamicTypeImpl *DynamicType::getTypeImpl() {
+DynamicTypeImpl *DynamicType::getDynImpl() {
   return getImpl()->impl;
 }
 

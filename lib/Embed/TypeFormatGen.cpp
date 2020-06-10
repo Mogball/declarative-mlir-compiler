@@ -2,6 +2,8 @@
 #include "dmc/Embed/PythonGen.h"
 #include "dmc/Spec/ParameterList.h"
 #include "dmc/Spec/SpecOps.h"
+#include "dmc/Dynamic/DynamicType.h"
+#include "dmc/Dynamic/DynamicAttribute.h"
 
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/ADT/SmallBitVector.h>
@@ -163,7 +165,8 @@ class PrinterGen {
 public:
   explicit PrinterGen(PythonGenStream &s) : s{s} {}
 
-  void genPrinter(const std::vector<std::unique_ptr<Element>> &elements);
+  void genPrinter(StringRef name,
+                  const std::vector<std::unique_ptr<Element>> &elements);
   void genElementPrinter(Element *el);
   void genLiteralPrinter(LiteralElement *el);
   void genVariablePrinter(ParameterVariable *el);
@@ -174,9 +177,10 @@ private:
 };
 
 void PrinterGen::genPrinter(
-    const std::vector<std::unique_ptr<Element>> &elements) {
+    StringRef name, const std::vector<std::unique_ptr<Element>> &elements) {
   /// Print the type name first so that the parser can distinguish between
   /// different types.
+  s.line() << "p.print(\"" << name << "\")";
   for (auto &element : elements) {
     genElementPrinter(element.get());
   }
@@ -214,33 +218,35 @@ void PrinterGen::genDimsDirectivePrinter(DimsDirective *el) {
 
 } // end anonymous namespace
 
-LogicalResult generateTypeFormat(NamedParameterRange params, StringRef fmt,
-                                 Operation *op, PythonGenStream &parserOs,
+template <typename OpT, typename DynamicT>
+LogicalResult generateTypeFormat(OpT op, DynamicT *impl,
+                                 PythonGenStream &parserOs,
                                  PythonGenStream &printerOs) {
   /// Ensure that the string is null-terminated. Ensure it is kept on the stack.
-  auto fmtStr = fmt.str();
+  auto fmtStr = op.getAssemblyFormat().getValue().str();
   SourceMgr mgr;
   mgr.AddNewSourceBuffer(MemoryBuffer::getMemBuffer(fmtStr.c_str()),
                          SMLoc{});
+
   /// Parse the format.
   Lexer lexer{mgr, op};
-  Parameters parameters{params};
+  Parameters parameters{impl->getParamSpec()};
   FormatParser parser{lexer, parameters};
   std::vector<std::unique_ptr<Element>> elements;
   if (failed(parser.parse(elements)))
     return failure();
 
   PrinterGen printerGen{printerOs};
-  printerGen.genPrinter(elements);
+  printerGen.genPrinter(op.getName(), elements);
 
   parserOs.line() << "pass";
 
   return success();
 }
 
-LogicalResult generateTypeFormat(NamedParameterRange params, FormatOp op,
-                                 PythonGenStream &parserOs,
-                                 PythonGenStream &printerOs) {
-  return generateTypeFormat(params, op.getAssemblyFormat().getValue(),
-                            op, parserOs, printerOs);
-}
+template LogicalResult generateTypeFormat(
+    ::dmc::TypeOp typeOp, ::dmc::DynamicTypeImpl *impl,
+    PythonGenStream &parserOs, PythonGenStream &printerOs);
+template LogicalResult generateTypeFormat(
+    ::dmc::AttributeOp typeOp, ::dmc::DynamicAttributeImpl *impl,
+    PythonGenStream &parserOs, PythonGenStream &printerOs);

@@ -122,17 +122,18 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   return success();
 }
 
-template <typename OpT>
-LogicalResult generateFormat(StringRef dialect, OpT op, std::string &parserName,
-                             std::string &printerName, const char *val) {
+template <typename OpT, typename DynamicT>
+LogicalResult generateFormat(StringRef dialect, OpT op, DynamicT *impl,
+                             const char *val) {
   auto prefix = ("__" + dialect + "__" + val + "__" + op.getName()).str();
-  parserName = "parse" + prefix;
-  printerName = "print" + prefix;
+  auto parserName = "parse" + prefix;
+  auto printerName = "print" + prefix;
   py::InMemoryDef parser{parserName, "(parser, result)"};
   py::InMemoryDef printer{printerName, "(p, type)"};
-  return generateTypeFormat(op.getParameters(),
-                            cast<FormatOp>(op.getOperation()),
-                            parser.stream(), printer.stream());
+  if (failed(generateTypeFormat(op, impl, parser.stream(), printer.stream())))
+    return failure();
+  impl->setFormat(std::move(parserName), std::move(printerName));
+  return success();
 }
 
 LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
@@ -141,14 +142,9 @@ LogicalResult registerType(TypeOp typeOp, DynamicDialect *dialect) {
     return typeOp.emitOpError("a type with this name already exists");
 
   if (typeOp.getAssemblyFormat()) {
-    std::string parserName, printerName;
-    if (failed(generateFormat(dialect->getNamespace(), typeOp, parserName,
-                              printerName, "type")))
-      return failure();
-    dialect->lookupType(typeOp.getName())->setTypeFormat(
-        std::move(parserName), std::move(printerName));
+    auto *impl = dialect->lookupType(typeOp.getName());
+    return generateFormat(dialect->getNamespace(), typeOp, impl, "type");
   }
-
   return success();
 }
 
@@ -158,14 +154,9 @@ LogicalResult registerAttr(AttributeOp attrOp, DynamicDialect *dialect) {
     return attrOp.emitOpError("an attribute with this name already exists");
 
   if (attrOp.getAssemblyFormat()) {
-    std::string parserName, printerName;
-    if (failed(generateFormat(dialect->getNamespace(), attrOp, parserName,
-                              printerName, "attr")))
-      return failure();
-    dialect->lookupAttr(attrOp.getName())->setAttrFormat(
-        std::move(parserName), std::move(printerName));
+    auto *impl = dialect->lookupAttr(attrOp.getName());
+    return generateFormat(dialect->getNamespace(), attrOp, impl, "attr");
   }
-
   return success();
 }
 

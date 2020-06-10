@@ -32,7 +32,7 @@ public:
   /// Delegate parser and printer.
   mlir::Type parseType(mlir::Location loc, mlir::DialectAsmParser &parser);
   void printType(mlir::Type type, mlir::DialectAsmPrinter &printer);
-  void setTypeFormat(std::string parserName, std::string printerName);
+  void setFormat(std::string parserName, std::string printerName);
 
 private:
   /// The dialect to which this type belongs.
@@ -72,7 +72,7 @@ public:
   static bool kindof(unsigned kind) { return kind == DynamicTypeKind; }
 
   /// Getters.
-  DynamicTypeImpl *getTypeImpl();
+  DynamicTypeImpl *getDynImpl();
   llvm::ArrayRef<mlir::Attribute> getParams();
 };
 
