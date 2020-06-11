@@ -50,8 +50,11 @@ DynamicAttributeImpl::DynamicAttributeImpl(
 
 Attribute DynamicAttributeImpl::parseAttribute(Location loc,
                                                DialectAsmParser &parser) {
-  SmallVector<Attribute, 2> params;
-  if (!parser.parseOptionalLess()) {
+  std::vector<Attribute> params;
+  if (parserFcn) {
+    if (!py::execParser(*parserFcn, parser, params))
+      return {};
+  } else if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
       if (parser.parseAttribute(attr))

@@ -29,6 +29,7 @@ static void printDimensionListOrRaw(DialectAsmPrinter &p, Attribute attr) {
         p << el;
       }
     }, "x");
+    p << "x";
   } else {
     p.printAttribute(attr);
   }
@@ -46,8 +47,21 @@ void exposeDialectAsm(module &m) {
 
   class_<DialectAsmParser, std::unique_ptr<DialectAsmParser, nodelete>>
       parserCls{m, "DialectAsmParser"};
-
   exposeAllLiteralParsers(parserCls);
+  parserCls
+      .def("parseDimensionList", [](DialectAsmParser &parser,
+                                    bool allowDynamic) {
+        SmallVector<int64_t, 4> dims;
+        if (failed(parser.parseDimensionList(dims, allowDynamic)))
+          return make_tuple(nullptr, false);
+        std::vector<int64_t> ret{std::begin(dims), std::end(dims)};
+        return make_tuple(std::move(ret), true);
+      })
+      .def("parseAttribute", [](DialectAsmParser &parser) {
+        Attribute attr;
+        auto ret = parser.parseAttribute(attr);
+        return make_tuple(attr, ret);
+      });
 
   dmc::py::exposeTypeWrap(m);
 }

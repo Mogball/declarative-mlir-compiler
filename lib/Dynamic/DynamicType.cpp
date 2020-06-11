@@ -55,8 +55,11 @@ DynamicTypeImpl::DynamicTypeImpl(DynamicDialect *dialect, StringRef name,
       paramSpec{paramSpec} {}
 
 Type DynamicTypeImpl::parseType(Location loc, DialectAsmParser &parser) {
-  SmallVector<Attribute, 2> params;
-  if (!parser.parseOptionalLess()) {
+  std::vector<Attribute> params;
+  if (parserFcn) {
+    if (!py::execParser(*parserFcn, parser, params))
+      return {};
+  } else if (!parser.parseOptionalLess()) {
     do {
       Attribute attr;
       if (parser.parseAttribute(attr))

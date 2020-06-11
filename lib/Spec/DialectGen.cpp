@@ -133,10 +133,6 @@ LogicalResult generateFormat(StringRef dialect, OpT op, DynamicT *impl,
   if (failed(generateTypeFormat(op, impl, parser.stream(), printer.stream())))
     return failure();
   impl->setFormat(std::move(parserName), std::move(printerName));
-
-  llvm::errs() << parser.str() << "\n";
-  llvm::errs() << printer.str() << "\n";
-
   return success();
 }
 
