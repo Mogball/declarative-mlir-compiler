@@ -24,6 +24,9 @@ enum {
 /// Returns true if the given string is a valid literal.
 bool isValidLiteral(llvm::StringRef value);
 
+/// Returns a literal parser call.
+std::string getParserForLiteral(llvm::StringRef value, bool optional);
+
 /// This class represents a single format element.
 class Element {
 public:

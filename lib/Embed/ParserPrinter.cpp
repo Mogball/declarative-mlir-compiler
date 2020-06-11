@@ -30,6 +30,11 @@ void execPrinter(const std::string &name, OpAsmPrinter &printer, Operation *op,
   fcn.operator()<printer_policy>(printer, &opWrap);
 }
 
+bool execParser(const std::string &name, DialectAsmParser &parser,
+                std::vector<Attribute> &result) {
+  return false;
+}
+
 template <typename DynamicT>
 void execPrinter(const std::string &name, DialectAsmPrinter &printer,
                  DynamicT t) {

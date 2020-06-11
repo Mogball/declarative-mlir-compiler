@@ -19,6 +19,7 @@ add_library(pymlir
   DialectAsm.cpp
   OpAsm.cpp
   Utility.h
+  AsmUtils.h
 
   # Reduce compilation time by splitting the functions
   ExposeDialectAsm.cpp

@@ -5,6 +5,7 @@
 #include <pybind11/pybind11.h>
 
 using namespace pybind11;
+using namespace mlir;
 
 namespace dmc {
 namespace py {
@@ -25,6 +26,11 @@ void exposeTypeWrap(module &m) {
             return param;
         }
         throw std::invalid_argument{"Unknown parameter name: " + name};
+      });
+
+  class_<TypeResultWrap>(m, "TypeResultWrap")
+      .def("append", [](TypeResultWrap &wrap, Attribute attr) {
+        wrap.getImpl().push_back(attr);
       });
 }
 

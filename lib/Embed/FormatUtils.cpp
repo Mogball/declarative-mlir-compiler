@@ -31,6 +31,37 @@ bool isValidLiteral(StringRef value) {
   });
 }
 
+/// Generate the parser for a literal value.
+std::string getParserForLiteral(StringRef value, bool optional) {
+  std::string buf;
+  buf.reserve(20);
+  llvm::raw_string_ostream os{buf};
+
+  if (optional) {
+    os << "Optional";
+  }
+
+  // handle the case of a keyword/identifier.
+  if (value.front() == '_' || isalpha(value.front())) {
+    os << "Keyword(\"" << value << "\")";
+    return os.str();
+  }
+
+  os <<  StringSwitch<StringRef>(value)
+      .Case("->", "Arrow")
+      .Case(":", "Colon")
+      .Case(",", "Comma")
+      .Case("=", "Equal")
+      .Case("<", "Less")
+      .Case(">", "Greater")
+      .Case("(", "LParen")
+      .Case(")", "RParen")
+      .Case("[", "LSquare")
+      .Case("]", "RSquare");
+  os << "()";
+  return os.str();
+}
+
 Lexer::Lexer(SourceMgr &mgr, Operation *op)
     : mgr{mgr},
       op{op},

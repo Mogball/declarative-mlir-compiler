@@ -1,5 +1,6 @@
 #include "Utility.h"
 #include "Identifier.h"
+#include "AsmUtils.h"
 #include "dmc/Python/OpAsm.h"
 #include "dmc/Traits/SpecTraits.h"
 
@@ -79,21 +80,6 @@ void genericPrint(OpAsmPrinter &printer, const object &obj) {
     std::string repr = str(obj);
     printer << repr;
   }
-}
-
-template <typename ParserT, typename... ClassTs, typename NameT,
-          typename FcnT>
-void exposeLiteralParser(class_<ParserT, ClassTs...> &cls, NameT name,
-                         FcnT fcn) {
-  cls.def(name, fcn);
-}
-
-template <typename ParserT, typename... ClassTs, typename NameT, typename FcnT,
-          typename... TailTs>
-void exposeLiteralParser(class_<ParserT, ClassTs...> &cls, NameT name,
-                         FcnT fcn, TailTs ...tail) {
-  exposeLiteralParser(cls, name, fcn);
-  exposeLiteralParser(cls, tail...);
 }
 
 } // end anonymous namespace
@@ -257,28 +243,7 @@ void exposeOpAsm(module &m) {
         return parser.parseRegion(region, args, tys);
       });
 
-  exposeLiteralParser(
-    parserCls,
-    "parseArrow", &OpAsmParser::parseArrow,
-    "parseColon", &OpAsmParser::parseColon,
-    "parseComma", &OpAsmParser::parseComma,
-    "parseEqual", &OpAsmParser::parseEqual,
-    "parseLess", &OpAsmParser::parseLess,
-    "parseGreater", &OpAsmParser::parseGreater,
-    "parseLParen", &OpAsmParser::parseLParen,
-    "parseRParen", &OpAsmParser::parseRParen,
-    "parseLSquare", &OpAsmParser::parseLSquare,
-    "parseRSquare", &OpAsmParser::parseRSquare,
-    "parseOptionalArrow", &OpAsmParser::parseOptionalArrow,
-    "parseOptionalColon", &OpAsmParser::parseOptionalColon,
-    "parseOptionalComma", &OpAsmParser::parseOptionalComma,
-    "parseOptionalLess", &OpAsmParser::parseOptionalLess,
-    "parseOptionalGreater", &OpAsmParser::parseOptionalGreater,
-    "parseOptionalLParen", &OpAsmParser::parseOptionalLParen,
-    "parseOptionalRParen", &OpAsmParser::parseOptionalRParen,
-    "parseOptionalLSquare", &OpAsmParser::parseOptionalLSquare,
-    "parseOptionalRSquare", &OpAsmParser::parseOptionalRSquare,
-    "parseOptionalEllipsis", &OpAsmParser::parseOptionalEllipsis);
+  exposeAllLiteralParsers(parserCls);
 
   /// Utility types for parsing.
   class_<SMLoc>(m, "SMLoc");

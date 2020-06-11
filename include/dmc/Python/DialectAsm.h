@@ -9,6 +9,7 @@ namespace dmc {
 class DynamicType;
 class DynamicAttribute;
 namespace py {
+
 class TypeWrap {
 public:
   explicit TypeWrap(DynamicType type);
@@ -21,5 +22,17 @@ private:
   llvm::ArrayRef<mlir::Attribute> params;
   NamedParameterRange paramSpec;
 };
+
+class TypeResultWrap {
+public:
+  explicit TypeResultWrap(std::vector<mlir::Attribute> &result)
+      : result{result} {}
+
+  auto &getImpl() { return result; }
+
+private:
+  std::vector<mlir::Attribute> &result;
+};
+
 } // end namespace py
 } // end namespace dmc

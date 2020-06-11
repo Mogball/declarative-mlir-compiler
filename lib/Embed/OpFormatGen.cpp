@@ -440,26 +440,6 @@ static StringRef getTypeListName(Element *arg, ArgumentLengthKind &lengthKind) {
   llvm_unreachable("unknown 'type' directive argument");
 }
 
-/// Generate the parser for a literal value.
-static void genLiteralParser(StringRef value, PythonGenStream::Line &line) {
-  // Handle the case of a keyword/identifier.
-  if (value.front() == '_' || isalpha(value.front())) {
-    line << "Keyword(\"" << value << "\")";
-    return;
-  }
-  line << (StringRef)llvm::StringSwitch<StringRef>(value)
-              .Case("->", "Arrow()")
-              .Case(":", "Colon()")
-              .Case(",", "Comma()")
-              .Case("=", "Equal()")
-              .Case("<", "Less()")
-              .Case(">", "Greater()")
-              .Case("(", "LParen()")
-              .Case(")", "RParen()")
-              .Case("[", "LSquare()")
-              .Case("]", "RSquare()");
-}
-
 /// Generate the storage code required for parsing the given element.
 static void genElementParserStorage(Element *element, PythonGenStream &body) {
   if (auto *optional = dyn_cast<OptionalElement>(element)) {
@@ -498,9 +478,8 @@ static void genElementParser(Element *element, PythonGenStream &body,
     // Generate a special optional parser for the first element to gate the
     // parsing of the rest of the elements.
     if (auto *literal = dyn_cast<LiteralElement>(&*elements.begin())) {
-      auto line = body.line() << "if parser.parseOptional";
-      genLiteralParser(literal->getLiteral(), line);
-      line << ":" << incr;
+      body.line() << "if parser.parse"
+          << getParserForLiteral(literal->getLiteral(), true) << ":" << incr;
     } else if (auto *opVar = dyn_cast<OperandVariable>(&*elements.begin())) {
       body.line() << "if len(" << opVar->getVar()->name << "Operands) > 0:"
           << incr;
@@ -514,9 +493,8 @@ static void genElementParser(Element *element, PythonGenStream &body,
     /// Literals.
   } else if (LiteralElement *literal = dyn_cast<LiteralElement>(element)) {
     {
-      auto line = body.line() << "if not parser.parse";
-      genLiteralParser(literal->getLiteral(), line);
-      line << ":" << incr;
+      body.line() << "if not parser.parse"
+          << getParserForLiteral(literal->getLiteral(), false) << ":" << incr;
     }
     body.line() << "return False" << decr;
 

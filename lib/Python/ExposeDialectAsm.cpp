@@ -1,4 +1,5 @@
 #include "Utility.h"
+#include "AsmUtils.h"
 
 #include <mlir/IR/DialectImplementation.h>
 #include <llvm/ADT/STLExtras.h>
@@ -42,6 +43,11 @@ void exposeDialectAsm(module &m) {
       })
       .def("printAttribute", &DialectAsmPrinter::printAttribute)
       .def("printDimensionListOrRaw", &printDimensionListOrRaw);
+
+  class_<DialectAsmParser, std::unique_ptr<DialectAsmParser, nodelete>>
+      parserCls{m, "DialectAsmParser"};
+
+  exposeAllLiteralParsers(parserCls);
 
   dmc::py::exposeTypeWrap(m);
 }

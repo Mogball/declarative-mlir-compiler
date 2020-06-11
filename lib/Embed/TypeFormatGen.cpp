@@ -216,6 +216,75 @@ void PrinterGen::genDimsDirectivePrinter(DimsDirective *el) {
       << el->getVar()->getName() << "\"))";
 }
 
+class ParserGen {
+public:
+  explicit ParserGen(PythonGenStream &s) : s{s} {}
+
+  void genParser(Parameters &params,
+                 const std::vector<std::unique_ptr<Element>> &elements);
+  void genElementParser(Element *el);
+  void genLiteralParser(LiteralElement *el);
+  void genVariableParser(ParameterVariable *el);
+  void genDimsDirectiveParser(DimsDirective *el);
+
+private:
+  PythonGenStream &s;
+};
+
+void ParserGen::genParser(
+    Parameters &params, const std::vector<std::unique_ptr<Element>> &elements) {
+  for (auto &element : elements) {
+    genElementParser(element.get());
+  }
+  for (auto &param : params) {
+    s.line() << "result.append(" << param.getName() << "Param)";
+  }
+  s.line() << "return True";
+}
+
+void ParserGen::genElementParser(Element *el) {
+  switch (el->getKind()) {
+  case Kind::Literal:
+    genLiteralParser(cast<LiteralElement>(el));
+    break;
+  case FormatElement::ParameterVariable:
+    genVariableParser(cast<ParameterVariable>(el));
+    break;
+  case FormatElement::DimsDirective:
+    genDimsDirectiveParser(cast<DimsDirective>(el));
+    break;
+  default:
+    llvm_unreachable("unknown element kind");
+  }
+}
+
+void ParserGen::genLiteralParser(LiteralElement *el) {
+  s.if_("not parser.parse" + getParserForLiteral(el->getLiteral(), false)); {
+    s.line() << "return False";
+  } s.endif();
+}
+
+void ParserGen::genVariableParser(ParameterVariable *el) {
+  s.line() << el->getVar()->getName()
+      << "Param, success = parser.parseAttribute()";
+  s.if_("not success"); {
+    s.line() << "return False";
+  } s.endif();
+}
+
+void ParserGen::genDimsDirectiveParser(DimsDirective *el) {
+  s.line() << "dims, success = parser.parseDimensionList(True)";
+  s.if_("not success"); {
+    s.line() << "return False";
+  } s.endif();
+
+  s.line() << "dimAttrs = []";
+  s.block("for", "i in dims"); {
+    s.line() << "dimAttrs.append(IntegerAttr(IntegerType(64), i))";
+  } s.endblock();
+  s.line() << el->getVar()->getName() << "Param = ArrayAttr(dimAttrs)";
+}
+
 } // end anonymous namespace
 
 template <typename OpT, typename DynamicT>
@@ -239,7 +308,8 @@ LogicalResult generateTypeFormat(OpT op, DynamicT *impl,
   PrinterGen printerGen{printerOs};
   printerGen.genPrinter(op.getName(), elements);
 
-  parserOs.line() << "pass";
+  ParserGen parserGen{parserOs};
+  parserGen.genParser(parameters, elements);
 
   return success();
 }
