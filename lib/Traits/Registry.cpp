@@ -76,7 +76,7 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
       NResults(IntegerAttr), AtLeastNResults(IntegerAttr),
       NSuccessors(IntegerAttr), AtLeastNSuccessors(IntegerAttr),
 
-      HasParent(StringAttr)
+      HasParent(StringAttr), SingleBlockImplicitTerminator(StringAttr)
     >(this);
 }
 

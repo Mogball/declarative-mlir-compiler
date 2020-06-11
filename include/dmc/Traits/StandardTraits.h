@@ -160,9 +160,18 @@ private:
   llvm::StringRef parentName;
 };
 
+class SingleBlockImplicitTerminator : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "SingleBlockImplicitTerminator"; }
+  explicit SingleBlockImplicitTerminator(llvm::StringRef terminatorName)
+      : terminatorName{terminatorName} {}
+  mlir::LogicalResult verifyOp(mlir::Operation *op) const override;
+
+private:
+  llvm::StringRef terminatorName;
+};
+
 /// TODO Some standard traits not rebound (complexity/API restrictions):
-/// - HasParent<>
-/// - SingleBlockImplicitTerminator
 /// - AutomaticAllocationScope
 /// - ConstantLike
 

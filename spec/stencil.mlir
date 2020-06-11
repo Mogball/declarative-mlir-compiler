@@ -43,14 +43,15 @@ dmc.Dialect @stencil {
   dmc.Op @apply(operands: !dmc.Variadic<!dmc.Any>) -> (res: !dmc.Variadic<!stencil.Temp>)
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
     (region: Sized<1>)
-    traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
+    traits [@SameVariadicOperandSizes, @SameVariadicResultSizes,
+            @SingleBlockImplicitTerminator<"stencil.return">]
     config { is_isolated_from_above = true,
              fmt = "`(` $operands `)` `:` functional-type($operands, $res) attr-dict-with-keyword $region (`to` `(` $lb^ `:` $ub `)`)?" }
 
   /// ReturnOp
   dmc.Op @return(operands: !dmc.Variadic<!stencil.Element>) -> ()
     { unroll = #stencil.OptionalIndex }
-    traits [@SameVariadicOperandSizes]
+    traits [@SameVariadicOperandSizes, @HasParent<"stencil.apply">]
     config { is_terminator = true,
              fmt = "(`unroll` $unroll^)? $operands attr-dict-with-keyword `:` type($operands)" }
 }
