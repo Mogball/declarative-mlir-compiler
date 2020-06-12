@@ -55,7 +55,7 @@ void exposeDialectAsm(module &m) {
         if (failed(parser.parseDimensionList(dims, allowDynamic)))
           return make_tuple(nullptr, false);
         std::vector<int64_t> ret{std::begin(dims), std::end(dims)};
-        return make_tuple(std::move(ret), true);
+        return pybind11::make_tuple(std::move(ret), true);
       })
       .def("parseAttribute", [](DialectAsmParser &parser) {
         Attribute attr;
