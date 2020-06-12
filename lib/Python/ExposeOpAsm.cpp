@@ -18,6 +18,7 @@ namespace dmc {
 namespace py {
 extern void exposeOperationWrap(module &m);
 extern void exposeResultWrap(module &m);
+extern void exposeDynamicTypes(module &m);
 } // end namespace py
 } // end namespace dmc
 
@@ -254,6 +255,7 @@ void exposeOpAsm(module &m) {
 
   dmc::py::exposeOperationWrap(m);
   dmc::py::exposeResultWrap(m);
+  dmc::py::exposeDynamicTypes(m);
 }
 
 } // end namespace py

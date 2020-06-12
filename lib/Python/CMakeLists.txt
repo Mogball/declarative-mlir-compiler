@@ -16,6 +16,7 @@ add_library(pymlir
   Attribute.cpp
   Attribute.h
 
+  BuildableType.cpp
   DialectAsm.cpp
   OpAsm.cpp
   Utility.h
