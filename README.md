@@ -23,8 +23,7 @@ brew install cmake python3
 
 ## Short-Term TODOs
 
-- Region and successor specifiers
-- Parsing/printing format for dynamic operations, attributes, and types
+- Buildable custom types
 
 ## Long-Term TODOs
 

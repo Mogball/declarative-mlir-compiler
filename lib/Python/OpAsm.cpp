@@ -119,6 +119,9 @@ void exposeOperationWrap(module &m) {
         return getValueOrGroup(op, &getResultGroup, std::move(name),
                                op.getType()->getOpType().getResults());
       })
+      .def("getOperands", [](OperationWrap &op) -> ValueRange {
+        return op.getOp()->getOperands();
+      })
       .def("getRegion", [](OperationWrap &op, std::string name) {
         unsigned idx{};
         for (auto &region : op.getRegion()->getOpRegions().getRegions()) {
