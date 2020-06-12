@@ -311,7 +311,6 @@ public:
 
 /// A default-valued attribute. During Op post-construction, if this attribute
 /// was not provided, the default value will be used.
-/// TODO use default attributes in op builders.
 class DefaultAttr : public SpecAttr<DefaultAttr, SpecAttrs::Default,
                                     detail::DefaultAttrStorage> {
 public:

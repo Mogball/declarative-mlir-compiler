@@ -1627,7 +1627,9 @@ LogicalResult FormatParser::parseOptionalChildElement(
       // All attributes can be within the optional group, but only optional
       // attributes can be the anchor.
       .Case([&](AttributeVariable *attrEle) {
-        if (isAnchor && !attrEle->getVar()->second.isa<::dmc::OptionalAttr>())
+        auto attr = attrEle->getVar()->second;
+        if (isAnchor && !attr.isa<::dmc::OptionalAttr>() &&
+            !attr.isa<::dmc::DefaultAttr>())
           return emitError(childLoc, "only optional attributes can be used to "
                                      "anchor an optional group");
         return success();

@@ -289,6 +289,10 @@ LogicalResult DefaultAttr::verify(Attribute attr) {
   return success(baseAttr == attr);
 }
 
+Attribute DefaultAttr::getDefaultValue() {
+  return getImpl()->defaultAttr;
+}
+
 /// IsaAttr implementation.
 IsaAttr IsaAttr::getChecked(Location loc, mlir::SymbolRefAttr attrRef) {
   return Base::getChecked(loc, Kind, attrRef);

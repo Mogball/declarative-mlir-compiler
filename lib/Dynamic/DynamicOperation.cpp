@@ -2,6 +2,8 @@
 #include "dmc/Dynamic/DynamicOperation.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Embed/ParserPrinter.h"
+#include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Traits/SpecTraits.h"
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
@@ -133,11 +135,24 @@ AbstractOperation::OperationProperties DynamicOperation::getOpProperties() const
 ParseResult DynamicOperation::parseOperation(OpAsmParser &parser,
                                              OperationState &result) {
   if (parserFcn) {
-    return success(py::execParser(*parserFcn, parser, result));
+    if (!py::execParser(*parserFcn, parser, result))
+      return failure();
   } else {
     return parser.emitError(parser.getCurrentLocation(),
                             "op does not have a custom parser");
   }
+
+  // Handle default-valued attributes
+  auto opAttrs = getTrait<AttrConstraintTrait>()->getOpAttrs();
+  DenseSet<Identifier> found;
+  for (auto &[name, attr] : result.attributes)
+    found.insert(name);
+  for (auto &[name, attr] : opAttrs) {
+    if (auto def = attr.dyn_cast<DefaultAttr>(); def && !found.count(name)) {
+      result.attributes.push_back({name, def.getDefaultValue()});
+    }
+  }
+  return success();
 }
 
 void DynamicOperation::printOperation(OpAsmPrinter &printer, Operation *op) {
