@@ -1,6 +1,7 @@
 #include "dmc/Spec/SpecOps.h"
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecAttrs.h"
+#include "dmc/Spec/SpecDialect.h"
 #include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/Parsing.h"
 #include "dmc/Traits/SpecTraits.h"
@@ -13,6 +14,9 @@ using namespace mlir;
 using namespace mlir::dmc;
 
 namespace dmc {
+
+/// StringRef::size is not constexpr
+const/*expr*/ auto dmcDotLen = SpecDialect::getDialectNamespace().size() + 1;
 
 void addAttributesIfNotPresent(ArrayRef<NamedAttribute> attrs,
                                OperationState &result) {
@@ -59,7 +63,7 @@ ParseResult DialectOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 void DialectOp::print(OpAsmPrinter &printer) {
-  printer << getOperation()->getName() << ' ';
+  printer << getOperationName().drop_front(dmcDotLen) << ' ';
   printer.printSymbolName(getName());
   printer.printOptionalAttrDictWithKeyword(getAttrs(), {
       mlir::SymbolTable::getSymbolAttrName()});
@@ -181,7 +185,7 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 void OperationOp::print(OpAsmPrinter &printer) {
-  printer << getOperation()->getName() << ' ';
+  printer << getOperationName().drop_front(dmcDotLen) << ' ';
   printer.printSymbolName(getName());
   impl::printOpType(printer, getOpType());
   printer << ' ';
@@ -374,7 +378,7 @@ ParseResult TypeOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 void TypeOp::print(OpAsmPrinter &printer) {
-  printer << getOperation()->getName() << ' ';
+  printer << getOperationName().drop_front(dmcDotLen) << ' ';
   printer.printSymbolName(getName());
   printParameters(printer);
   printer.printOptionalAttrDict(
@@ -402,7 +406,7 @@ ParseResult AttributeOp::parse(OpAsmParser &parser, OperationState &result) {
 }
 
 void AttributeOp::print(OpAsmPrinter &printer) {
-  printer << getOperation()->getName() << ' ';
+  printer << getOperationName().drop_front(dmcDotLen) << ' ';
   printer.printSymbolName(getName());
   printParameters(printer);
 }
@@ -455,7 +459,7 @@ ParseResult AliasOp::parse(mlir::OpAsmParser &parser,
 }
 
 void AliasOp::print(OpAsmPrinter &printer) {
-  printer << getOperationName() << ' ';
+  printer << getOperationName().drop_front(dmcDotLen) << ' ';
   printer.printSymbolName(getName());
   printer << " -> ";
   if (auto type = getAliasedType()) {
