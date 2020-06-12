@@ -40,10 +40,8 @@ Dialect @lua {
   //--------------------------------------------------------------------------//
   Op @load_var() -> (res: !lua.Value)  { var = #dmc.String, scope = #lua.scope }
     config { fmt = "$var (`at` $scope^)? attr-dict" }
-
   Op @store_var(val: !lua.Value) -> () { var = #dmc.String, scope = #lua.scope }
     config { fmt = "$val `->` $var (`at` $scope^)? attr-dict" }
-
   Op @add(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` attr-dict" }
 
