@@ -83,6 +83,17 @@ void genericPrint(OpAsmPrinter &printer, const object &obj) {
   }
 }
 
+static LogicalResult resolveOperands(OpAsmParser &parser, list operands,
+                                     list types, ResultWrap &wrap) {
+  for (auto [operand, type] : llvm::zip(operands, types)) {
+    if (parser.resolveOperand(operand.cast<OpAsmParser::OperandType>(),
+                              type.cast<Type>(),
+                              wrap.getResult().operands))
+      return failure();
+  }
+  return success();
+}
+
 } // end anonymous namespace
 
 void exposeOpAsm(module &m) {
@@ -177,13 +188,13 @@ void exposeOpAsm(module &m) {
         if (operands.size() != types.size())
           return parser.emitError(loc) << operands.size()
               << " operands present, but expected " << types.size();
-        for (auto [operand, type] : llvm::zip(operands, types)) {
-          if (parser.resolveOperand(operand.cast<OpAsmParser::OperandType>(),
-                                    type.cast<Type>(),
-                                    wrap.getResult().operands))
-            return failure();
-        }
-        return success();
+        return resolveOperands(parser, operands, types, wrap);
+      })
+      .def("resolveOperands", [](OpAsmParser &parser, list operands, list types,
+                                 ResultWrap &wrap) -> LogicalResult {
+        if (operands.size() != types.size())
+          return failure();
+        return resolveOperands(parser, operands, types, wrap);
       })
       .def("parseFunctionalType", [](OpAsmParser &parser) {
         FunctionType funcType;

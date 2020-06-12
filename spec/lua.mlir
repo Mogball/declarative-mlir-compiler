@@ -3,6 +3,8 @@ Dialect @lua {
   // Types
   //--------------------------------------------------------------------------//
   Type @value
+  Alias @Value -> !dmc.Isa<@lua::@value> // TODO implicitly buildable
+    { builder = "build_dynamic_type(\"lua\", \"value\")" }
 
   /// Concrete built-in types.
   Type @nil
@@ -36,21 +38,22 @@ Dialect @lua {
   //--------------------------------------------------------------------------//
   // High-Level Ops
   //--------------------------------------------------------------------------//
-  Op @load_var() -> (res: !lua.value)  { var = #dmc.String, scope = #lua.scope }
-    config { fmt = "$var `->` type($res) (`at` $scope^)? attr-dict" }
-  Op @store_var(val: !lua.value) -> () { var = #dmc.String, scope = #lua.scope }
-    config { fmt = "`(` $val `:` type($val) `)` `->` $var (`at` $scope^)? attr-dict" }
+  Op @load_var() -> (res: !lua.Value)  { var = #dmc.String, scope = #lua.scope }
+    config { fmt = "$var (`at` $scope^)? attr-dict" }
 
-  Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
+  Op @store_var(val: !lua.Value) -> () { var = #dmc.String, scope = #lua.scope }
+    config { fmt = "$val `->` $var (`at` $scope^)? attr-dict" }
+
+  Op @add(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
+    config { fmt = "`(` operands `)` attr-dict" }
 
   //--------------------------------------------------------------------------//
   // Concrete Type Ops
   //--------------------------------------------------------------------------//
   Op @get_nil() -> (res: !lua.nil)
     config { fmt = "type($res) attr-dict" }
-  Op @convto_bool(val: !lua.value) -> (res: !lua.boolean)
-    config { fmt = "`(` $val `:` type($val) `)` `->` type($res) attr-dict" }
-  Op @convto_value(val: !lua.concrete) -> (res: !lua.value)
-    config { fmt = "`(` $val `:` type($val) `)` `->` type($res) attr-dict" }
+  Op @convto_bool(val: !lua.Value) -> (res: !lua.boolean)
+    config { fmt = "$val `->` type($res) attr-dict" }
+  Op @convto_value(val: !lua.concrete) -> (res: !lua.Value)
+    config { fmt = "`(` $val `:` type($val) `)` attr-dict" }
 }
