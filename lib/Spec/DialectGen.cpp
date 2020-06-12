@@ -112,6 +112,8 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
     if (failed(generateOpFormat(opOp, parser.stream(), printer.stream())))
       return failure();
     op->setOpFormat(std::move(parserName), std::move(printerName));
+
+    llvm::errs() << printer.str() << "\n";
   }
 
   /// Finally, register the Op.

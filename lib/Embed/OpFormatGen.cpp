@@ -796,9 +796,16 @@ static void genAttrDictPrinter(OperationFormat &fmt, OperationOp op,
                                PythonGenStream &body, bool withKeyword) {
   // Collect all of the attributes used in the format, these will be elided.
   SmallVector<const NamedAttribute *, 1> usedAttributes;
-  for (auto &it : fmt.elements)
-    if (auto *attr = dyn_cast<AttributeVariable>(it.get()))
+  for (auto &it : fmt.elements) {
+    if (auto *attr = dyn_cast<AttributeVariable>(it.get())) {
       usedAttributes.push_back(attr->getVar());
+    } else if (auto *opt = dyn_cast<OptionalElement>(it.get())) {
+      for (auto &it : opt->getElements()) {
+        if (auto *attr = dyn_cast<AttributeVariable>(&it))
+          usedAttributes.push_back(attr->getVar());
+      }
+    }
+  }
 
   auto line = body.line() << "p.printOptionalAttrDict"
       << (withKeyword ? "WithKeyword" : "") << "(op.getAttrs(), [";
