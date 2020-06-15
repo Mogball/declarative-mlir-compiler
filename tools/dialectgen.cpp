@@ -5,8 +5,14 @@
 #include <mlir/Parser.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Verifier.h>
+#include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/SCF/SCF.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Conversion/LoopToStandard/ConvertLoopToStandard.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h>
+
 #include <llvm/Support/ErrorOr.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
@@ -19,6 +25,7 @@ static DialectRegistration<SpecDialect> specDialectRegistration;
 static DialectRegistration<TraitRegistry> registerTraits;
 static DialectRegistration<StandardOpsDialect> registerStdOps;
 static DialectRegistration<scf::SCFDialect> registerScfOps;
+static DialectRegistration<LLVM::LLVMDialect> registerLlvmOps;
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -55,6 +62,17 @@ int main(int argc, char *argv[]) {
   }
   if (failed(verify(*mlirModule))) {
     llvm::errs() << "Failed to verify MLIR module: " << argv[2] << "\n";
+    return -1;
+  }
+
+  mlirModule->print(llvm::outs());
+  llvm::outs() << "\n";
+
+  PassManager pm{&ctx};
+  pm.addPass(mlir::createLowerToCFGPass());
+  pm.addPass(mlir::createLowerToLLVMPass());
+  if (failed(pm.run(*mlirModule))) {
+    llvm::errs() << "Pass manager failed\n";
     return -1;
   }
 

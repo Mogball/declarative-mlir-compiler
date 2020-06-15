@@ -3,6 +3,7 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicType.h"
+#include "dmc/Dynamic/Alias.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -29,10 +30,26 @@ static Type buildDynamicType(
   return DynamicType::getChecked(loc, impl, params);
 }
 
+static Type getAliasedType(std::string dialectName, std::string aliasName) {
+  auto *dialect = mlir::py::getMLIRContext()->getRegisteredDialect(dialectName);
+  if (!dialect)
+    throw std::invalid_argument{"Unknown dialect name: " + dialectName};
+  auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
+  if (!dynDialect)
+    throw std::invalid_argument{"Not a dynamic dialect: " + dialectName};
+  auto *alias = dynDialect->lookupTypeAlias(aliasName);
+  if (!alias)
+    throw std::invalid_argument{"Unknown type '" + aliasName + "' in dialect '" +
+                                dialectName + "'"};
+  return alias->getAliasedType();
+}
+
 void exposeDynamicTypes(module &m) {
   m.def("build_dynamic_type", &buildDynamicType,
         "dialectName"_a, "typeName"_a, "params"_a = std::vector<Attribute>{},
         "location"_a = mlir::py::getUnknownLoc());
+
+  m.def("get_aliased_type", &getAliasedType);
 }
 
 } // end namespace py

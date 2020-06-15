@@ -7,19 +7,8 @@ Dialect @lua {
     { builder = "build_dynamic_type(\"lua\", \"value\")" }
 
   /// Concrete built-in types.
-  Type @nil
   Alias @bool -> i1
     { builder = "IntegerType(1)" }
-  Type @string
-  Alias @String -> !dmc.Isa<@lua::@string>
-    { builder = "build_dynamic_type(\"lua\", \"string\")" }
-  Type @table
-  Alias @Table -> !dmc.Isa<@lua::@table>
-    { builder = "build_dynamic_type(\"lua\", \"table\")" }
-
-  //Type @function
-  //Type @userdata
-  //Type @thread
 
   // Lua uses 64-bit integers and floats
   Alias @real -> f64 { builder = "F64()" }
@@ -93,4 +82,34 @@ Dialect @lua {
     config { fmt = "$tbl `[` $key `]` `=` $value attr-dict" }
   Op @table_size(tbl: !lua.Value) -> (res: !lua.integer)
     config { fmt = "$tbl attr-dict" }
+}
+
+Dialect @luac {
+  Op @allocate_object() -> (obj: !lua.Value) config { fmt = "attr-dict" }
+
+  Type @object
+  Alias @Object -> !dmc.Isa<@luac::@object>
+    { builder = "build_dynamic_type(\"luac\", \"table\")" }
+
+  Op @allocate_table() -> (tbl: !luac.Object) config { fmt = "attr-dict" }
+  Op @give_table(obj: !lua.Value, tbl: !luac.Object) -> ()
+    config { fmt = "$obj `=` $tbl attr-dict" }
+
+  Op @allocate_string() -> (str: !luac.Object) config { fmt = "attr-dict" }
+  Op @give_string(obj: !lua.Value, str: !luac.Object) -> ()
+    config { fmt = "$obj `=` $str attr-dict" }
+  Op @set_string_bytes(str: !luac.Object) -> () { bytes = #dmc.String }
+    config { fmt = "$str `=` $bytes attr-dict" }
+
+  Op @set_integer(obj: !lua.Value, int: !lua.integer) -> ()
+    config { fmt = "$obj `=` $int attr-dict" }
+  Op @set_real(obj: !lua.Value, real: !lua.real) -> ()
+    config { fmt = "$obj `=` $real attr-dict" }
+  Op @set_bool(obj: !lua.Value, bool: !lua.bool) -> ()
+    config { fmt = "$obj `=` $bool attr-dict" }
+}
+
+Dialect @luallvm {
+  Alias @value -> !llvm<"{ i32, { { { i64 }, i32 } } }*">
+    { builder = "get_aliased_type(\"luallvm\", \"value\")" }
 }

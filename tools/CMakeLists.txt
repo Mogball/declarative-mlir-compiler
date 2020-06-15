@@ -29,6 +29,9 @@ target_link_libraries(gen
   LLVMSupport
   MLIRStandardOps
   MLIRParser
+  MLIRLLVMIR
+  MLIRLoopToStandard
+  MLIRStandardToLLVM
   )
 
 add_executable(kind statickind.cpp)
