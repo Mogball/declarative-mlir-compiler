@@ -1,39 +1,56 @@
-func @add_integers_in(%arg : !lua.value) -> !lua.value {
-  %tbl = lua.convto %arg -> !lua.table
-  %acc = constant 0 : !lua.integer
+func @add_integers_in(%tbl : !lua.value) -> !lua.value {
+  %size = lua.table_size %tbl
+
+  %acc_value = constant 0 : !lua.integer
+  %acc = lua.wrap %acc_value : !lua.integer
 
   %i0 = constant 0 : index
   %step = constant 1 : index
-  %size = lua.size(%tbl)
   %end = index_cast %size : !lua.integer to index
 
-  %ret = loop.for %i = %i0 to %end step %step iter_args(%sum_it = %acc) -> !lua.integer {
-    %key = index_cast %i : index to !lua.integer
-    %key_v = lua.tovalue(%key : !lua.integer)
+  %ret = loop.for %i = %i0 to %end step %step iter_args(%acc_it = %acc) -> !lua.value {
+    %key_v = index_cast %i : index to !lua.integer
+    %key = lua.wrap %key_v : !lua.integer
 
-    %val = lua.get %tbl[%key_v]
+    %val = lua.table_get %tbl[%key]
 
-    %val_type = lua.typeof(%val)
-    %target_type = lua.string_const "integer"
-    %val_type_v = lua.tovalue(%val_type : !lua.string)
-    %target_type_v = lua.tovalue(%target_type : !lua.string)
-    %are_eq = lua.eq(%val_type_v, %target_type_v)
+    %val_type = lua.typeof %val
+    %target_type = lua.get_string "integer"
+    %are_eq = lua.eq(%val_type, %target_type)
 
-    %acc_next = loop.if %are_eq -> !lua.integer {
-      %acc_v = lua.tovalue(%sum_it : !lua.integer)
-      %new_acc_v = lua.add(%acc_v, %val)
-      %new_acc = lua.convto %new_acc_v -> !lua.integer
-      loop.yield %new_acc : !lua.integer
+    %acc_next = loop.if %are_eq -> !lua.value {
+      %new_acc = lua.add(%acc_it, %val)
+      loop.yield %new_acc : !lua.value
     } else {
-      loop.yield %sum_it : !lua.integer
+      loop.yield %acc_it : !lua.value
     }
-    loop.yield %acc_next : !lua.integer
+    loop.yield %acc_next : !lua.value
   }
 
-  %ret_v = lua.tovalue(%ret : !lua.integer)
-  return %ret_v : !lua.value
+  return %ret : !lua.value
 }
 
+func @random_string_or_int(%length : index) -> !lua.value
+func @print(%val : !lua.value) -> ()
+
 func @lua_main() -> () {
+  %tbl = lua.new_table
+
+  %L = constant 16 : index
+
+  %i0 = constant 0 : index
+  %in = constant 10 : index
+  %step = constant 1 : index
+  loop.for %i = %i0 to %in step %step {
+    %key_v = index_cast %i : index to !lua.integer
+    %key = lua.wrap %key_v : !lua.integer
+    %val = call @random_string_or_int(%L) : (index) -> !lua.value
+    lua.table_set %tbl[%key] = %val
+  }
+
+  call @print(%tbl) : (!lua.value) -> ()
+  %result = call @add_integers_in(%tbl) : (!lua.value) -> !lua.value
+  call @print(%result) : (!lua.value) -> ()
+
   return
 }
