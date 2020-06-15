@@ -175,7 +175,7 @@ LogicalResult registerAlias(AliasOp aliasOp, DynamicDialect *dialect) {
         aliasOp.getName(), aliasOp.getAliasedAttr(), aliasOp.getBuilder(),
         aliasOp.getAttrType()})))
       return aliasOp.emitOpError(
-          "an attribute alias with  this name already exists");
+          "an attribute alias with this name already exists");
   }
   return success();
 }
