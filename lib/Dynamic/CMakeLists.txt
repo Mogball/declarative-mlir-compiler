@@ -10,5 +10,6 @@ add_library(DMCDynamic
   )
 target_link_libraries(DMCDynamic
   DMCSpec
+  DMCEmbed
   MLIRIR
   )

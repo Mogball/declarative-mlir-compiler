@@ -1,3 +1,4 @@
+#include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicAttribute.h"
@@ -150,6 +151,22 @@ DynamicTypeImpl *DynamicType::getDynImpl() {
 
 ArrayRef<Attribute> DynamicType::getParams() {
   return getImpl()->params;
+}
+
+Type buildDynamicType(StringRef dialectName, StringRef typeName,
+                      ArrayRef<Attribute> params, Location loc) {
+  auto *dialect = loc.getContext()->getRegisteredDialect(dialectName);
+  auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
+  auto *impl = dynDialect->lookupType(typeName);
+  return DynamicType::getChecked(loc, impl, params);
+}
+
+Type getAliasedType(StringRef dialectName, StringRef typeName,
+                    MLIRContext *ctx) {
+  auto *dialect = ctx->getRegisteredDialect(dialectName);
+  auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
+  auto *alias = dynDialect->lookupTypeAlias(typeName);
+  return alias->getAliasedType();
 }
 
 } // end namespace dmc

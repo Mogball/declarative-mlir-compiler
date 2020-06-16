@@ -15,7 +15,6 @@ target_link_libraries(spec
   DMCSpec
   DMCTraits
   DMCEmbed
-  DMCEmbed
   LLVMSupport
   MLIRParser
   )

@@ -76,4 +76,10 @@ public:
   llvm::ArrayRef<mlir::Attribute> getParams();
 };
 
+mlir::Type buildDynamicType(
+    llvm::StringRef dialectName, llvm::StringRef typeName,
+    llvm::ArrayRef<mlir::Attribute> params, mlir::Location loc);
+mlir::Type getAliasedType(llvm::StringRef dialectName, llvm::StringRef typeName,
+                          mlir::MLIRContext *ctx);
+
 } // end namespace dmc

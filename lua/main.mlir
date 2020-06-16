@@ -1,5 +1,6 @@
 func @add_integers_in(%tbl : !lua.value) -> !lua.value {
-  %size = lua.table_size %tbl
+  %size_v = lua.table_size %tbl
+  %size = lua.unwrap %size_v -> !lua.integer
 
   %acc_value = constant 0 : !lua.integer
   %acc = lua.wrap %acc_value : !lua.integer

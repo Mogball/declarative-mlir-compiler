@@ -66,6 +66,8 @@ Dialect @lua {
 
   Op @wrap(val: !lua.concrete) -> (res: !lua.Value)
     config { fmt = "$val `:` type($val) attr-dict" }
+  Op @unwrap(val: !lua.Value) -> (res: !lua.concrete)
+    config { fmt = "$val `->` type($res) attr-dict" }
 
   //--------------------------------------------------------------------------//
   // Type querying
@@ -80,33 +82,25 @@ Dialect @lua {
     config { fmt = "$tbl `[` $key `]` attr-dict" }
   Op @table_set(tbl: !lua.Value, key: !lua.Value, value: !lua.Value) -> ()
     config { fmt = "$tbl `[` $key `]` `=` $value attr-dict" }
-  Op @table_size(tbl: !lua.Value) -> (res: !lua.integer)
+  Op @table_size(tbl: !lua.Value) -> (res: !lua.Value)
     config { fmt = "$tbl attr-dict" }
 }
 
 Dialect @luac {
-  Op @allocate_object() -> (obj: !lua.Value) config { fmt = "attr-dict" }
+  Op @wrap_int(val: !lua.integer) -> (res: !lua.Value) config { fmt = "$val attr-dict" }
+  Op @wrap_real(val: !lua.real) -> (res: !lua.Value) config { fmt = "$val attr-dict" }
+  Op @wrap_bool(val: !lua.bool) -> (res: !lua.Value) config { fmt = "$val attr-dict" }
+  Op @unwrap_int(val: !lua.Value) -> (res: !lua.integer) config { fmt = "$val attr-dict" }
+  Op @unwrap_real(val: !lua.Value) -> (res: !lua.real) config { fmt = "$val attr-dict" }
+  Op @unwrap_bool(val: !lua.Value) -> (res: !lua.bool) config { fmt = "$val attr-dict" }
 
-  Type @object
-  Alias @Object -> !dmc.Isa<@luac::@object>
-    { builder = "build_dynamic_type(\"luac\", \"table\")" }
-
-  Op @allocate_table() -> (tbl: !luac.Object) config { fmt = "attr-dict" }
-  Op @give_table(obj: !lua.Value, tbl: !luac.Object) -> ()
-    config { fmt = "$obj `=` $tbl attr-dict" }
-
-  Op @allocate_string() -> (str: !luac.Object) config { fmt = "attr-dict" }
-  Op @give_string(obj: !lua.Value, str: !luac.Object) -> ()
-    config { fmt = "$obj `=` $str attr-dict" }
-  Op @set_string_bytes(str: !luac.Object) -> () { bytes = #dmc.String }
-    config { fmt = "$str `=` $bytes attr-dict" }
-
-  Op @set_integer(obj: !lua.Value, int: !lua.integer) -> ()
-    config { fmt = "$obj `=` $int attr-dict" }
-  Op @set_real(obj: !lua.Value, real: !lua.real) -> ()
-    config { fmt = "$obj `=` $real attr-dict" }
-  Op @set_bool(obj: !lua.Value, bool: !lua.bool) -> ()
-    config { fmt = "$obj `=` $bool attr-dict" }
+  Type @string
+  Op @global_string() -> () { sym_name = #dmc.String, str = #dmc.String }
+    config { fmt = "$sym_name `(` $str `)` attr-dict" }
+  Op @load_string() -> (str: !luac.string, len: i32) { sym = #dmc.String }
+    config { fmt = "$sym `->` `(` type(results) `)` attr-dict" }
+  Op @get_string(str: !luac.string, len: i32) -> (res: !lua.Value)
+    config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
 }
 
 Dialect @luallvm {

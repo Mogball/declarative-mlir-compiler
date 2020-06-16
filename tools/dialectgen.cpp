@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 
   PassManager pm{&ctx};
   pm.addPass(mlir::createLowerToCFGPass());
-  pm.addPass(mlir::createLowerToLLVMPass());
+  //pm.addPass(mlir::createLowerToLLVMPass());
   if (failed(pm.run(*mlirModule))) {
     llvm::errs() << "Pass manager failed\n";
     return -1;
