@@ -176,6 +176,7 @@ Token Lexer::lexIdentifier(const char *tokStart) {
           .Case("results", Token::kw_results)
           .Case("successors", Token::kw_successors)
           .Case("type", Token::kw_type)
+          .Case("symbol", Token::kw_symbol)
           .Case("dims", Token::kw_dims)
           .Default(Token::identifier);
   return Token(kind, str);

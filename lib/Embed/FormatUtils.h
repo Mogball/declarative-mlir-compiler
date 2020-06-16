@@ -147,6 +147,7 @@ public:
     kw_results,
     kw_successors,
     kw_type,
+    kw_symbol,
     kw_dims,
     keyword_end,
 

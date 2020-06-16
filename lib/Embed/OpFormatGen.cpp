@@ -56,6 +56,7 @@ enum Kind {
   ResultsDirective,
   SuccessorsDirective,
   TypeDirective,
+  SymbolDirective,
 
   /// This element is an variable value.
   AttributeVariable,
@@ -179,6 +180,22 @@ private:
   /// The operand that is used to format the directive.
   std::unique_ptr<Element> operand;
 };
+
+class SymbolDirective : public DirectiveElement<FormatElement::SymbolDirective> {
+public:
+  SymbolDirective(std::unique_ptr<Element> arg) : attr(std::move(arg)) {}
+
+  const NamedAttribute *getAttr() const {
+    return cast<AttributeVariable>(attr.get())->getVar();
+  }
+
+  StringRef getAttrName() const {
+    return getAttr()->first.strref();
+  }
+
+private:
+  std::unique_ptr<Element> attr;
+};
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -281,6 +298,13 @@ static bool canFormatEnumAttr(const NamedAttribute *attr) {
 void genAttrParserCode(PythonGenStream &s, StringRef name, StringRef type) {
   s.line() << "if not parser.parseAttribute(result, \"" << name
       << "\"" << type << "):" << incr; {
+    s.line() << "return False";
+  } s.endif();
+}
+
+void genSymbolAttrParserCode(PythonGenStream &s, StringRef name) {
+  s.line() << "if not parser.parseSymbolName(result, \"" << name
+      << "\"):" << incr; {
     s.line() << "return False";
   } s.endif();
 }
@@ -581,6 +605,8 @@ static void genElementParser(Element *element, PythonGenStream &body,
     genFunctionalTypeParserCode(body,
                                 getTypeListName(dir->getInputs(), ignored),
                                 getTypeListName(dir->getResults(), ignored));
+  } else if (auto *dir = dyn_cast<SymbolDirective>(element)) {
+    genSymbolAttrParserCode(body, dir->getAttrName());
   } else {
     llvm_unreachable("unknown format element");
   }
@@ -804,6 +830,8 @@ static void genAttrDictPrinter(OperationFormat &fmt, OperationOp op,
         if (auto *attr = dyn_cast<AttributeVariable>(&it))
           usedAttributes.push_back(attr->getVar());
       }
+    } else if (auto *dir = dyn_cast<SymbolDirective>(it.get())) {
+      usedAttributes.push_back(dir->getAttr());
     }
   }
 
@@ -980,6 +1008,9 @@ static void genElementPrinter(Element *element, PythonGenStream &body,
     line << ", ";
     genTypeOperandPrinter(dir->getResults(), line);
     line << ")";
+  } else if (auto *dir = dyn_cast<SymbolDirective>(element)) {
+    body.line() << "p.printSymbolName(op.getAttr(\""
+        << dir->getAttrName() << "\").getValue())";
   } else {
     llvm_unreachable("unknown format element");
   }
@@ -1123,8 +1154,10 @@ private:
   LogicalResult parseSuccessorsDirective(std::unique_ptr<Element> &element,
                                          llvm::SMLoc loc, bool isTopLevel);
   LogicalResult parseTypeDirective(std::unique_ptr<Element> &element,
-                                   llvm::SMLoc tok, bool isTopLevel);
+                                   llvm::SMLoc loc, bool isTopLevel);
   LogicalResult parseTypeDirectiveOperand(std::unique_ptr<Element> &element);
+  LogicalResult parseSymbolDirective(std::unique_ptr<Element> &element,
+                                     llvm::SMLoc loc, bool isTopLevel);
 
   //===--------------------------------------------------------------------===//
   // Fields
@@ -1535,6 +1568,8 @@ LogicalResult FormatParser::parseDirective(std::unique_ptr<Element> &element,
     return parseSuccessorsDirective(element, dirTok.getLoc(), isTopLevel);
   case Token::kw_type:
     return parseTypeDirective(element, dirTok.getLoc(), isTopLevel);
+  case Token::kw_symbol:
+    return parseSymbolDirective(element, dirTok.getLoc(), isTopLevel);
 
   default:
     return emitError(dirTok.getLoc(), "unknown directive");
@@ -1781,6 +1816,19 @@ FormatParser::parseTypeDirectiveOperand(std::unique_ptr<Element> &element) {
   } else {
     return emitError(loc, "invalid argument to 'type' directive");
   }
+  return success();
+}
+
+LogicalResult FormatParser::parseSymbolDirective(
+    std::unique_ptr<Element> &element, llvm::SMLoc loc, bool isTopLevel) {
+  std::unique_ptr<Element> attr;
+  if (failed(parseToken(Token::l_paren, "expected `(` before argument list")) ||
+      failed(parseVariable(attr, false)) ||
+      failed(parseToken(Token::r_paren, "expected `)` after argument list")))
+    return failure();
+  if (!isa<AttributeVariable>(attr))
+    return emitError(loc, "'symbol' directive expects attribute operand");
+  element = std::make_unique<SymbolDirective>(std::move(attr));
   return success();
 }
 

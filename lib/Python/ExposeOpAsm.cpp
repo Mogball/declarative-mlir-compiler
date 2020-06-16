@@ -110,6 +110,9 @@ void exposeOpAsm(module &m) {
       })
       .def("printAttribute", &OpAsmPrinter::printAttribute)
       .def("printAttributeWithoutType", &OpAsmPrinter::printAttributeWithoutType)
+      .def("printSymbolName", [](OpAsmPrinter &printer, std::string name) {
+        printer.printSymbolName(name);
+      })
       .def("printSuccessor", &OpAsmPrinter::printSuccessor)
       .def("printSuccessorAndUseList", [](OpAsmPrinter &printer, Block *successor,
                                           ValueListRef succOperands) {
@@ -169,6 +172,11 @@ void exposeOpAsm(module &m) {
         return parser.parseAttribute(attr, type, name,
                                      wrap.getResult().attributes);
       }, "attributes"_a, "name"_a, "type"_a = Type{})
+      .def("parseSymbolName", [](OpAsmParser &parser, ResultWrap &wrap,
+                                 std::string name) {
+        StringAttr attr;
+        return parser.parseSymbolName(attr, name, wrap.getResult().attributes);
+      })
       .def("parseOptionalAttrDict", [](OpAsmParser &parser, ResultWrap &wrap) {
         return parser.parseOptionalAttrDict(wrap.getResult().attributes);
       })

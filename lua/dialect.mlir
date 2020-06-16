@@ -96,9 +96,9 @@ Dialect @luac {
 
   Type @string
   Op @global_string() -> () { sym_name = #dmc.String, str = #dmc.String }
-    config { fmt = "$sym_name `(` $str `)` attr-dict" }
+    config { fmt = "symbol($sym_name) `(` $str `)` attr-dict" }
   Op @load_string() -> (str: !luac.string, len: i32) { sym = #dmc.String }
-    config { fmt = "$sym `->` `(` type(results) `)` attr-dict" }
+    config { fmt = "symbol($sym) `->` `(` type(results) `)` attr-dict" }
   Op @get_string(str: !luac.string, len: i32) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
 }

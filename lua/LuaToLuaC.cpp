@@ -62,7 +62,6 @@ public:
       : BaseWrapRewrite{argTy, newOpName, "lua.unwrap", ctx} {}
 
   LogicalResult match(Operation *op) const override {
-    op->print(llvm::errs());
     return success(*op->result_type_begin() ==
                    getAliasedType("lua", argTy, op->getContext()));
   }
