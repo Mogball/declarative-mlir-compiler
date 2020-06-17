@@ -31,10 +31,10 @@ func @add_integers_in(%tbl : !lua.value) -> !lua.value {
   return %ret : !lua.value
 }
 
-func @random_string_or_int(%length : index) -> !lua.value
+func @random_string_or_int(%len : index) -> !lua.value
 func @print(%val : !lua.value) -> ()
 
-func @lua_main() -> () {
+func @main() -> () {
   %tbl = lua.new_table
 
   %L = constant 16 : index

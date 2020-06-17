@@ -8,8 +8,8 @@ target_link_libraries(LuaToLuaC
   DMCDynamic
   )
 
-add_executable(luac luac.cpp)
-target_link_libraries(luac
+add_executable(mluac luac.cpp)
+target_link_libraries(mluac
   LuaToLuaC
   DMCSpec
   DMCTraits
