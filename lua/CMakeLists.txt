@@ -1,4 +1,8 @@
-add_library(LuaToLuaC LuaToLuaC.cpp)
+add_library(LuaToLuaC
+  LuaToLuaC.cpp
+  LuaToLLVM.cpp
+  LuaToLuaLib.cpp
+  )
 target_link_libraries(LuaToLuaC
   MLIRIR
   DMCDynamic
@@ -11,4 +15,6 @@ target_link_libraries(luac
   DMCTraits
   MLIRParser
   MLIRLLVMIR
+  MLIRLoopToStandard
+  MLIRStandardToLLVM
   )

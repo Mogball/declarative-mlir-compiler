@@ -1,7 +1,7 @@
 func @lua_add(%lhs: !lua.value, %rhs: !lua.value) -> !lua.value
 func @lua_sub(%lhs: !lua.value, %rhs: !lua.value) -> !lua.value
-func @lua_eq(%lhs: !lua.value, %rhs: !lua.value) -> !lua.value
-func @lua_neq(%lhs: !lua.value, %rhs: !lua.value) -> !lua.value
+func @lua_eq(%lhs: !lua.value, %rhs: !lua.value) -> !lua.bool
+func @lua_neq(%lhs: !lua.value, %rhs: !lua.value) -> !lua.bool
 
 func @lua_get_nil() -> !lua.value
 func @lua_new_table() -> !lua.value

@@ -95,15 +95,13 @@ Dialect @luac {
   Op @unwrap_bool(val: !lua.Value) -> (res: !lua.bool) config { fmt = "$val attr-dict" }
 
   Type @string
-  Op @global_string() -> () { sym_name = #dmc.String, str = #dmc.String }
-    config { fmt = "symbol($sym_name) `(` $str `)` attr-dict" }
-  Op @load_string() -> (str: !luac.string, len: i32) { sym = #dmc.String }
-    config { fmt = "symbol($sym) `->` `(` type(results) `)` attr-dict" }
+  Op @load_string() -> (str: !luac.string, len: i32) { value = #dmc.String }
+    config { fmt = "$value `->` `(` type(results) `)` attr-dict" }
   Op @get_string(str: !luac.string, len: i32) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
 }
 
 Dialect @luallvm {
   Alias @value -> !llvm<"{ i32, { { { i64 }, i32 } } }*">
-    { builder = "get_aliased_type(\"luallvm\", \"value\")" }
+  Alias @string -> !llvm<"i8*">
 }

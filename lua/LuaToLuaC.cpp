@@ -89,22 +89,10 @@ struct GetStringRewrite : public RewritePattern {
   LogicalResult
   matchAndRewrite(Operation *op, PatternRewriter &r) const override {
     auto value = op->getAttrOfType<StringAttr>("value");
-    auto m = op->getParentOfType<ModuleOp>();
-    std::string stringSymbol{"lua_string_"};
-    stringSymbol += std::to_string(
-        reinterpret_cast<uintptr_t>(value.getAsOpaquePointer()));
-
-    if (!m.lookupSymbol(stringSymbol)) {
-      OperationState state{op->getLoc(), "luac.global_string"};
-      state.addAttribute("sym_name", r.getStringAttr(stringSymbol));
-      state.addAttribute("str", value);
-      auto *globalStr = Operation::create(state);
-      m.push_back(globalStr);
-    }
 
     Operation *loadStr; {
       OperationState state{op->getLoc(), "luac.load_string"};
-      state.addAttribute("sym", r.getStringAttr(stringSymbol));
+      state.addAttribute("value", value);
       state.addTypes({buildDynamicType("luac", "string", {}, op->getLoc()),
                       r.getIntegerType(32)});
       loadStr = r.createOperation(state);
