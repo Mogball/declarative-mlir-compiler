@@ -4,3 +4,6 @@
 [submodule "pybind11"]
 	path = pybind11
 	url = https://github.com/pybind/pybind11
+[submodule "grammars-v4"]
+	path = grammars-v4
+	url = https://github.com/antlr/grammars-v4

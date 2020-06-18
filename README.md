@@ -6,13 +6,14 @@
 
 - `cmake >= 3.10`
 - `python >= 3.6`
+- `antlr >= 4`
 
 Build with `cmake --build . --target gen`.
 
 ### Arch Linux
 
 ```
-sudo pacman -Sy cmake python
+sudo pacman -Sy cmake python antlr4
 ```
 
 ### MacOS
@@ -23,10 +24,4 @@ brew install cmake python3
 
 ## Short-Term TODOs
 
-- Buildable custom types
-
-## Long-Term TODOs
-
-- Incremental parsing: dynamic objects are registered during the parse, which
-  means that references to dynamic objects (e.g. types and attributes) can be
-  resolved on-the-go.
+- Automatic bindings for custom ops and types
