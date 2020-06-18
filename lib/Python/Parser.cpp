@@ -12,17 +12,13 @@ namespace py {
 
 /// Parse a source file from a given filename. Provide a source manager and
 /// a diagnostic handler for the parse.
-///
-/// OwningModuleRef is a smart pointer to ModuleOp and does not support copy
-/// construction or assignment. Allocate it to a pointer and tell Python to
-/// manage its lifespan.
-std::unique_ptr<OwningModuleRef> parseSourceFile(std::string filename) {
-  SourceMgr sourceMgr;
-  SourceMgrDiagnosticHandler diagnosticHandler{sourceMgr, getMLIRContext()};
-  auto ret = parseSourceFile(filename, sourceMgr, getMLIRContext());
-  if (ret)
-    return moveToHeap(std::move(ret));
-  return nullptr;
+ModuleOp parseSourceFile(std::string filename) {
+  // TODO 100% a memory leak. The SourceMgr needs to be kept alive. Make python
+  // manage the lifetime of the SourceMgr.
+  auto *sourceMgr = new SourceMgr;
+  new SourceMgrDiagnosticHandler{*sourceMgr, getMLIRContext()};
+  auto ret = parseSourceFile(filename, *sourceMgr, getMLIRContext());
+  return ret.release();
 }
 
 } // end namespace py

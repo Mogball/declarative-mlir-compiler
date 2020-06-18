@@ -14,12 +14,6 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
 }
 
 void exposeModule(module &m) {
-  class_<OwningModuleRef>(m, "OwningModuleRef")
-      .def(init<>())
-      .def("get", &getOwnedModule)
-      .def("release", &OwningModuleRef::release)
-      .def("__repr__", &printModuleRef)
-      .def("__bool__", &OwningModuleRef::operator bool);
   class_<ModuleOp>(m, "ModuleOp")
       .def(init<>())
       .def(init<const ModuleOp &>())

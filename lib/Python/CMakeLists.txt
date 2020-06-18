@@ -54,6 +54,14 @@ target_link_libraries(pymlir PUBLIC
   MLIRIR
   MLIRParser
   MLIRStandardOps
+  MLIRLLVMIR
+  MLIRSCF
+  )
+
+add_library(DMCDLLInit DllInit.cpp)
+target_link_libraries(DMCDLLInit PUBLIC
+  pybind11
+  pymlir
   )
 
 pybind11_add_module(mlir ExternalModule.cpp)
@@ -62,4 +70,5 @@ target_link_libraries(mlir PUBLIC
   DMCDynamic
   DMCSpec
   DMCTraits
+  DMCDLLInit
   )

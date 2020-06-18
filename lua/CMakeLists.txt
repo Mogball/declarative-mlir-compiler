@@ -3,16 +3,20 @@ add_library(LuaToLuaC
   LuaToLLVM.cpp
   LuaToLuaLib.cpp
   )
-target_link_libraries(LuaToLuaC
+target_link_libraries(LuaToLuaC PUBLIC
   MLIRIR
   DMCDynamic
+  DMCEmbedInit
   )
 
 add_executable(luac luac.cpp)
 target_link_libraries(luac
   LuaToLuaC
   DMCSpec
+  DMCDynamic
   DMCTraits
+  DMCEmbed
+  DMCEmbedInit
   MLIRParser
   MLIRLLVMIR
   MLIRLoopToStandard
@@ -50,7 +54,7 @@ function(compile_lua_ir OUT IR_FILE DIALECT_FILE LIB_FILE)
     )
   add_custom_command(
     OUTPUT ${obj_out}
-    COMMAND ${CLANG_EXE} -c ${llvm_out} -o ${obj_out} -fpie -pie
+    COMMAND ${CLANG_EXE} -c ${llvm_out} -o ${obj_out} -fpie -Wno-override-module
     DEPENDS ${llvm_out}
     COMMENT "Compiling ${llvm_out}"
     )

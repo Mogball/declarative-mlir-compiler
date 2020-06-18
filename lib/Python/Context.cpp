@@ -1,5 +1,9 @@
+#include "dmc/Spec/SpecDialect.h"
+#include "dmc/Traits/Registry.h"
+#include "dmc/Dynamic/DynamicContext.h"
+
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/InitAllDialects.h>
 
 namespace mlir {
 namespace py {
@@ -20,6 +24,10 @@ public:
 private:
   /// Initiazation order is guaranteed.
   DialectRegistration<StandardOpsDialect> standardOpsDialect;
+  DialectRegistration<scf::SCFDialect> scfDialect;
+  DialectRegistration<LLVM::LLVMDialect> llvmDialect;
+  DialectRegistration<dmc::SpecDialect> specDialect;
+  DialectRegistration<dmc::TraitRegistry> traitRegistry;
   MLIRContext context;
   MLIRContext *ptr{&context};
 };
