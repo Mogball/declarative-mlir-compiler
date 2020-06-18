@@ -444,6 +444,9 @@ void print(TObject *val) {
   case LuaType::String:
     cout << obj.asString()->get();
     break;
+  case LuaType::Table:
+    cout << "table: " << reinterpret_cast<void *>(obj.asTable());
+    break;
   default:
     cout << "unknown";
     break;
