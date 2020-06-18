@@ -22,6 +22,14 @@ sudo pacman -Sy cmake python antlr4
 brew install cmake python3
 ```
 
+### Python Dependencies
+
+The ANTLR4 runtime is needed.
+
+```
+pip3 install antlr4-python3-runtime
+```
+
 ## Short-Term TODOs
 
 - Automatic bindings for custom ops and types
