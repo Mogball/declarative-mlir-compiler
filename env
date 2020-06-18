@@ -1,2 +1,2 @@
 #!/bin/sh
-export PATH=$PATH:$(pwd)/bin/tools:$(pwd):$(pwd)/bin/llvm-project/llvm/bin
+export PATH=$PATH:$(pwd)/bin/tools:$(pwd):$(pwd)/bin/llvm-project/llvm/bin:$(pwd)/bin/lua

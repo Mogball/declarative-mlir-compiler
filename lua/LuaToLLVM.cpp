@@ -69,6 +69,27 @@ struct ConvertLoadString : public RewritePattern {
   }
 };
 
+struct ConvertAlloc : public RewritePattern {
+  explicit ConvertAlloc(MLIRContext *ctx)
+      : RewritePattern{"lualib.alloc", 0, ctx} {}
+
+  LogicalResult match(Operation *) const override {
+    return success();
+  }
+
+  void rewrite(Operation *op, PatternRewriter &r) const override {
+    using namespace LLVM;
+    auto *llvmDialect = op->getContext()->getRegisteredDialect<LLVMDialect>();
+    auto i64Ty = LLVMType::getInt64Ty(llvmDialect);
+    auto const1 = r.create<ConstantOp>(op->getLoc(), i64Ty,
+                                       r.getI64IntegerAttr(1));
+
+    auto valueTy = getAliasedType("luallvm", "value", op->getContext());
+    auto alloca = r.create<AllocaOp>(op->getLoc(), valueTy, const1.res(), 8);
+    r.replaceOp(op, alloca.res());
+  }
+};
+
 struct LuaToLLVMLoweringPass : public OperationPass<ModuleOp> {
   explicit LuaToLLVMLoweringPass()
       : OperationPass{TypeID::get<LuaToLLVMLoweringPass>()} {}
@@ -87,10 +108,10 @@ struct LuaToLLVMLoweringPass : public OperationPass<ModuleOp> {
     converter.addConversion(&convertLuaType);
 
     OwningRewritePatternList patterns;
+    patterns.insert<ConvertLoadString, ConvertAlloc>(&getContext());
     populateStdToLLVMConversionPatterns(converter, patterns,
                                         /*emitCWrappers=*/false,
                                         /*useAlignedAlloc=*/false);
-    patterns.insert<ConvertLoadString>(&getContext());
 
     LLVMConversionTarget target{getContext()};
     if (failed(applyPartialConversion(getOperation(), target, patterns,

@@ -31,8 +31,8 @@ func @add_integers_in(%tbl : !lua.value) -> !lua.value {
   return %ret : !lua.value
 }
 
-func @random_string_or_int(%len : index) -> !lua.value
-func @print(%val : !lua.value) -> ()
+func @random_string_or_int(%sret: !lua.value, %len : index)
+func @print(%val : !lua.value)
 
 func @main() -> () {
   %tbl = lua.new_table
@@ -45,7 +45,8 @@ func @main() -> () {
   loop.for %i = %i0 to %in step %step {
     %key_v = index_cast %i : index to !lua.integer
     %key = lua.wrap %key_v : !lua.integer
-    %val = call @random_string_or_int(%L) : (index) -> !lua.value
+    %val = lualib.alloc
+    call @random_string_or_int(%val, %L) : (!lua.value, index) -> ()
     lua.table_set %tbl[%key] = %val
   }
 

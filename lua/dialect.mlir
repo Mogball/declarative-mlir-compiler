@@ -15,7 +15,7 @@ Dialect @lua {
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @number -> !dmc.AnyOf<!lua.real, !lua.integer>
 
-  Alias @concrete -> !dmc.AnyOf<!dmc.Isa<@lua::@bool>, !lua.number>
+  Alias @concrete -> !dmc.AnyOf<!lua.bool, !lua.number>
 
   //--------------------------------------------------------------------------//
   // Attributes
@@ -99,6 +99,11 @@ Dialect @luac {
     config { fmt = "$value `->` `(` type(results) `)` attr-dict" }
   Op @get_string(str: !luac.string, len: i32) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
+}
+
+Dialect @lualib {
+  Op @alloc() -> (res: !lua.Value)
+    config { fmt = "attr-dict" }
 }
 
 Dialect @luallvm {

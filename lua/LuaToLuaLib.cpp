@@ -1,7 +1,11 @@
+#include <dmc/Dynamic/DynamicType.h>
+
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Pass/Pass.h>
+
+using namespace ::dmc;
 
 namespace mlir {
 namespace lua {
@@ -18,9 +22,24 @@ public:
   }
 
   void rewrite(Operation *op, PatternRewriter &r) const override {
-    auto call = r.create<CallOp>(op->getLoc(), funcName, op->getResultTypes(),
-                                 op->getOperands());
-    r.replaceOp(op, call.getResults());
+    auto valTy = buildDynamicType("lua", "value", {}, op->getLoc());
+    if (op->getNumResults() == 1 && valTy == *op->result_type_begin()) {
+      OperationState state{op->getLoc(), "lualib.alloc"};
+      state.addTypes(valTy);
+      auto *alloc = r.createOperation(state);
+
+      SmallVector<Type, 0> tys;
+      SmallVector<Value, 4> args;
+      args.push_back(alloc->getResult(0));
+      args.append(op->operand_begin(), op->operand_end());
+      r.create<CallOp>(op->getLoc(), funcName, tys, args);
+
+      r.replaceOp(op, alloc->getResults());
+    } else {
+      auto call = r.create<CallOp>(op->getLoc(), funcName, op->getResultTypes(),
+                                   op->getOperands());
+      r.replaceOp(op, call.getResults());
+    }
   }
 
 private:
@@ -76,6 +95,7 @@ struct LuaToLuaLibLoweringPass : public OperationPass<ModuleOp> {
 
     ConversionTarget target{getContext()};
     target.addLegalDialect("std");
+    target.addLegalDialect("lualib");
 
     if (failed(applyPartialConversion(getOperation(), target, patterns,
                                       nullptr)))

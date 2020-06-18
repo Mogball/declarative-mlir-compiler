@@ -82,7 +82,7 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   } else {
     if (!op->getTrait<AtLeastNOperands>())
       op->addOpTrait<AtLeastNOperands>(countNonVariadicValues(
-          opTy.getResultTypes()));
+          opTy.getOperandTypes()));
   }
   if (!hasVariadicValues(opTy.getResultTypes())) {
     if (failed(op->addOpTrait<NResults>(opTy.getNumResults())))

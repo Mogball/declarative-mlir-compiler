@@ -1,49 +1,38 @@
 #include "lua.h"
 
 #include <stddef.h>
+#include <stdio.h>
 
-TObject lua_add(TObject *lhs, TObject *rhs) {
-  return lua_get_nil();
+void lua_add(TObject *sret, TObject *lhs, TObject *rhs) {
 }
 
-TObject lua_sub(TObject *lhs, TObject *rhs) {
-  return lua_get_nil();
+void lua_sub(TObject *sret, TObject *lhs, TObject *rhs) {
 }
 
-TObject lua_eq(TObject *lhs, TObject *rhs) {
-  return lua_get_nil();
+void lua_eq(TObject *sret, TObject *lhs, TObject *rhs) {
 }
 
-TObject lua_neq(TObject *lhs, TObject *rhs) {
-  return lua_get_nil();
+void lua_neq(TObject *sret, TObject *lhs, TObject *rhs) {
 }
 
 
-TObject lua_get_nil(void) {
-  TObject ret;
-  ret.type = 0;
-  return ret;
+void lua_get_nil(TObject *sret) {
 }
 
-TObject lua_new_table(void) {
-  return lua_get_nil();
+void lua_new_table(TObject *sret) {
 }
 
-TObject lua_get_string(const char *data, int32_t len) {
-  return lua_get_nil();
+void lua_get_string(TObject *sret, const char *data, int32_t len) {
 }
 
 
-TObject lua_wrap_int(LuaInteger val) {
-  return lua_get_nil();
+void lua_wrap_int(TObject *sret, LuaInteger val) {
 }
 
-TObject lua_wrap_real(LuaReal val) {
-  return lua_get_nil();
+void lua_wrap_real(TObject *sret, LuaReal val) {
 }
 
-TObject lua_wrap_bool(bool boolean) {
-  return lua_get_nil();
+void lua_wrap_bool(TObject *sret, bool boolean) {
 }
 
 LuaInteger lua_unwrap_int(TObject *val) {
@@ -59,25 +48,21 @@ bool lua_unwrap_bool(TObject *val) {
 }
 
 
-TObject lua_typeof(TObject *val) {
-  return lua_get_nil();
+void lua_typeof(TObject *sret, TObject *val) {
 }
 
 
-TObject lua_table_get(TObject *tbl, TObject *key) {
-  return lua_get_nil();
+void lua_table_get(TObject *sret, TObject *tbl, TObject *key) {
 }
 
 void lua_table_set(TObject *tbl, TObject *key, TObject *val) {
 }
 
-TObject lua_table_size(TObject *tbl) {
-  return lua_get_nil();
+void lua_table_size(TObject *sret, TObject *tbl) {
 }
 
 void print(TObject *val) {
 }
 
-TObject random_string_or_int(size_t len) {
-  return lua_get_nil();
+void random_string_or_int(TObject *sret, size_t len) {
 }
