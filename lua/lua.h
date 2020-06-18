@@ -14,9 +14,7 @@ enum LuaType {
   Nil, Bool, Number, String, Table, Function, UserData, Thread
 };
 
-struct GCObject {
-  void *todo;
-};
+struct GCObject;
 
 enum Kind {
   Integer, Real

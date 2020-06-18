@@ -16,10 +16,11 @@ func @add_integers_in(%tbl : !lua.value) -> !lua.value {
     %val = lua.table_get %tbl[%key]
 
     %val_type = lua.typeof %val
-    %target_type = lua.get_string "integer"
+    %target_type = lua.get_string "number"
     %are_eq = lua.eq(%val_type, %target_type)
+    %are_eq_v = lua.unwrap %are_eq -> !lua.bool
 
-    %acc_next = loop.if %are_eq -> !lua.value {
+    %acc_next = loop.if %are_eq_v -> !lua.value {
       %new_acc = lua.add(%acc_it, %val)
       loop.yield %new_acc : !lua.value
     } else {

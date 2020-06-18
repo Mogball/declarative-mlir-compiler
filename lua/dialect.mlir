@@ -18,20 +18,6 @@ Dialect @lua {
   Alias @concrete -> !dmc.AnyOf<!lua.bool, !lua.number>
 
   //--------------------------------------------------------------------------//
-  // Attributes
-  //--------------------------------------------------------------------------//
-  Attr @local
-  Attr @global
-  Alias @var_scope -> #dmc.AnyOf<#dmc.Isa<@lua::@local>, #dmc.Isa<@lua::@global>>
-  Alias @scope -> #dmc.Default<#lua.var_scope, #lua.global>
-
-  Alias @None -> !dmc.None { builder = "NoneType()" }
-  Alias @ArithmeticOp -> #dmc.AnyOf<"unm", "add", "sub", "mul", "div", "idiv",
-                                    "mod", "pow", "concat">
-  Alias @BitwiseOp -> #dmc.AnyOf<"and", "or", "xor", "not", "shl", "shr">
-  Alias @RelationalOp -> #dmc.AnyOf<"eq", "lt", "le">
-
-  //--------------------------------------------------------------------------//
   // High-Level Ops
   //--------------------------------------------------------------------------//
   Op @add(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
@@ -39,20 +25,10 @@ Dialect @lua {
   Op @sub(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` attr-dict" }
 
-  Op @eq(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.bool)
+  Op @eq(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` attr-dict" }
-  Op @neq(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.bool)
+  Op @neq(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
     config { fmt = "`(` operands `)` attr-dict" }
-
-  Op @arithmetic(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.Value)
-    { op = #lua.ArithmeticOp }
-    config { fmt = "$op `(` operands `)` attr-dict" }
-  Op @relational(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.bool)
-    { op = #lua.RelationalOp }
-    config { fmt = "$op `(` operands `)` attr-dict" }
-  Op @bitwise(lhs: !lua.Value, rhs: !lua.Value) -> (res: !lua.integer)
-    { op = #lua.BitwiseOp }
-    config { fmt = "$op `(` operands `)` attr-dict" }
 
   //--------------------------------------------------------------------------//
   // Concrete Type Ops
