@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.14)
 
 # C++17
 set(CMAKE_CXX_STANDARD 17)
@@ -19,7 +19,7 @@ set(LLVM_BINARY_DIR ${CMAKE_BINARY_DIR}/${LLVM_DIR})
 set(MLIR_BINARY_DIR ${LLVM_BINARY_DIR}/tools/mlir)
 # Add LLVM and MLIR targets
 set(LLVM_TARGETS_TO_BUILD "X86" CACHE INTERNAL "")
-set(LLVM_ENABLE_PROJECTS "mlir" CACHE INTERNAL "")
+set(LLVM_ENABLE_PROJECTS "mlir;clang" CACHE INTERNAL "")
 add_subdirectory(${LLVM_DIR})
 # Configure mlir-tblgen from built target
 set(MLIR_TABLEGEN_EXE $<TARGET_FILE:mlir-tblgen>)

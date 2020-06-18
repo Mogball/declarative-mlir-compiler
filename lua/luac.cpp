@@ -45,6 +45,9 @@ static cl::opt<bool> loopToStd("loop-to-std", cl::desc("Lower SCF to STD"),
 static cl::opt<bool> lowerToLLVM("lower-to-llvm", cl::desc("Lower all to LLVM"),
                                  cl::init(false));
 
+static cl::opt<bool> lowerAll("lower-all", cl::desc("Lower all the way to LLVM"),
+                              cl::init(false));
+
 namespace mlir {
 namespace lua {
 extern std::unique_ptr<Pass> createLowerLuaToLuaCPass();
@@ -109,19 +112,19 @@ int main(int argc, char *argv[]) {
   }
 
   PassManager pm{&ctx};
-  if (lowerToLuac) {
+  if (lowerAll || lowerToLuac) {
     pm.addPass(mlir::lua::createLowerLuaToLuaCPass());
-    if (lowerToLuaLib) {
+    if (lowerAll || lowerToLuaLib) {
       if (failed(appendLibDecls(mlirModule))) {
         return -1;
       }
       pm.addPass(mlir::lua::createLowerLuaToLuaLibPass());
     }
   }
-  if (loopToStd) {
+  if (lowerAll || loopToStd) {
     pm.addPass(mlir::createLowerToCFGPass());
   }
-  if (lowerToLLVM) {
+  if (lowerAll || lowerToLLVM) {
     pm.addPass(mlir::lua::createLowerLuaToLLVMPass());
   }
 

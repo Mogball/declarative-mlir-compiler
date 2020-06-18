@@ -16,44 +16,8 @@ struct GCObject {
 
 }
 
-class LuaString : public GCObject {
-public:
-  explicit LuaString(std::string val) : impl{std::move(val)} {}
-
-  const std::string &get() const { return impl; }
-
-private:
-  std::string impl;
-};
-
-class LuaObject;
-
-template <> struct std::hash<LuaObject> {
-  std::size_t operator()(const LuaObject &obj) const;
-};
-
-template <> struct std::equal_to<LuaObject> {
-  bool operator()(const LuaObject &lhs, const LuaObject &rhs) const;
-};
-
-class LuaTable : public GCObject {
-  using Table = std::unordered_map<LuaObject, LuaObject>;
-
-public:
-  using iterator = Table::iterator;
-
-  auto &get() { return impl; }
-
-  void assign(LuaObject key, LuaObject val);
-  iterator find(LuaObject key);
-
-  auto begin() { return impl.begin(); }
-  auto end() { return impl.end(); }
-  auto size() const { return impl.size(); }
-
-private:
-  Table impl;
-};
+class LuaString;
+class LuaTable;
 
 class LuaObject {
 public:
@@ -98,20 +62,9 @@ public:
     setReal(fp);
   }
 
-  void constructString(const char *data, int32_t len) {
-    setType(LuaType::String);
-    std::string val(data, len);
-    setGcPtr(new LuaString{std::move(val)});
-  }
-  void constructString(std::string val) {
-    setType(LuaType::String);
-    setGcPtr(new LuaString{std::move(val)});
-  }
-
-  void constructTable() {
-    setType(LuaType::Table);
-    setGcPtr(new LuaTable{});
-  }
+  void constructString(const char *data, int32_t len);
+  void constructString(std::string val);
+  void constructTable();
 
   /*****************************************************************************
    * Value handling
@@ -173,25 +126,9 @@ public:
     return impl->value.gc;
   }
 
-  LuaString *asString() {
-    assert(isString());
-    auto *ret = dynamic_cast<LuaString *>(getGcPtr());
-    assert(ret);
-    return ret;
-  }
-  const LuaString *asString() const {
-    assert(isString());
-    auto *ret = dynamic_cast<const LuaString *>(getGcPtr());
-    assert(ret);
-    return ret;
-  }
-
-  LuaTable *asTable() {
-    assert(isTable());
-    auto *ret = dynamic_cast<LuaTable *>(getGcPtr());
-    assert(ret);
-    return ret;
-  }
+  LuaString *asString();
+  const LuaString *asString() const;
+  LuaTable *asTable();
 
   /*****************************************************************************
    * Impl access
@@ -208,62 +145,121 @@ private:
   TObject *impl;
 };
 
-std::size_t std::hash<LuaObject>::operator()(const LuaObject &obj) const {
-  switch (obj.getType()) {
-  case LuaType::Nil:
-    return std::hash<std::nullptr_t>{}(nullptr);
-  case LuaType::Bool:
-    return std::hash<bool>{}(obj.getBool());
-  case LuaType::Number:
-    if (obj.isInteger()) {
-      return std::hash<LuaInteger>{}(obj.getInt());
-    } else {
-      return std::hash<LuaReal>{}(obj.getReal());
-    }
-  case LuaType::String:
-    return std::hash<std::string>{}(obj.asString()->get());
-  default:
-    throw std::invalid_argument{"Hash not implemented for this type"};
-  }
-}
+class LuaString : public GCObject {
+public:
+  explicit LuaString(std::string val) : impl{std::move(val)} {}
 
-bool std::equal_to<LuaObject>::operator()(const LuaObject &lhs,
-                                          const LuaObject &rhs) const {
-  if (lhs.getType() != rhs.getType()) {
-    return false;
-  }
-  switch (lhs.getType()) {
-  case LuaType::Nil:
-    return true;
-  case LuaType::Bool:
-    return lhs.getBool() == rhs.getBool();
-  case LuaType::Number:
-    if (lhs.isInteger()) {
-      if (rhs.isInteger()) {
-        return lhs.getInt() == rhs.getInt();
+  const std::string &get() const { return impl; }
+
+private:
+  std::string impl;
+};
+
+template <> struct std::hash<LuaObject> {
+  std::size_t operator()(const LuaObject &obj) const {
+    switch (obj.getType()) {
+    case LuaType::Nil:
+      return std::hash<std::nullptr_t>{}(nullptr);
+    case LuaType::Bool:
+      return std::hash<bool>{}(obj.getBool());
+    case LuaType::Number:
+      if (obj.isInteger()) {
+        return std::hash<LuaInteger>{}(obj.getInt());
       } else {
-        return lhs.getInt() == rhs.getReal();
+        return std::hash<LuaReal>{}(obj.getReal());
       }
-    } else {
-      if (rhs.isInteger()) {
-        return lhs.getReal() == rhs.getInt();
-      } else {
-        return lhs.getReal() == rhs.getReal();
-      }
+    case LuaType::String:
+      return std::hash<std::string>{}(obj.asString()->get());
+    default:
+      throw std::invalid_argument{"Hash not implemented for this type"};
     }
-  case LuaType::String:
-    return lhs.asString()->get() == rhs.asString()->get();
-  default:
-    throw std::invalid_argument{"Hash not implemented for this type"};
   }
+};
+
+template <> struct std::equal_to<LuaObject> {
+  bool operator()(const LuaObject &lhs, const LuaObject &rhs) const {
+    if (lhs.getType() != rhs.getType()) {
+      return false;
+    }
+    switch (lhs.getType()) {
+    case LuaType::Nil:
+      return true;
+    case LuaType::Bool:
+      return lhs.getBool() == rhs.getBool();
+    case LuaType::Number:
+      if (lhs.isInteger()) {
+        if (rhs.isInteger()) {
+          return lhs.getInt() == rhs.getInt();
+        } else {
+          return lhs.getInt() == rhs.getReal();
+        }
+      } else {
+        if (rhs.isInteger()) {
+          return lhs.getReal() == rhs.getInt();
+        } else {
+          return lhs.getReal() == rhs.getReal();
+        }
+      }
+    case LuaType::String:
+      return lhs.asString()->get() == rhs.asString()->get();
+    default:
+      throw std::invalid_argument{"Hash not implemented for this type"};
+    }
+  }
+};
+
+class LuaTable : public GCObject {
+  using Table = std::unordered_map<LuaObject, LuaObject>;
+
+public:
+  void assign(LuaObject key, LuaObject val) {
+    impl.insert_or_assign(key, val);
+  }
+  auto find(LuaObject key) {
+    return impl.find(key);
+  }
+
+  auto begin() { return impl.begin(); }
+  auto end() { return impl.end(); }
+  auto size() const { return impl.size(); }
+
+private:
+  Table impl;
+};
+
+void LuaObject::constructString(const char *data, int32_t len) {
+  setType(LuaType::String);
+  std::string val(data, len);
+  setGcPtr(new LuaString{std::move(val)});
+}
+void LuaObject::constructString(std::string val) {
+  setType(LuaType::String);
+  setGcPtr(new LuaString{std::move(val)});
 }
 
-void LuaTable::assign(LuaObject key, LuaObject val) {
-  impl.insert_or_assign(key, val);
+void LuaObject::constructTable() {
+  setType(LuaType::Table);
+  setGcPtr(new LuaTable{});
 }
 
-LuaTable::iterator LuaTable::find(LuaObject key) {
-  return impl.find(key);
+LuaString *LuaObject::asString() {
+  assert(isString());
+  auto *ret = dynamic_cast<LuaString *>(getGcPtr());
+  assert(ret);
+  return ret;
+}
+const LuaString *LuaObject::asString() const {
+  assert(isString());
+  auto *ret = dynamic_cast<const LuaString *>(getGcPtr());
+  assert(ret);
+  return ret;
+}
+
+LuaTable *LuaObject::asTable() {
+  assert(isTable());
+  auto *ret = dynamic_cast<LuaTable *>(getGcPtr());
+  assert(ret);
+  return ret;
 }
 
 extern "C" {
