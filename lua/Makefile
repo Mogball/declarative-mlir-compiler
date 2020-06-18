@@ -1,10 +1,10 @@
 LUAC=../bin/lua/mluac
 
 bin/main: bin bin/impl.o bin/luallvm.o
-	gcc bin/impl.o bin/luallvm.o -o bin/main
+	g++ bin/impl.o bin/luallvm.o -o bin/main
 
-bin/impl.o: bin impl.c
-	clang impl.c -c -o bin/impl.o -g
+bin/impl.o: bin impl.cpp
+	clang -std=c++17 impl.cpp -c -o bin/impl.o -g -Wall
 
 bin/luallvm.o: bin $(LUAC) bin/luallvm.ll
 	clang -c bin/luallvm.ll -o bin/luallvm.o
