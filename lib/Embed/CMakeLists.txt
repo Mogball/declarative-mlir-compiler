@@ -1,7 +1,6 @@
 add_library(DMCEmbed
   Constraints.cpp
   Spec.cpp
-  Init.cpp
   OpFormatGen.cpp
   TypeFormatGen.cpp
   PythonGen.cpp
@@ -10,6 +9,8 @@ add_library(DMCEmbed
   FormatUtils.cpp
   FormatUtils.h
   )
+
+add_library(DMCEmbedInit Init.cpp)
 
 target_link_libraries(DMCEmbed PUBLIC
   MLIRIR
