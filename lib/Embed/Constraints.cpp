@@ -11,7 +11,7 @@
 
 using namespace pybind11;
 
-namespace mlir {
+namespace dmc {
 namespace py {
 
 namespace {
@@ -33,13 +33,14 @@ public:
     dict funcExpr{"func_name"_a = funcName, "expr"_a = pyExpr};
     auto funcStr = "def {func_name}(arg): return {expr}"_s
         .format(**funcExpr);
-    exec(funcStr, getMainScope());
+    exec(funcStr, getInternalScope());
     return funcName;
   }
 
   template <typename ArgT>
   LogicalResult evalConstraint(const std::string &funcName, ArgT arg) {
-    return success(getMainScope()[funcName.c_str()](arg).template cast<bool>());
+    return success(
+        getInternalScope()[funcName.c_str()](arg).template cast<bool>());
   }
 
 private:
@@ -68,4 +69,4 @@ LogicalResult evalConstraint(const std::string &funcName, Attribute attr) {
 }
 
 } // end namespace py
-} // end namespace mlir
+} // end namespace dmc

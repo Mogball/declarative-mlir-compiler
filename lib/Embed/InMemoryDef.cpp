@@ -14,7 +14,8 @@ InMemoryDef::InMemoryDef(StringRef fcnName, StringRef fcnSig) {
 
 InMemoryDef::~InMemoryDef() {
   pgs.enddef();
-  exec(os.str(), getMainScope());
+  // Store the parser/printer in the internal scope
+  exec(os.str(), getInternalScope());
 }
 
 InMemoryClass::InMemoryClass(StringRef clsName, StringRef parentCls,

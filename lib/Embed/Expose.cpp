@@ -5,6 +5,7 @@
 
 #include <llvm/ADT/STLExtras.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
 
 using namespace pybind11;
 

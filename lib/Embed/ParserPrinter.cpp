@@ -17,7 +17,7 @@ namespace py {
 bool execParser(const std::string &name, OpAsmParser &parser,
                 OperationState &result) {
   constexpr auto parser_policy = return_value_policy::reference;
-  auto fcn = getMainScope()[name.c_str()];
+  auto fcn = getInternalScope()[name.c_str()];
   ResultWrap wrap{result};
   return fcn.operator()<parser_policy>(parser, wrap).cast<bool>();
 }
@@ -25,7 +25,7 @@ bool execParser(const std::string &name, OpAsmParser &parser,
 void execPrinter(const std::string &name, OpAsmPrinter &printer, Operation *op,
                  DynamicOperation *spec) {
   constexpr auto printer_policy = return_value_policy::reference;
-  auto fcn = getMainScope()[name.c_str()];
+  auto fcn = getInternalScope()[name.c_str()];
   OperationWrap wrap{op, spec};
   fcn.operator()<printer_policy>(printer, &wrap);
 }
@@ -33,7 +33,7 @@ void execPrinter(const std::string &name, OpAsmPrinter &printer, Operation *op,
 bool execParser(const std::string &name, DialectAsmParser &parser,
                 std::vector<Attribute> &result) {
   constexpr auto parser_policy = return_value_policy::reference;
-  auto fcn = getMainScope()[name.c_str()];
+  auto fcn = getInternalScope()[name.c_str()];
   TypeResultWrap wrap{result};
   return fcn.operator()<parser_policy>(parser, wrap).cast<bool>();
 }
@@ -42,7 +42,7 @@ template <typename DynamicT>
 void execPrinter(const std::string &name, DialectAsmPrinter &printer,
                  DynamicT t) {
   constexpr auto printer_policy = return_value_policy::reference;
-  auto fcn = getMainScope()[name.c_str()];
+  auto fcn = getInternalScope()[name.c_str()];
   TypeWrap wrap{t};
   fcn.operator()<printer_policy>(printer, &wrap);
 }

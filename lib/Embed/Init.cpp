@@ -24,8 +24,6 @@ void init(MLIRContext *ctx) {
 
   setMLIRContext(ctx);
   initialize_interpreter();
-  /// Add pymlir's objects to the main scope.
-  exec("from mlir import *", getMainScope());
 }
 
 } // end namespace py

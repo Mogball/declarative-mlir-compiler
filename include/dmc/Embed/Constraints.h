@@ -5,14 +5,16 @@
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Location.h>
 
-namespace mlir {
+namespace dmc {
 namespace py {
 
-LogicalResult registerConstraint(Location loc, StringRef expr,
-                                 std::string &funcName);
+mlir::LogicalResult registerConstraint(mlir::Location loc, llvm::StringRef expr,
+                                       std::string &funcName);
 
-LogicalResult evalConstraint(const std::string &funcName, Type type);
-LogicalResult evalConstraint(const std::string &funcName, Attribute attr);
+mlir::LogicalResult evalConstraint(const std::string &funcName,
+                                   mlir::Type type);
+mlir::LogicalResult evalConstraint(const std::string &funcName,
+                                   mlir::Attribute attr);
 
 } // end namespace py
-} // end namespace mlir
+} // end namespace dmc

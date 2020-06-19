@@ -1,7 +1,15 @@
 #pragma once
 
-#include <pybind11/embed.h>
+#include <pybind11/pybind11.h>
 
-inline auto getMainScope() {
-  return pybind11::module::import("__main__").attr("__dict__");
+namespace dmc {
+namespace py {
+
+pybind11::module getInternalModule();
+
+inline auto getInternalScope() {
+  return getInternalModule().attr("__dict__");
 }
+
+} // end namespace py
+} // end namespace dmc

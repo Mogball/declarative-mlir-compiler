@@ -68,16 +68,5 @@ int main(int argc, char *argv[]) {
   mlirModule->print(llvm::outs());
   llvm::outs() << "\n";
 
-  PassManager pm{&ctx};
-  pm.addPass(mlir::createLowerToCFGPass());
-  //pm.addPass(mlir::createLowerToLLVMPass());
-  if (failed(pm.run(*mlirModule))) {
-    llvm::errs() << "Pass manager failed\n";
-    return -1;
-  }
-
-  mlirModule->print(llvm::outs());
-  llvm::outs() << "\n";
-
   return 0;
 }

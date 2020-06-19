@@ -9,6 +9,7 @@ add_library(DMCEmbed
   Expose.cpp
   FormatUtils.cpp
   FormatUtils.h
+  Scope.cpp
   )
 
 target_link_libraries(DMCEmbed PUBLIC
