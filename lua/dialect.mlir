@@ -4,7 +4,7 @@ Dialect @lua {
   //--------------------------------------------------------------------------//
   Type @value
   Alias @Value -> !dmc.Isa<@lua::@value> // TODO implicitly buildable
-    { builder = "build_dynamic_type(\"lua\", \"value\")" }
+    { builder = "lua.value()" }
 
   /// Concrete built-in types.
   Alias @bool -> i1

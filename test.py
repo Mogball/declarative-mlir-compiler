@@ -10,3 +10,9 @@ field = stencil.field(shape, f64Attr)
 print("type:", field)
 print("shape:", field.shape())
 print("fieldTy:", field.type())
+
+module = parseSourceFile('lua/dialect.mlir')
+dialects = registerDynamicDialects(module)
+lua = dialects[0]
+
+print("lua value:", lua.value())

@@ -52,5 +52,13 @@ module exposeDialect(DynamicDialect *dialect) {
   return m;
 }
 
+void exposeDialectInternal(DynamicDialect *dialect) {
+  auto m = exposeDialect(dialect);
+  auto regFcn = "register_internal_module_" + dialect->getNamespace().str();
+  getInternalModule().def(regFcn.c_str(), [m]() { return m; });
+  exec(dialect->getNamespace().str() + " = " + regFcn + "()",
+       getInternalScope());
+}
+
 } // end namespace py
 } // end namespace dmc

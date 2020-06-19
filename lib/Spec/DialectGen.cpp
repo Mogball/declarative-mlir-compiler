@@ -11,6 +11,7 @@
 #include "dmc/Embed/OpFormatGen.h"
 #include "dmc/Embed/TypeFormatGen.h"
 #include "dmc/Embed/InMemoryDef.h"
+#include "dmc/Embed/Expose.h"
 
 using namespace mlir;
 
@@ -206,7 +207,7 @@ LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
         return failure();
     }
   }
-
+  py::exposeDialectInternal(dialect);
   return success();
 }
 
