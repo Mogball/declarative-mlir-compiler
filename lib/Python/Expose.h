@@ -36,5 +36,7 @@ void exposeShapedTypes(pybind11::module &m, TypeClass &type);
 void exposeOpAsm(pybind11::module &m);
 void exposeDialectAsm(pybind11::module &m);
 
+void exposeBuilder(pybind11::module &m);
+
 } // end namespace py
 } // end namespace mlir

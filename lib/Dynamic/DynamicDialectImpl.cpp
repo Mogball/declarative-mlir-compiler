@@ -132,4 +132,24 @@ AttributeMetadata *DynamicDialect::lookupAttributeData(mlir::Attribute attr) {
   return nullptr;
 }
 
+template <typename E, typename MapT> static auto getDialectObjs(MapT &objs) {
+  std::vector<E *> ret;
+  ret.reserve(std::size(objs));
+  for (auto &obj : llvm::make_second_range(objs))
+    ret.push_back(obj.get());
+  return ret;
+}
+
+std::vector<DynamicOperation *> DynamicDialect::getOps() {
+  return getDialectObjs<DynamicOperation>(impl->dynOps);
+}
+
+std::vector<DynamicTypeImpl *> DynamicDialect::getTypes() {
+  return getDialectObjs<DynamicTypeImpl>(impl->dynTys);
+}
+
+std::vector<DynamicAttributeImpl *> DynamicDialect::getAttributes() {
+  return getDialectObjs<DynamicAttributeImpl>(impl->dynAttrs);
+}
+
 } // end namespace dmc

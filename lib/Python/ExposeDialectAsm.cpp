@@ -22,9 +22,12 @@ namespace {
 static void printDimensionListOrRaw(DialectAsmPrinter &p, Attribute attr) {
   if (auto arr = attr.dyn_cast<ArrayAttr>()) {
     interleave(arr, p, [&](Attribute el) {
-      if (auto i = el.dyn_cast<IntegerAttr>();
-          i && i.getValue().getSExtValue() == -1) {
-        p << "?";
+      if (auto i = el.dyn_cast<IntegerAttr>()) {
+        if (i.getValue().getSExtValue() == -1) {
+          p << '?';
+        } else {
+          p << i.getValue().getZExtValue();
+        }
       } else {
         p << el;
       }

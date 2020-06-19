@@ -2,17 +2,29 @@
 #include "dmc/Embed/InMemoryDef.h"
 #include <pybind11/embed.h>
 
+using namespace llvm;
+using namespace pybind11;
+
 namespace dmc {
 namespace py {
 
-InMemoryDef::InMemoryDef(std::string fcnName, std::string fcnSig)
-    : os{buf}, pgs{os} {
+InMemoryDef::InMemoryDef(StringRef fcnName, StringRef fcnSig) {
   pgs.def(fcnName + fcnSig);
 }
 
 InMemoryDef::~InMemoryDef() {
   pgs.enddef();
-  pybind11::exec(os.str(), getMainScope());
+  exec(os.str(), getMainScope());
+}
+
+InMemoryClass::InMemoryClass(StringRef clsName, StringRef parentCls,
+                             module &m) : m{m} {
+  pgs.block("class", clsName + "(" + parentCls + ")");
+}
+
+InMemoryClass::~InMemoryClass() {
+  pgs.endblock();
+  exec(os.str(), m.attr("__dict__"));
 }
 
 } // end namespace py

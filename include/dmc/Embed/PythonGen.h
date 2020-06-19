@@ -28,6 +28,11 @@ public:
       return std::move(operator<<(fcn));
     }
 
+    inline Line &operator<<(std::function<void(Line &)> fcn) & {
+      fcn(*this);
+      return *this;
+    }
+
     ~Line();
     Line(Line &&line);
 

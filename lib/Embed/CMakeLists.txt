@@ -6,6 +6,7 @@ add_library(DMCEmbed
   PythonGen.cpp
   InMemoryDef.cpp
   ParserPrinter.cpp
+  Expose.cpp
   FormatUtils.cpp
   FormatUtils.h
   )

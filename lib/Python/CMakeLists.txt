@@ -23,6 +23,7 @@ add_library(pymlir
   AsmUtils.h
 
   # Reduce compilation time by splitting the functions
+  ExposeBuilder.cpp
   ExposeDialectAsm.cpp
   ExposeOpAsm.cpp
   ExposeOps.cpp

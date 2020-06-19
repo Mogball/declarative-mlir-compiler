@@ -18,6 +18,8 @@ void getModule(module &m) {
 
   exposeOpAsm(m);
   exposeDialectAsm(m);
+
+  exposeBuilder(m);
 }
 
 } // end namespace py

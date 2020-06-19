@@ -95,6 +95,11 @@ public:
   /// Lookup dynamic attribute metadata associated with an attribute, if any.
   AttributeMetadata *lookupAttributeData(mlir::Attribute attr);
 
+  /// Query the objects of this dynamic dialect.
+  std::vector<DynamicOperation *> getOps();
+  std::vector<DynamicTypeImpl *> getTypes();
+  std::vector<DynamicAttributeImpl *> getAttributes();
+
 private:
   class Impl;
   std::unique_ptr<Impl> impl;

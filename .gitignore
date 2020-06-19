@@ -5,3 +5,4 @@ bin/
 .clangd/
 compile_commands.json
 *.swo
+mlir.so

@@ -1,17 +1,30 @@
 #include "dmc/Python/PyMLIR.h"
 #include "dmc/Dynamic/DynamicContext.h"
+#include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Spec/DialectGen.h"
+#include "dmc/Spec/SpecOps.h"
+#include "dmc/Embed/Expose.h"
 
 using namespace dmc;
 using namespace mlir;
+using namespace pybind11;
 
 PYBIND11_MODULE(mlir, m) {
-  py::getModule(m);
+  mlir::py::getModule(m);
   // ownership is given to MLIRContext
   auto *ctx = new DynamicContext{mlir::py::getMLIRContext()};
 
   m.def("registerDynamicDialects", [ctx](ModuleOp module) {
-    if (failed(registerAllDialects(module, ctx)))
-      throw std::invalid_argument{"Failed to register dynamic dialects"};
+    list ret;
+    for (auto dialectOp : module.getOps<DialectOp>()) {
+      if (failed(registerDialect(dialectOp, ctx)))
+        throw std::invalid_argument{"Failed to register dialect: " +
+                                    dialectOp.getName().str()};
+      auto *dialect =
+          mlir::py::getMLIRContext()->getRegisteredDialect(dialectOp.getName());
+      auto m = dmc::py::exposeDialect(dynamic_cast<DynamicDialect *>(dialect));
+      ret.append(m);
+    }
+    return ret;
   });
 }

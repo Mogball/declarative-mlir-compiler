@@ -2,21 +2,38 @@
 
 #include "PythonGen.h"
 
+namespace pybind11 {
+class module;
+}
+
 namespace dmc {
 namespace py {
 
-class InMemoryDef {
+class InMemoryStream {
 public:
-  explicit InMemoryDef(std::string fcnName, std::string fcnSig);
-  ~InMemoryDef();
-
   inline PythonGenStream &stream() { return pgs; }
   inline const std::string &str() { return os.str(); }
 
-private:
+protected:
   std::string buf;
-  llvm::raw_string_ostream os;
-  PythonGenStream pgs;
+  llvm::raw_string_ostream os{buf};
+  PythonGenStream pgs{os};
+};
+
+class InMemoryDef : public InMemoryStream {
+public:
+  explicit InMemoryDef(llvm::StringRef fcnName, llvm::StringRef fcnSig);
+  ~InMemoryDef();
+};
+
+class InMemoryClass : public InMemoryStream {
+public:
+  explicit InMemoryClass(llvm::StringRef clsName, llvm::StringRef parentCls,
+                         pybind11::module &m);
+  ~InMemoryClass();
+
+private:
+  pybind11::module &m;
 };
 
 } // end namespace py

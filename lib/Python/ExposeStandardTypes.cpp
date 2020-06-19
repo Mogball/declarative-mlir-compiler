@@ -49,10 +49,10 @@ void exposeStandardNumericTypes(pybind11::module &m, TypeClass &type) {
       .def_property_readonly("width", nullcheck(&FloatType::getWidth));
       // llvm::fltSemantics definition not publicly visible
 
-  m.def("BF16", []() { return FloatType::getBF16(getMLIRContext()); });
-  m.def("F16", []() { return FloatType::getF16(getMLIRContext()); });
-  m.def("F32", []() { return FloatType::getF32(getMLIRContext()); });
-  m.def("F64", []() { return FloatType::getF64(getMLIRContext()); });
+  m.def("BF16Type", []() { return FloatType::getBF16(getMLIRContext()); });
+  m.def("F16Type", []() { return FloatType::getF16(getMLIRContext()); });
+  m.def("F32Type", []() { return FloatType::getF32(getMLIRContext()); });
+  m.def("F64Type", []() { return FloatType::getF64(getMLIRContext()); });
 
   class_<mlir::NoneType>(m, "NoneType", type)
       .def(init([]() { return mlir::NoneType::get(getMLIRContext()); }));
