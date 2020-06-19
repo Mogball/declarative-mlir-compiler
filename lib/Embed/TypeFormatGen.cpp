@@ -11,10 +11,10 @@
 using namespace mlir;
 using namespace llvm;
 using namespace fmt;
-using mlir::dmc::NamedParameter;
-using mlir::dmc::NamedParameterRange;
-using mlir::dmc::FormatOp;
-using ::dmc::py::PythonGenStream;
+using mlir::NamedParameter;
+using mlir::NamedParameterRange;
+using mlir::FormatOp;
+using dmc::py::PythonGenStream;
 
 namespace {
 class Parameters : public std::vector<NamedParameter> {
@@ -315,8 +315,8 @@ LogicalResult generateTypeFormat(OpT op, DynamicT *impl,
 }
 
 template LogicalResult generateTypeFormat(
-    ::dmc::TypeOp typeOp, ::dmc::DynamicTypeImpl *impl,
+    dmc::TypeOp typeOp, dmc::DynamicTypeImpl *impl,
     PythonGenStream &parserOs, PythonGenStream &printerOs);
 template LogicalResult generateTypeFormat(
-    ::dmc::AttributeOp typeOp, ::dmc::DynamicAttributeImpl *impl,
+    dmc::AttributeOp typeOp, dmc::DynamicAttributeImpl *impl,
     PythonGenStream &parserOs, PythonGenStream &printerOs);

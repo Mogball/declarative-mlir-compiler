@@ -7,8 +7,6 @@ using namespace pybind11;
 namespace mlir {
 namespace py {
 
-static bool inited{false};
-
 void init(MLIRContext *ctx) {}
 
 } // end namespace py

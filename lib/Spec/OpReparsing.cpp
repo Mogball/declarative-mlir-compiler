@@ -4,7 +4,6 @@
 #include <llvm/Support/raw_ostream.h>
 
 using namespace mlir;
-using namespace mlir::dmc;
 
 namespace dmc {
 
@@ -89,7 +88,7 @@ namespace {
 template <typename OpT, typename ParamRange, typename ParamListT>
 ParseResult reparseParameters(OpT op, ParamRange params,
                               ParamListT &newParams) {
-  using mlir::dmc::NamedParameter;
+  using mlir::NamedParameter;
   newParams.reserve(llvm::size(params));
   unsigned idx = 0;
   for (auto paramAttr : params) {

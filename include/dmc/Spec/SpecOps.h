@@ -107,8 +107,8 @@ class OperationOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait,
-                      mlir::dmc::FormatOp::Trait> {
+                      mlir::ReparseOpInterface::Trait,
+                      mlir::FormatOp::Trait> {
 public:
   using Op::Op;
 
@@ -202,9 +202,9 @@ class TypeOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ParameterList::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait,
-                      mlir::dmc::FormatOp::Trait> {
+                      mlir::ParameterList::Trait,
+                      mlir::ReparseOpInterface::Trait,
+                      mlir::FormatOp::Trait> {
 public:
   using Op::Op;
 
@@ -229,9 +229,9 @@ class AttributeOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ParameterList::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait,
-                      mlir::dmc::FormatOp::Trait> {
+                      mlir::ParameterList::Trait,
+                      mlir::ReparseOpInterface::Trait,
+                      mlir::FormatOp::Trait> {
 public:
   using Op::Op;
 
@@ -257,7 +257,7 @@ class AliasOp
                       mlir::OpTrait::IsIsolatedFromAbove,
                       mlir::OpTrait::HasParent<DialectOp>::Impl,
                       mlir::SymbolOpInterface::Trait,
-                      mlir::dmc::ReparseOpInterface::Trait> {
+                      mlir::ReparseOpInterface::Trait> {
 public:
   using Op::Op;
 

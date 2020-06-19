@@ -11,7 +11,6 @@
 #include <mlir/IR/OpImplementation.h>
 
 using namespace mlir;
-using namespace mlir::dmc;
 
 namespace dmc {
 

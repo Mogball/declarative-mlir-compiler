@@ -153,8 +153,17 @@ ArrayRef<Attribute> DynamicType::getParams() {
   return getImpl()->params;
 }
 
-Type buildDynamicType(StringRef dialectName, StringRef typeName,
-                      ArrayRef<Attribute> params, Location loc) {
+Attribute DynamicType::getParam(StringRef name) {
+  for (auto [spec, param] : llvm::zip(getDynImpl()->getParamSpec(),
+                                      getParams())) {
+    if (spec.getName() == name)
+      return param;
+  }
+  return {};
+}
+
+DynamicType buildDynamicType(StringRef dialectName, StringRef typeName,
+                             ArrayRef<Attribute> params, Location loc) {
   auto *dialect = loc.getContext()->getRegisteredDialect(dialectName);
   auto *dynDialect = dynamic_cast<DynamicDialect *>(dialect);
   auto *impl = dynDialect->lookupType(typeName);

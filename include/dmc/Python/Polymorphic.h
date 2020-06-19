@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dmc/Dynamic/DynamicType.h"
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/complex.h>
@@ -122,6 +124,6 @@ template <> struct polymorphic_type_hook<Type>
       TensorType, RankedTensorType, UnrankedTensorType,
       BaseMemRefType, MemRefType, UnrankedMemRefType,
 
-      TupleType> {};
+      TupleType, dmc::DynamicType> {};
 
 } // end namespace pybind11

@@ -49,7 +49,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
       AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion,
       AnySuccessor, VariadicSuccessor,
 
-      mlir::dmc::NamedParameter
+      mlir::NamedParameter
   >();
 }
 
@@ -69,7 +69,7 @@ void SpecDialect::printAttribute(
     impl::printOptionalRegionList(printer, opRegion);
   } else if (auto opSucc = attr.dyn_cast<OpSuccessor>()) {
     impl::printOptionalSuccessorList(printer, opSucc);
-  } else if (auto param = attr.dyn_cast<mlir::dmc::NamedParameter>()) {
+  } else if (auto param = attr.dyn_cast<mlir::NamedParameter>()) {
     printer << "NamedParameter" << '<' << param.getName() << ": "
         << param.getConstraint() << '>';
   } else {

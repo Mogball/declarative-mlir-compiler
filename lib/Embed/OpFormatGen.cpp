@@ -35,12 +35,12 @@ using namespace mlir;
 using namespace mlir::tblgen;
 using namespace fmt;
 
-using ::dmc::OperationOp;
-using ::dmc::OpType;
-using ::dmc::NamedType;
-using ::dmc::NamedConstraint;
+using dmc::OperationOp;
+using dmc::OpType;
+using dmc::NamedType;
+using dmc::NamedConstraint;
 
-using namespace ::dmc::py;
+using namespace dmc::py;
 
 //===----------------------------------------------------------------------===//
 // Element
@@ -73,16 +73,16 @@ enum Kind {
 
 namespace {
 
-static ::dmc::AttributeMetadata *tryFindAttributeData(Attribute attr) {
-  auto *ctx = attr.getContext()->getRegisteredDialect<::dmc::DynamicContext>();
+static dmc::AttributeMetadata *tryFindAttributeData(Attribute attr) {
+  auto *ctx = attr.getContext()->getRegisteredDialect<dmc::DynamicContext>();
   assert(ctx && "Dynamic context has not been instantiated");
   if (auto *dialect = ctx->lookupDialectFor(attr))
     return dialect->lookupAttributeData(attr);
   return nullptr;
 }
 
-static ::dmc::TypeMetadata *tryFindTypeData(Type type) {
-  auto *ctx = type.getContext()->getRegisteredDialect<::dmc::DynamicContext>();
+static dmc::TypeMetadata *tryFindTypeData(Type type) {
+  auto *ctx = type.getContext()->getRegisteredDialect<dmc::DynamicContext>();
   assert(ctx && "Dynamic context has not been instantiated");
   if (auto *dialect = ctx->lookupDialectFor(type))
     return dialect->lookupTypeData(type);
@@ -798,7 +798,7 @@ void OperationFormat::genParserRegionResolution(OperationOp op,
 
 void OperationFormat::genParserVariadicSegmentResolution(OperationOp op,
                                                          PythonGenStream &body) {
-  if (!allOperands && op.getTrait<::dmc::SizedOperandSegments>()) {
+  if (!allOperands && op.getTrait<dmc::SizedOperandSegments>()) {
     auto line = body.line() << "result.addAttribute(\"operand_segment_sizes\", "
         << "parser.getI32VectorAttr([";
     auto interleaveFn = [&](const NamedType &operand) {
@@ -838,7 +838,7 @@ static void genAttrDictPrinter(OperationFormat &fmt, OperationOp op,
   auto line = body.line() << "p.printOptionalAttrDict"
       << (withKeyword ? "WithKeyword" : "") << "(op.getAttrs(), [";
   // Elide the variadic segment size attributes if necessary.
-  if (!fmt.allOperands && op.getTrait<::dmc::SizedOperandSegments>()) {
+  if (!fmt.allOperands && op.getTrait<dmc::SizedOperandSegments>()) {
     line << "\"operand_segment_sizes\", ";
   }
   llvm::interleaveComma(usedAttributes, line, [&](const NamedAttribute *attr) {
@@ -1196,13 +1196,13 @@ LogicalResult FormatParser::parse() {
 
   // Check for any type traits that we can use for inferring types.
   llvm::StringMap<TypeResolutionInstance> variableTyResolver;
-  if (op.getTrait<::dmc::SameTypeOperands>())
+  if (op.getTrait<dmc::SameTypeOperands>())
     handleSameTypesConstraint(variableTyResolver, /*includeResults=*/false);
-  if (op.getTrait<::dmc::SameOperandsAndResultType>())
+  if (op.getTrait<dmc::SameOperandsAndResultType>())
     handleSameTypesConstraint(variableTyResolver, /*includeResults=*/true);
-  //if (auto def = op.getTrait<::dmc::AllTypesMatch>())
+  //if (auto def = op.getTrait<dmc::AllTypesMatch>())
   //  handleAllTypesMatchConstraint(def->getValues(), variableTyResolver);
-  //if (auto def = op.getTrait<::dmc::TypesMatchWith>())
+  //if (auto def = op.getTrait<dmc::TypesMatchWith>())
   //  if (const auto *lhsArg = findSeenArg(def->getLhs()))
   //    variableTyResolver[def.getRhs()] = { lhsArg, def.getTransformer() };
 
@@ -1670,8 +1670,8 @@ LogicalResult FormatParser::parseOptionalChildElement(
       // attributes can be the anchor.
       .Case([&](AttributeVariable *attrEle) {
         auto attr = attrEle->getVar()->second;
-        if (isAnchor && !attr.isa<::dmc::OptionalAttr>() &&
-            !attr.isa<::dmc::DefaultAttr>())
+        if (isAnchor && !attr.isa<dmc::OptionalAttr>() &&
+            !attr.isa<dmc::DefaultAttr>())
           return emitError(childLoc, "only optional attributes can be used to "
                                      "anchor an optional group");
         return success();

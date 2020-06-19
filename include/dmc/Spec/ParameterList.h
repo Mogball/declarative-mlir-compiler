@@ -7,7 +7,6 @@
 #include <mlir/IR/OpDefinition.h>
 
 namespace mlir {
-namespace dmc {
 namespace detail {
 struct NamedParameterStorage;
 } // end namespace detail
@@ -24,7 +23,7 @@ public:
       Location loc, StringRef name, Attribute constraint);
 
   static bool kindof(unsigned kind) {
-    return kind == ::dmc::AttrKinds::NamedParameter;
+    return kind == dmc::AttrKinds::NamedParameter;
   }
 
   StringRef getName() const;
@@ -36,9 +35,8 @@ using NamedParameterRange = iterator_range<llvm::mapped_iterator<
 
 #include "dmc/Spec/ParameterList.h.inc"
 
-} // end namespace dmc
 } // end namespace mlir
 
 namespace dmc {
-using NamedParameterRange = mlir::dmc::NamedParameterRange;
+using NamedParameterRange = mlir::NamedParameterRange;
 } // end namespace dmc

@@ -4,9 +4,7 @@
 #include "dmc/Dynamic/DynamicDialect.h"
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/Alias.h"
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
+#include "dmc/Python/Polymorphic.h"
 
 using namespace pybind11;
 using namespace mlir;
@@ -16,7 +14,7 @@ namespace py {
 
 static Type buildDynamicType(
     std::string dialectName, std::string typeName,
-    std::vector<Attribute> params, Location loc) {
+    const std::vector<Attribute> &params, Location loc) {
   auto *dialect = mlir::py::getMLIRContext()->getRegisteredDialect(dialectName);
   if (!dialect)
     throw std::invalid_argument{"Unknown dialect name: " + dialectName};

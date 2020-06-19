@@ -2,7 +2,7 @@
 #include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Spec/DialectGen.h"
 
-using namespace ::dmc;
+using namespace dmc;
 using namespace mlir;
 
 PYBIND11_MODULE(mlir, m) {

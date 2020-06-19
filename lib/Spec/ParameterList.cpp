@@ -5,7 +5,6 @@
 using namespace dmc;
 
 namespace mlir {
-namespace dmc {
 
 #include "dmc/Spec/ParameterList.cpp.inc"
 
@@ -36,19 +35,19 @@ struct NamedParameterStorage : public AttributeStorage {
 } // end namespace detail
 
 NamedParameter NamedParameter::get(StringRef name, Attribute constraint) {
-  return Base::get(constraint.getContext(), ::dmc::AttrKinds::NamedParameter,
+  return Base::get(constraint.getContext(), dmc::AttrKinds::NamedParameter,
                    name, constraint);
 }
 
 NamedParameter NamedParameter::getChecked(Location loc, StringRef name,
                                           Attribute constraint) {
-  return Base::getChecked(loc, ::dmc::AttrKinds::NamedParameter, name,
+  return Base::getChecked(loc, dmc::AttrKinds::NamedParameter, name,
                           constraint);
 }
 
 LogicalResult NamedParameter::verifyConstructionInvariants(
     Location loc, StringRef name, Attribute constraint) {
-  if (!::dmc::SpecAttrs::is(constraint) && !constraint.isa<OpaqueAttr>())
+  if (!dmc::SpecAttrs::is(constraint) && !constraint.isa<OpaqueAttr>())
     return emitError(loc) << "expected a valid attribute constraint";
   return success();
 }
@@ -70,10 +69,10 @@ ParseResult ParameterList::parse(OpAsmParser &parser,
     do {
       auto loc = parser.getEncodedSourceLoc(parser.getCurrentLocation());
       if (parser.parseKeyword(&name) || parser.parseColon() ||
-          ::dmc::impl::parseSingleAttribute(parser, constraint))
+          dmc::impl::parseSingleAttribute(parser, constraint))
         return failure();
       if (auto type = constraint.dyn_cast<mlir::TypeAttr>())
-        constraint = ::dmc::OfTypeAttr::get(type.getValue());
+        constraint = dmc::OfTypeAttr::get(type.getValue());
       params.push_back(NamedParameter::getChecked(loc, name, constraint));
     } while (succeeded(parser.parseOptionalComma()));
     if (parser.parseGreater())
@@ -84,5 +83,4 @@ ParseResult ParameterList::parse(OpAsmParser &parser,
   return success();
 }
 
-} // end namespace dmc
 } // end namespace mlir

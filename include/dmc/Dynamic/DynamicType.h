@@ -74,9 +74,10 @@ public:
   /// Getters.
   DynamicTypeImpl *getDynImpl();
   llvm::ArrayRef<mlir::Attribute> getParams();
+  mlir::Attribute getParam(llvm::StringRef name);
 };
 
-mlir::Type buildDynamicType(
+DynamicType buildDynamicType(
     llvm::StringRef dialectName, llvm::StringRef typeName,
     llvm::ArrayRef<mlir::Attribute> params, mlir::Location loc);
 mlir::Type getAliasedType(llvm::StringRef dialectName, llvm::StringRef typeName,

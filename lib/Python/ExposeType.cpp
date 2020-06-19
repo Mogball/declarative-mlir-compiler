@@ -2,6 +2,7 @@
 #include "Context.h"
 #include "Expose.h"
 #include "Utility.h"
+#include "dmc/Dynamic/DynamicType.h"
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/StandardTypes.h>
@@ -24,6 +25,7 @@ TypeClass exposeTypeBase(module &m) {
   class_<Type> type{m, "Type"};
   type
       .def(init<>())
+      .def(init<Type>())
       .def(self == self)
       .def(self != self)
       .def("__repr__", StringPrinter<Type>{})
@@ -92,6 +94,19 @@ void exposeType(module &m, TypeClass &type) {
         return new TypeList{std::begin(elTys), std::end(elTys)};
       }));
 
+  using dmc::DynamicType;
+
+  class_<DynamicType>(m, "DynamicType", type)
+      .def(init<DynamicType>())
+      .def("getParams", [](DynamicType ty) {
+        auto params = ty.getParams();
+        std::vector<Attribute> ret{std::begin(params), std::end(params)};
+        return ret;
+      })
+      .def("getParam", [](DynamicType ty, std::string name) {
+        return ty.getParam(name);
+      });
+
   implicitly_convertible_from_all<Type,
       FunctionType, OpaqueType,
       ComplexType, IndexType, IntegerType, FloatType, mlir::NoneType,
@@ -100,7 +115,7 @@ void exposeType(module &m, TypeClass &type) {
       TensorType, RankedTensorType, UnrankedTensorType,
       BaseMemRefType, MemRefType, UnrankedMemRefType,
 
-      TupleType>(type);
+      TupleType, DynamicType>(type);
 }
 
 } // end namespace py
