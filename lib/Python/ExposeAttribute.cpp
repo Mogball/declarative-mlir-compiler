@@ -110,7 +110,7 @@ void exposeAttribute(module &m) {
 
   exposeElementsAttr(m, attr);
 
-  implicitly_convertible_from_all<Attribute,
+  implicitly_convertible_from_all<
       AffineMapAttr, ArrayAttr, BoolAttr, DictionaryAttr, FloatAttr,
       IntegerAttr, IntegerSetAttr, OpaqueAttr, StringAttr, SymbolRefAttr,
       FlatSymbolRefAttr, TypeAttr,

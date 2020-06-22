@@ -56,7 +56,7 @@ void exposeLocation(module &m, class_<Attribute> &attr) {
       .def_property_readonly("child", &getChildLoc);
 
   implicitly_convertible<Location, LocationAttr>();
-  implicitly_convertible_from_all<Location,
+  implicitly_convertible_from_all<
       LocationAttr, UnknownLoc, CallSiteLoc,
       FileLineColLoc, FusedLoc, NameLoc>(loc);
 }

@@ -10,23 +10,7 @@ using namespace pybind11;
 namespace mlir {
 namespace py {
 
-ModuleOp getModuleOp() {
-  return ModuleOp::create(getUnknownLoc());
-}
-
-ModuleOp getModuleOp(Location loc) {
-  return ModuleOp::create(loc);
-}
-
-ModuleOp getModuleOp(std::string name) {
-  return ModuleOp::create(getUnknownLoc(), StringRef{name});
-}
-
-ModuleOp getModuleOp(Location loc, std::string name) {
-  return ModuleOp::create(loc, StringRef{name});
-}
-
-std::optional<std::string> getName(ModuleOp moduleOp) {
+std::optional<std::string> getModuleName(ModuleOp moduleOp) {
   if (auto name = moduleOp.getName())
     return name->str();
   return {};

@@ -131,7 +131,7 @@ void exposeValue(module &m) {
   getIRObjectWithUseListClass<BlockOperand>(m, "BlockArgumentUseList");
   getIRObjectWithUseListClass<OpOperand>(m, "OperandUseList");
 
-  implicitly_convertible_from_all<Value,
+  implicitly_convertible_from_all<
       BlockArgument, OpResult>(value);
 }
 

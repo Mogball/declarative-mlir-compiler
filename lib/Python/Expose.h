@@ -1,5 +1,7 @@
 #pragma once
 
+#include "OpBase.h"
+
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Operation.h>
 #include <pybind11/pybind11.h>
@@ -9,9 +11,7 @@ namespace py {
 
 using AttrClass = pybind11::class_<Attribute>;
 using TypeClass = pybind11::class_<Type>;
-using OpClass = pybind11::class_<Operation,
-                                 std::unique_ptr<Operation,
-                                                 pybind11::nodelete>>;
+using OpClass = pybind11::class_<OpBase>;
 
 void exposeParser(pybind11::module &m);
 /// pybind11 needs Type to be exposed before it can be used in default args.

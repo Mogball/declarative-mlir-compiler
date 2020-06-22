@@ -1,4 +1,5 @@
 #include "Expose.h"
+#include "Location.h"
 #include "Module.h"
 #include "Utility.h"
 #include "OwningModuleRef.h"
@@ -16,15 +17,14 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
 
 void exposeModule(module &m, OpClass &cls) {
   class_<ModuleOp>(m, "ModuleOp", cls)
-      .def(init<>())
-      .def(init<const ModuleOp &>())
+      .def(init([](Location loc) { return ModuleOp::create(loc); }),
+           "location"_a = getUnknownLoc())
+      .def(init([](std::string name, Location loc) {
+        return ModuleOp::create(loc, StringRef{name});
+      }), "name"_a, "location"_a = getUnknownLoc())
       .def("__repr__", nullcheck(StringPrinter<ModuleOp>{}))
       .def("__bool__", &ModuleOp::operator bool)
-      .def_property_readonly("name", nullcheck(&getName));
-  m.def("Module", overload<ModuleOp()>(&getModuleOp));
-  m.def("Module", overload<ModuleOp(Location)>(&getModuleOp));
-  m.def("Module", overload<ModuleOp(std::string)>(&getModuleOp));
-  m.def("Module", overload<ModuleOp(Location, std::string)>(&getModuleOp));
+      .def_property_readonly("name", nullcheck(&getModuleName));
 }
 
 } // end namespace py

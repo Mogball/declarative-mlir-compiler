@@ -99,7 +99,7 @@ struct implicitly_convertible_from_all_helper;
 
 template <typename BaseT, typename FirstT>
 struct implicitly_convertible_from_all_helper<BaseT, FirstT> {
-  static void doit(pybind11::class_<BaseT> &cls) {
+  template <typename ClassT> static void doit(ClassT &cls) {
     cls.def(pybind11::init<FirstT>());
     pybind11::implicitly_convertible<FirstT, BaseT>();
   }
@@ -107,7 +107,7 @@ struct implicitly_convertible_from_all_helper<BaseT, FirstT> {
 
 template <typename BaseT, typename FirstT, typename... DerivedTs>
 struct implicitly_convertible_from_all_helper<BaseT, FirstT, DerivedTs...> {
-  static void doit(pybind11::class_<BaseT> &cls) {
+  template <typename ClassT> static void doit(ClassT &cls) {
     implicitly_convertible_from_all_helper<BaseT, FirstT>::doit(cls);
     implicitly_convertible_from_all_helper<BaseT, DerivedTs...>::doit(cls);
   }
@@ -115,8 +115,8 @@ struct implicitly_convertible_from_all_helper<BaseT, FirstT, DerivedTs...> {
 
 } // end namespace detail
 
-template <typename BaseT, typename... DerivedTs>
-void implicitly_convertible_from_all(pybind11::class_<BaseT> &cls) {
+template <typename... DerivedTs, typename BaseT, typename... ExtraTs>
+void implicitly_convertible_from_all(pybind11::class_<BaseT, ExtraTs...> &cls) {
   detail::implicitly_convertible_from_all_helper<
       BaseT, DerivedTs...>::doit(cls);
 }

@@ -30,7 +30,7 @@ struct polymorphic_type_hooks_impl<BaseT, DerivedT> {
       //
       // It should be done by src->cast<DerivedT>(), however we need to return a
       // pointer value.
-      return static_cast<const DerivedT *>(src);
+      return reinterpret_cast<const DerivedT *>(src);
     }
     return nullptr;
   }

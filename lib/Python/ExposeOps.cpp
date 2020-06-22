@@ -17,8 +17,9 @@ namespace mlir {
 namespace py {
 
 Operation *operationCtor(
-    Location loc, const std::string &name, TypeListRef retTys, ValueListRef operands,
-    AttrDictRef attrs, BlockListRef successors, unsigned numRegions) {
+    Location loc, const std::string &name, TypeListRef retTys,
+    ValueListRef operands, AttrDictRef attrs, BlockListRef successors,
+    unsigned numRegions) {
   OperationName opName{name, getMLIRContext()};
   NamedAttrList attrList;
   for (auto &[name, attr] : attrs)
@@ -43,13 +44,51 @@ void checkSuccessorIdx(Operation *op, unsigned idx) {
     throw index_error{};
 }
 
-/// Operation * does not need nullcheck because, unlike Value, Type, and
-/// Attribute, it does not wrap a nullable underlying type.
-void exposeOps(module &m) {
-  // All operation instances are managed by MLIR
-  class_<Operation, std::unique_ptr<Operation, nodelete>> opCls{m, "Operation"};
-  opCls
-      .def(init(&operationCtor))
+namespace detail {
+template <typename...> struct op_implicit_conversion_helper;
+template <typename OpTy> struct op_implicit_conversion_helper<OpTy> {
+  template <typename ClassT> static void doit(ClassT &cls) {
+    cls.def(init([](OpTy op) -> Operation * { return op; }),
+            return_value_policy::reference);
+    implicitly_convertible<OpTy, Operation>();
+  }
+};
+template <typename OpTy, typename... OpTys>
+struct op_implicit_conversion_helper<OpTy, OpTys...> {
+  template <typename ClassT> static void doit(ClassT &cls) {
+    op_implicit_conversion_helper<OpTy>::doit(cls);
+    op_implicit_conversion_helper<OpTys...>::doit(cls);
+  }
+};
+} // end namespace detail
+
+template <typename... OpTys, typename ClassT>
+void op_implicit_conversion(ClassT &cls) {
+  detail::op_implicit_conversion_helper<OpTys...>::doit(cls);
+}
+
+template <typename RetT, typename... ArgTs>
+auto wrapBase(RetT(Operation::*fcn)(ArgTs...)) {
+  return [fcn](Operation *op, ArgTs ...args) -> RetT {
+    return (op->*fcn)(std::forward<ArgTs>(args)...);
+  };
+}
+
+template <typename T, typename FcnT,
+          std::enable_if_t<std::is_same_v<T, Operation>, int> = 0>
+auto wrap(FcnT fcn) {
+  return fcn;
+}
+template <typename T, typename FcnT,
+          std::enable_if_t<std::is_same_v<T, OpBase>, int> = 0>
+auto wrap(FcnT fcn) {
+  return wrapBase(fcn);
+}
+
+template <typename T, typename... ExtraTs>
+void defOpMethods(class_<T, ExtraTs...> &cls) {
+  cls
+      .def(init(&operationCtor), return_value_policy::reference)
       .def("__repr__", [](Operation *op) {
         std::string buf;
         llvm::raw_string_ostream os{buf};
@@ -59,32 +98,36 @@ void exposeOps(module &m) {
       .def_property_readonly("name", [](Operation *op) {
         return op->getName().getStringRef().str();
       })
-      .def("isRegistered", &Operation::isRegistered)
-      .def("erase", &Operation::erase)
-      .def_property_readonly("block", &Operation::getBlock,
+      .def("isRegistered", wrap<T>(&Operation::isRegistered))
+      .def("erase", wrap<T>(&Operation::erase))
+      .def_property_readonly("block", wrap<T>(&Operation::getBlock),
                              return_value_policy::reference)
-      .def_property_readonly("dialect", &Operation::getDialect,
+      .def_property_readonly("dialect", wrap<T>(&Operation::getDialect),
                              return_value_policy::reference)
-      .def_property_readonly("loc", &Operation::getLoc)
-      .def_property_readonly("parentRegion", &Operation::getParentRegion,
+      .def_property_readonly("loc", wrap<T>(&Operation::getLoc))
+      .def_property_readonly("parentRegion",
+                             wrap<T>(&Operation::getParentRegion),
                              return_value_policy::reference)
-      .def_property_readonly("parentOp", &Operation::getParentOp,
+      .def_property_readonly("parentOp", wrap<T>(&Operation::getParentOp),
                              return_value_policy::reference)
-      .def("isProperAncestor", &Operation::isProperAncestor)
-      .def("isAncestor", &Operation::isAncestor)
-      .def("replaceUsesOfWith", &Operation::replaceUsesOfWith)
-      .def("destroy", &Operation::destroy)
-      .def("dropAllReferences", &Operation::dropAllReferences)
-      .def("dropAllDefinedValueUses", &Operation::dropAllDefinedValueUses)
+      .def("isProperAncestor", wrap<T>(&Operation::isProperAncestor))
+      .def("isAncestor", wrap<T>(&Operation::isAncestor))
+      .def("replaceUsesOfWith", wrap<T>(&Operation::replaceUsesOfWith))
+      .def("destroy", wrap<T>(&Operation::destroy))
+      .def("dropAllReferences", wrap<T>(&Operation::dropAllReferences))
+      .def("dropAllDefinedValueUses",
+           wrap<T>(&Operation::dropAllDefinedValueUses))
       .def("moveBefore",
-           overload<void(Operation::*)(Operation *)>(&Operation::moveBefore))
+           wrap<T>(overload<void(Operation::*)(Operation *)>(
+               &Operation::moveBefore)))
       .def("moveAfter",
-           overload<void(Operation::*)(Operation *)>(&Operation::moveAfter))
-      .def("isBeforeInBlock", &Operation::isBeforeInBlock)
+           wrap<T>(overload<void(Operation::*)(Operation *)>(
+               &Operation::moveAfter)))
+      .def("isBeforeInBlock", wrap<T>(&Operation::isBeforeInBlock))
       .def("setOperands", [](Operation *op, ValueListRef operands) {
         op->setOperands(operands);
       })
-      .def("getNumOperands", &Operation::getNumOperands)
+      .def("getNumOperands", wrap<T>(&Operation::getNumOperands))
       .def("getOperand", [](Operation *op, unsigned idx) {
         checkOperandIdx(op, idx);
         return op->getOperand(idx);
@@ -111,7 +154,7 @@ void exposeOps(module &m) {
       .def("getOperandTypes", [](Operation *op) {
         return make_iterator(op->operand_type_begin(), op->operand_type_end());
       }, keep_alive<0, 1>())
-      .def("getNumResults", &Operation::getNumResults)
+      .def("getNumResults", wrap<T>(&Operation::getNumResults))
       .def("getResult", [](Operation *op, unsigned idx) {
         checkResultIdx(op, idx);
         return op->getResult(idx);
@@ -149,7 +192,7 @@ void exposeOps(module &m) {
         return op->removeAttr(name) ==
             MutableDictionaryAttr::RemoveResult::Removed;
       })
-      .def("getNumRegions", &Operation::getNumRegions)
+      .def("getNumRegions", wrap<T>(&Operation::getNumRegions))
       .def("getRegions", [](Operation *op) {
         auto regions = op->getRegions();
         return make_iterator(std::begin(regions), std::end(regions));
@@ -166,8 +209,8 @@ void exposeOps(module &m) {
       .def("getSuccessors", [](Operation *op) {
         return make_iterator(op->successor_begin(), op->successor_end());
       }, keep_alive<0, 1>())
-      .def("hasSuccessors", &Operation::hasSuccessors)
-      .def("getNumSuccessors", &Operation::getNumSuccessors)
+      .def("hasSuccessors", wrap<T>(&Operation::hasSuccessors))
+      .def("getNumSuccessors", wrap<T>(&Operation::getNumSuccessors))
       .def("getSuccessor", [](Operation *op, unsigned idx) {
         checkSuccessorIdx(op, idx);
         return op->getSuccessor(idx);
@@ -176,20 +219,39 @@ void exposeOps(module &m) {
         checkSuccessorIdx(op, idx);
         op->setSuccessor(block, idx);
       })
-      .def("isCommutative", &Operation::isCommutative)
-      .def("isKnownTerminator", &Operation::isKnownTerminator)
-      .def("isKnownNonTerminator", &Operation::isKnownNonTerminator)
-      .def("isKnownIsolatedFromAbove", &Operation::isKnownIsolatedFromAbove)
-      .def("dropAllUses", &Operation::dropAllUses)
+      .def("isCommutative", wrap<T>(&Operation::isCommutative))
+      .def("isKnownTerminator", wrap<T>(&Operation::isKnownTerminator))
+      .def("isKnownNonTerminator", wrap<T>(&Operation::isKnownNonTerminator))
+      .def("isKnownIsolatedFromAbove",
+           wrap<T>(&Operation::isKnownIsolatedFromAbove))
+      .def("dropAllUses", wrap<T>(&Operation::dropAllUses))
       .def("getUses", [](Operation *op) {
         return make_iterator(op->use_begin(), op->use_end());
       }, keep_alive<0, 1>())
-      .def("isUsedOutsideOfBlock", &Operation::isUsedOutsideOfBlock)
-      .def("hasOneUse", &Operation::hasOneUse)
-      .def("useEmpty", &Operation::use_empty)
+      .def("isUsedOutsideOfBlock", wrap<T>(&Operation::isUsedOutsideOfBlock))
+      .def("hasOneUse", wrap<T>(&Operation::hasOneUse))
+      .def("useEmpty", wrap<T>(&Operation::use_empty))
       .def("getUsers", [](Operation *op) {
         return make_iterator(op->user_begin(), op->user_end());
       }, keep_alive<0, 1>());
+
+}
+
+/// Operation * does not need nullcheck because, unlike Value, Type, and
+/// Attribute, it does not wrap a nullable underlying type.
+void exposeOps(module &m) {
+  // All operation instances are managed by MLIR
+  class_<OpBase> opCls{m, "Op"};
+  defOpMethods(opCls);
+  opCls.def(init<Operation *>());
+
+  class_<Operation, std::unique_ptr<Operation, nodelete>> baseCls{m,
+                                                                  "Operation"};
+  defOpMethods(baseCls);
+  baseCls.def(init([](OpBase &base) -> Operation * { return base; }),
+              return_value_policy::reference);
+  implicitly_convertible<OpBase, Operation>();
+  implicitly_convertible<Operation, OpBase>();
 
   class_<Region, std::unique_ptr<Region, nodelete>>(m, "Region")
       .def("empty", &Region::empty)
@@ -209,9 +271,14 @@ void exposeOps(module &m) {
 
   exposeModule(m, opCls);
 
-  implicitly_convertible_from_all<Operation,
-      ModuleOp>(opCls);
+  op_implicit_conversion<ModuleOp>(baseCls);
 }
 
 } // end namespace py
 } // end namespace mlir
+
+namespace pybind11 {
+template <> struct polymorphic_type_hook<OpBase>
+    : public polymorphic_type_hooks<OpBase,
+      ModuleOp> {};
+} // end namespace pybind11

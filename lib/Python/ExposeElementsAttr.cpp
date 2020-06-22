@@ -181,14 +181,14 @@ void exposeElementsAttr(module &m, class_<Attribute> &attr) {
       }), keep_alive<0, 1>());
       // TODO getIntValues, ... etc.
 
-  implicitly_convertible_from_all<DenseIntOrFPElementsAttr,
+  implicitly_convertible_from_all<
       DenseFPElementsAttr, DenseIntElementsAttr>(denseFpOrIntElsAttr);
 
-  implicitly_convertible_from_all<DenseElementsAttr,
+  implicitly_convertible_from_all<
       DenseStringElementsAttr, DenseIntOrFPElementsAttr, DenseFPElementsAttr,
       DenseIntElementsAttr>(denseElsAttr);
 
-  implicitly_convertible_from_all<ElementsAttr,
+  implicitly_convertible_from_all<
       DenseElementsAttr, DenseStringElementsAttr, DenseIntOrFPElementsAttr,
       DenseFPElementsAttr, DenseIntElementsAttr, SparseElementsAttr>(elsAttr);
 }

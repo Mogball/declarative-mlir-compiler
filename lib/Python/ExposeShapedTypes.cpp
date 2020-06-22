@@ -120,13 +120,13 @@ void exposeShapedTypes(pybind11::module &m, TypeClass &type) {
       .def_property_readonly("memorySpace",
                              nullcheck(&UnrankedMemRefType::getMemorySpace));
 
-  implicitly_convertible_from_all<TensorType,
+  implicitly_convertible_from_all<
       RankedTensorType, UnrankedTensorType>(tensorTy);
 
-  implicitly_convertible_from_all<BaseMemRefType,
+  implicitly_convertible_from_all<
       MemRefType, UnrankedMemRefType>(baseMemRefTy);
 
-  implicitly_convertible_from_all<ShapedType,
+  implicitly_convertible_from_all<
       VectorType,
       TensorType, RankedTensorType, UnrankedTensorType,
       BaseMemRefType, MemRefType, UnrankedMemRefType>(shapedTy);
