@@ -9,7 +9,6 @@ namespace py {
 
 void getModule(module &m) {
   exposeParser(m);
-  exposeModule(m);
   auto type = exposeTypeBase(m);
   exposeAttribute(m);
   exposeType(m, type);

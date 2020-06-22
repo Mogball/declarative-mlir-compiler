@@ -206,6 +206,11 @@ void exposeOps(module &m) {
       .def("getArguments", [](Block &block) {
         return make_iterator(block.args_begin(), block.args_end());
       }, keep_alive<0, 1>());
+
+  exposeModule(m, opCls);
+
+  implicitly_convertible_from_all<Operation,
+      ModuleOp>(opCls);
 }
 
 } // end namespace py

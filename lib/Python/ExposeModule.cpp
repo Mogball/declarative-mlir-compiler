@@ -1,3 +1,4 @@
+#include "Expose.h"
 #include "Module.h"
 #include "Utility.h"
 #include "OwningModuleRef.h"
@@ -13,8 +14,8 @@ template <typename FcnT> auto nullcheck(FcnT fcn) {
   return ::nullcheck(fcn, "module");
 }
 
-void exposeModule(module &m) {
-  class_<ModuleOp>(m, "ModuleOp")
+void exposeModule(module &m, OpClass &cls) {
+  class_<ModuleOp>(m, "ModuleOp", cls)
       .def(init<>())
       .def(init<const ModuleOp &>())
       .def("__repr__", nullcheck(StringPrinter<ModuleOp>{}))
