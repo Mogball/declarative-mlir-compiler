@@ -45,6 +45,8 @@ void exposeDynamicType(module &m, DynamicTypeImpl *impl) {
 module exposeDialect(DynamicDialect *dialect) {
   auto m = reinterpret_borrow<module>(
       PyImport_AddModule(dialect->getNamespace().str().c_str()));
+  m.attr("__dict__")["__builtins__"] =
+      reinterpret_borrow<dict>(PyEval_GetBuiltins());
   exec("import mlir", m.attr("__dict__"));
   for (auto *ty : dialect->getTypes()) {
     exposeDynamicType(m, ty);
