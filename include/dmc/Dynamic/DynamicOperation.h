@@ -4,6 +4,7 @@
 
 #include <llvm/ADT/StringMap.h>
 #include <mlir/IR/OperationSupport.h>
+#include <mlir/IR/OpDefinition.h>
 
 namespace dmc {
 
@@ -98,5 +99,44 @@ mlir::LogicalResult DynamicOperation::addOpTrait(Args &&... args) {
 template <typename TraitT> TraitT *DynamicOperation::getTrait() {
   return dynamic_cast<TraitT *>(getTrait(TraitT::getName()));
 }
+
+/// Mark dynamic operations with this OpTrait. Also, Op requires at least one
+/// OpTrait.
+template <typename ConcreteType>
+class DynamicOpTrait :
+    public mlir::OpTrait::TraitBase<ConcreteType, DynamicOpTrait> {
+public:
+  static mlir::LogicalResult verifyTrait(mlir::Operation *op) {
+    // Hook into the DynamicTraits
+    return DynamicOperation::of(op)->verifyOpTraits(op);
+  }
+};
+
+/// Define base properies of all dynamic ops.
+class BaseOp : public mlir::Op<BaseOp, DynamicOpTrait> {
+public:
+  using Op::Op;
+
+  static mlir::ParseResult parseAssembly(mlir::OpAsmParser &parser,
+                                         mlir::OperationState &result);
+
+  static void printAssembly(mlir::Operation *op, mlir::OpAsmPrinter &p) {
+    // Assume we have the correct Op
+    DynamicOperation::of(op)->printOperation(p, op);
+  }
+
+  static mlir::LogicalResult verifyInvariants(mlir::Operation *op) {
+    // TODO add call to custom verify() function
+    // A DynamicOperation will always only have this trait
+    return DynamicOpTrait::verifyTrait(op);
+  }
+
+  static mlir::LogicalResult foldHook(
+      mlir::Operation *op, llvm::ArrayRef<mlir::Attribute> operands,
+      llvm::SmallVectorImpl<mlir::OpFoldResult> &results) {
+    // TODO custom fold hooks
+    return mlir::failure();
+  }
+};
 
 } // end namespace dmc

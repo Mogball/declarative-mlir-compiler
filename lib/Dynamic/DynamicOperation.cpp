@@ -12,56 +12,18 @@
 using namespace mlir;
 
 namespace dmc {
-namespace {
 
-/// Mark dynamic operations with this OpTrait. Also, Op requires
-/// at least one OpTrait.
-template <typename ConcreteType>
-class DynamicOpTrait :
-    public OpTrait::TraitBase<ConcreteType, DynamicOpTrait> {
-public:
-  static LogicalResult verifyTrait(Operation *op) {
-    // Hook into the DynamicTraits
-    return DynamicOperation::of(op)->verifyOpTraits(op);
-  }
-};
-
-/// Define base properies of all dynamic ops.
-class BaseOp : public Op<BaseOp, DynamicOpTrait> {
-public:
-  using Op::Op;
-
-  static ParseResult parseAssembly(OpAsmParser &parser,
-                                   OperationState &result) {
-    // TODO This is a *three*-step lookup
-    auto *ctx = parser.getBuilder().getContext();
-    auto *dynCtx = ctx->getRegisteredDialect<DynamicContext>();
-    assert(dynCtx && "Dynamic context is not registered");
-    auto *dialect = dynCtx->lookupDialectFor(result.name);
-    assert(dialect && "Not a dynamic operation");
-    auto *dynOp = dialect->lookupOp(result.name);
-    return dynOp->parseOperation(parser, result);
-  }
-
-  static void printAssembly(Operation *op, OpAsmPrinter &p) {
-    // Assume we have the correct Op
-    DynamicOperation::of(op)->printOperation(p, op);
-  }
-
-  static LogicalResult verifyInvariants(Operation *op) {
-    // TODO add call to custom verify() function
-    // A DynamicOperation will always only have this trait
-    return DynamicOpTrait::verifyTrait(op);
-  }
-
-  static LogicalResult foldHook(Operation *op, ArrayRef<Attribute> operands,
-                                SmallVectorImpl<OpFoldResult> &results) {
-    // TODO custom fold hooks
-    return failure();
-  }
-};
-
-} // end anonymous namespace
+ParseResult BaseOp::parseAssembly(OpAsmParser &parser,
+                                 OperationState &result) {
+  // TODO This is a *three*-step lookup
+  auto *ctx = parser.getBuilder().getContext();
+  auto *dynCtx = ctx->getRegisteredDialect<DynamicContext>();
+  assert(dynCtx && "Dynamic context is not registered");
+  auto *dialect = dynCtx->lookupDialectFor(result.name);
+  assert(dialect && "Not a dynamic operation");
+  auto *dynOp = dialect->lookupOp(result.name);
+  return dynOp->parseOperation(parser, result);
+}
 
 DynamicOperation *DynamicOperation::of(Operation *op) {
   /// All DynamicOperations must belong to a DynamicDialect.

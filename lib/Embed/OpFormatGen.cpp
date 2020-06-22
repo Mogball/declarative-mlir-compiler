@@ -1416,22 +1416,22 @@ LogicalResult FormatParser::verifyRegions(llvm::SMLoc loc) {
   return success();
 }
 
-void FormatParser::handleAllTypesMatchConstraint(
-    ArrayRef<StringRef> values,
-    llvm::StringMap<TypeResolutionInstance> &variableTyResolver) {
-  for (unsigned i = 0, e = values.size(); i != e; ++i) {
-    // Check to see if this value matches a resolved operand or result type.
-    const NamedType *arg = findSeenArg(values[i]);
-    if (!arg)
-      continue;
-
-    // Mark this value as the type resolver for the other variables.
-    for (unsigned j = 0; j != i; ++j)
-      variableTyResolver[values[j]] = {arg, llvm::None};
-    for (unsigned j = i + 1; j != e; ++j)
-      variableTyResolver[values[j]] = {arg, llvm::None};
-  }
-}
+//void FormatParser::handleAllTypesMatchConstraint(
+//    ArrayRef<StringRef> values,
+//    llvm::StringMap<TypeResolutionInstance> &variableTyResolver) {
+//  for (unsigned i = 0, e = values.size(); i != e; ++i) {
+//    // Check to see if this value matches a resolved operand or result type.
+//    const NamedType *arg = findSeenArg(values[i]);
+//    if (!arg)
+//      continue;
+//
+//    // Mark this value as the type resolver for the other variables.
+//    for (unsigned j = 0; j != i; ++j)
+//      variableTyResolver[values[j]] = {arg, llvm::None};
+//    for (unsigned j = i + 1; j != e; ++j)
+//      variableTyResolver[values[j]] = {arg, llvm::None};
+//  }
+//}
 
 void FormatParser::handleSameTypesConstraint(
     llvm::StringMap<TypeResolutionInstance> &variableTyResolver,
