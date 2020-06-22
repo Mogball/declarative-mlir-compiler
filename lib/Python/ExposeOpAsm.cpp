@@ -12,7 +12,6 @@ using namespace mlir;
 using namespace llvm;
 
 using dmc::py::OperationWrap;
-using dmc::py::ResultWrap;
 
 namespace dmc {
 namespace py {
@@ -84,11 +83,10 @@ void genericPrint(OpAsmPrinter &printer, const object &obj) {
 }
 
 static LogicalResult resolveOperands(OpAsmParser &parser, list operands,
-                                     list types, ResultWrap &wrap) {
+                                     list types, OperationState &result) {
   for (auto [operand, type] : llvm::zip(operands, types)) {
     if (parser.resolveOperand(operand.cast<OpAsmParser::OperandType>(),
-                              type.cast<Type>(),
-                              wrap.getResult().operands))
+                              type.cast<Type>(), result.operands))
       return failure();
   }
   return success();
@@ -166,24 +164,23 @@ void exposeOpAsm(module &m) {
         auto ret = parser.parseOperand(operand);
         return make_tuple(operand, ret);
       })
-      .def("parseAttribute", [](OpAsmParser &parser, ResultWrap &wrap,
+      .def("parseAttribute", [](OpAsmParser &parser, OperationState &result,
                                 std::string name, Type type) {
         Attribute attr;
-        return parser.parseAttribute(attr, type, name,
-                                     wrap.getResult().attributes);
+        return parser.parseAttribute(attr, type, name, result.attributes);
       }, "attributes"_a, "name"_a, "type"_a = Type{})
-      .def("parseSymbolName", [](OpAsmParser &parser, ResultWrap &wrap,
+      .def("parseSymbolName", [](OpAsmParser &parser, OperationState &result,
                                  std::string name) {
         StringAttr attr;
-        return parser.parseSymbolName(attr, name, wrap.getResult().attributes);
+        return parser.parseSymbolName(attr, name, result.attributes);
       })
-      .def("parseOptionalAttrDict", [](OpAsmParser &parser, ResultWrap &wrap) {
-        return parser.parseOptionalAttrDict(wrap.getResult().attributes);
+      .def("parseOptionalAttrDict", [](OpAsmParser &parser,
+                                       OperationState &result) {
+        return parser.parseOptionalAttrDict(result.attributes);
       })
       .def("parseOptionalAttrDictWithKeyword", [](OpAsmParser &parser,
-                                                  ResultWrap &wrap) {
-        return parser.parseOptionalAttrDictWithKeyword(
-            wrap.getResult().attributes);
+                                                  OperationState &result) {
+        return parser.parseOptionalAttrDictWithKeyword(result.attributes);
       })
       .def("parseType", [](OpAsmParser &parser) {
         Type type;
@@ -191,18 +188,18 @@ void exposeOpAsm(module &m) {
         return make_tuple(type, ret);
       })
       .def("resolveOperands", [](OpAsmParser &parser, list operands, list types,
-                                 SMLoc loc, ResultWrap &wrap)
+                                 SMLoc loc, OperationState &result)
                               -> LogicalResult {
         if (operands.size() != types.size())
           return parser.emitError(loc) << operands.size()
               << " operands present, but expected " << types.size();
-        return resolveOperands(parser, operands, types, wrap);
+        return resolveOperands(parser, operands, types, result);
       })
       .def("resolveOperands", [](OpAsmParser &parser, list operands, list types,
-                                 ResultWrap &wrap) -> LogicalResult {
+                                 OperationState &result) -> LogicalResult {
         if (operands.size() != types.size())
           return failure();
-        return resolveOperands(parser, operands, types, wrap);
+        return resolveOperands(parser, operands, types, result);
       })
       .def("parseFunctionalType", [](OpAsmParser &parser) {
         FunctionType funcType;

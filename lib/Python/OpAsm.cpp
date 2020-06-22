@@ -138,17 +138,14 @@ void exposeOperationWrap(module &m) {
 }
 
 void exposeResultWrap(module &m) {
-  class_<ResultWrap>(m, "ResultWrap")
-      .def("addTypes", [](ResultWrap &wrap, list types) {
+  class_<OperationState>(m, "OperationState")
+      .def("addTypes", [](OperationState &result, list types) {
         for (auto type : types)
-          wrap.getResult().types.push_back(type.cast<Type>());
+          result.types.push_back(type.cast<Type>());
       })
-      .def("addRegion", [](ResultWrap &wrap) {
-        return wrap.getResult().addRegion();
-      }, return_value_policy::reference)
-      .def("appendRegion", [](ResultWrap &, Region &) {
-        // `addRegion` will automatically put the region in the OperationState
-      });
+      .def("addRegion", [](OperationState &result) {
+        return result.addRegion();
+      }, return_value_policy::reference);
   class_<NamedAttrList>(m, "NamedAttrList");
 }
 

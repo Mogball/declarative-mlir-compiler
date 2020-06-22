@@ -11,5 +11,7 @@ inline auto getInternalScope() {
   return getInternalModule().attr("__dict__");
 }
 
+void ensureBuiltins(pybind11::module m);
+
 } // end namespace py
 } // end namespace dmc

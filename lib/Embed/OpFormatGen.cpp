@@ -791,9 +791,7 @@ void OperationFormat::genParserSuccessorResolution(OperationOp op,
 
 void OperationFormat::genParserRegionResolution(OperationOp op,
                                                 PythonGenStream &body) {
-  for (auto &region : op.getOpRegions().getRegions()) {
-    body.line() << "result.appendRegion(" << region.name << "Region)";
-  }
+  // `addRegion` will automatically put the region in the OperationState
 }
 
 void OperationFormat::genParserVariadicSegmentResolution(OperationOp op,

@@ -16,3 +16,6 @@ dialects = registerDynamicDialects(module)
 lua = dialects[0]
 
 print("lua value:", lua.value())
+
+laplace = parseSourceFile('spec/laplace.mlir')
+print(laplace)

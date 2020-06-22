@@ -9,5 +9,11 @@ module getInternalModule() {
   return module::import("mlir");
 }
 
+void ensureBuiltins(module m) {
+  auto scope = m.attr("__dict__").cast<dict>();
+  if (!scope.contains("__builtins__"))
+    scope["__builtins__"] = PyEval_GetBuiltins();
+}
+
 } // end namespace py
 } // end namespace dmc
