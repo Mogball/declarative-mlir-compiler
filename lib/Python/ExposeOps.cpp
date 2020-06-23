@@ -12,6 +12,7 @@
 
 using namespace pybind11;
 using namespace mlir;
+using dmc::BaseOp;
 
 namespace mlir {
 namespace py {
@@ -80,7 +81,7 @@ auto wrap(FcnT fcn) {
   return fcn;
 }
 template <typename T, typename FcnT,
-          std::enable_if_t<std::is_same_v<T, OpBase>, int> = 0>
+          std::enable_if_t<std::is_same_v<T, BaseOp>, int> = 0>
 auto wrap(FcnT fcn) {
   return wrapBase(fcn);
 }
@@ -88,7 +89,6 @@ auto wrap(FcnT fcn) {
 template <typename T, typename... ExtraTs>
 void defOpMethods(class_<T, ExtraTs...> &cls) {
   cls
-      .def(init(&operationCtor), return_value_policy::reference)
       .def("__repr__", [](Operation *op) {
         std::string buf;
         llvm::raw_string_ostream os{buf};
@@ -241,17 +241,19 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
 /// Attribute, it does not wrap a nullable underlying type.
 void exposeOps(module &m) {
   // All operation instances are managed by MLIR
-  class_<OpBase> opCls{m, "Op"};
+  class_<BaseOp> opCls{m, "Op"};
   defOpMethods(opCls);
   opCls.def(init<Operation *>());
 
   class_<Operation, std::unique_ptr<Operation, nodelete>> baseCls{m,
                                                                   "Operation"};
   defOpMethods(baseCls);
-  baseCls.def(init([](OpBase &base) -> Operation * { return base; }),
-              return_value_policy::reference);
-  implicitly_convertible<OpBase, Operation>();
-  implicitly_convertible<Operation, OpBase>();
+  baseCls
+      .def(init([](BaseOp &base) -> Operation * { return base; }),
+           return_value_policy::reference)
+      .def(init(&operationCtor), return_value_policy::reference);
+  implicitly_convertible<BaseOp, Operation>();
+  implicitly_convertible<Operation, BaseOp>();
 
   class_<Region, std::unique_ptr<Region, nodelete>>(m, "Region")
       .def("empty", &Region::empty)
@@ -278,7 +280,7 @@ void exposeOps(module &m) {
 } // end namespace mlir
 
 namespace pybind11 {
-template <> struct polymorphic_type_hook<OpBase>
-    : public polymorphic_type_hooks<OpBase,
+template <> struct polymorphic_type_hook<BaseOp>
+    : public polymorphic_type_hooks<BaseOp,
       ModuleOp> {};
 } // end namespace pybind11

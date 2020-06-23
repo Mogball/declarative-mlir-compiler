@@ -1,6 +1,6 @@
 #pragma once
 
-#include "OpBase.h"
+#include "dmc/Dynamic/DynamicOperation.h"
 
 #include <mlir/IR/Attributes.h>
 #include <mlir/IR/Operation.h>
@@ -11,7 +11,7 @@ namespace py {
 
 using AttrClass = pybind11::class_<Attribute>;
 using TypeClass = pybind11::class_<Type>;
-using OpClass = pybind11::class_<OpBase>;
+using OpClass = pybind11::class_<dmc::BaseOp>;
 
 void exposeParser(pybind11::module &m);
 /// pybind11 needs Type to be exposed before it can be used in default args.

@@ -58,8 +58,8 @@ getValueOrGroup(OperationWrap &op, GetFcn getVal, std::string name,
       return getVal(op, idx);
     ++idx;
   }
-  llvm_unreachable("Unable to find a named value");
-  return {};
+  throw std::invalid_argument{"Unable to find named value '" + name +
+                              "' for op '" + op.getSpec()->getName() + "'"};
 }
 
 } // end anonymous namespace
@@ -82,6 +82,9 @@ void exposeOperationWrap(module &m) {
       });
 
   class_<OperationWrap>(m, "OperationWrap")
+      .def(init([](Operation *op) {
+        return OperationWrap{op, DynamicOperation::of(op)};
+      }))
       .def("getName", [](OperationWrap &op) {
         return op.getOp()->getName().getStringRef().str();
       })
@@ -133,7 +136,6 @@ void exposeOperationWrap(module &m) {
         throw std::invalid_argument{"Unable to find a region named '" + name +
                                     "' for operation '" +
                                     op.getSpec()->getName() + "'"};
-
       }, return_value_policy::reference_internal);
 }
 
