@@ -18,9 +18,11 @@ InMemoryDef::~InMemoryDef() {
   exec(os.str(), getInternalScope());
 }
 
-InMemoryClass::InMemoryClass(StringRef clsName, StringRef parentCls,
+InMemoryClass::InMemoryClass(StringRef clsName, ArrayRef<StringRef> parentCls,
                              module &m) : m{m} {
-  pgs.block("class", clsName + "(" + parentCls + ")");
+  auto line = pgs.line() << "class " << clsName << "(";
+  llvm::interleaveComma(parentCls, line, [&](StringRef cls) { line << cls; });
+  line << "):" << incr;
 }
 
 InMemoryClass::~InMemoryClass() {

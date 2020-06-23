@@ -31,7 +31,7 @@ public:
   static bool kindof(unsigned kind)
   { return kind == AttrKinds::OpRegion; }
 
-  llvm::ArrayRef<NamedConstraint> getRegions();
+  llvm::ArrayRef<NamedConstraint> getRegions() const;
 
   inline unsigned getNumRegions() { return std::size(getRegions()); }
   inline const NamedConstraint *getRegion(unsigned idx)
@@ -41,12 +41,12 @@ public:
   inline mlir::Attribute getRegionAttr(unsigned idx)
   { return getRegion(idx)->attr; }
 
-  inline auto getRegionAttrs()
+  inline auto getRegionAttrs() const
   { return llvm::map_range(getRegions(), detail::unwrap); }
 
-  inline auto begin() { return std::begin(getRegionAttrs()); }
-  inline auto end() { return std::end(getRegionAttrs()); }
-  inline auto size() { return std::size(getRegions()); }
+  inline auto begin() const { return std::begin(getRegionAttrs()); }
+  inline auto end() const { return std::end(getRegionAttrs()); }
+  inline auto size() const { return std::size(getRegions()); }
 };
 
 class OpSuccessor : public mlir::Attribute::AttrBase<
@@ -60,7 +60,7 @@ public:
   static bool kindof(unsigned kind)
   { return kind == AttrKinds::OpSuccessor; }
 
-  llvm::ArrayRef<NamedConstraint> getSuccessors();
+  llvm::ArrayRef<NamedConstraint> getSuccessors() const;
 
   inline unsigned getNumSuccessors() { return std::size(getSuccessors()); }
   inline const NamedConstraint *getSuccessor(unsigned idx)
@@ -70,12 +70,12 @@ public:
   inline mlir::Attribute getSuccessorAttr(unsigned idx)
   { return getSuccessor(idx)->attr; }
 
-  inline auto getSuccessorAttrs()
+  inline auto getSuccessorAttrs() const
   { return llvm::map_range(getSuccessors(), detail::unwrap); }
 
-  inline auto begin() { return std::begin(getSuccessorAttrs()); }
-  inline auto end() { return std::end(getSuccessorAttrs()); }
-  inline auto size() { return std::size(getSuccessors()); }
+  inline auto begin() const { return std::begin(getSuccessorAttrs()); }
+  inline auto end() const { return std::end(getSuccessorAttrs()); }
+  inline auto size() const { return std::size(getSuccessors()); }
 };
 
 } // end namespace dmc

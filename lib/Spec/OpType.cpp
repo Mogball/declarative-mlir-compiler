@@ -120,8 +120,9 @@ OpSuccessor OpSuccessor::getChecked(Location loc,
 
 ArrayRef<NamedType> OpType::getOperands() { return getImpl()->operands; }
 ArrayRef<NamedType> OpType::getResults() { return getImpl()->results; }
-ArrayRef<NamedConstraint> OpRegion::getRegions() { return getImpl()->attrs; }
-ArrayRef<NamedConstraint> OpSuccessor::getSuccessors()
+ArrayRef<NamedConstraint> OpRegion::getRegions() const
+{ return getImpl()->attrs; }
+ArrayRef<NamedConstraint> OpSuccessor::getSuccessors() const
 { return getImpl()->attrs; }
 
 bool NamedType::isVariadic() const {

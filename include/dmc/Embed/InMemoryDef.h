@@ -2,6 +2,8 @@
 
 #include "PythonGen.h"
 
+#include <llvm/ADT/ArrayRef.h>
+
 namespace pybind11 {
 class module;
 }
@@ -28,8 +30,9 @@ public:
 
 class InMemoryClass : public InMemoryStream {
 public:
-  explicit InMemoryClass(llvm::StringRef clsName, llvm::StringRef parentCls,
-                         pybind11::module &m);
+  explicit InMemoryClass(
+      llvm::StringRef clsName, llvm::ArrayRef<llvm::StringRef> parentCls,
+      pybind11::module &m);
   ~InMemoryClass();
 
 private:
