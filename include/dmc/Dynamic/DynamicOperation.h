@@ -38,6 +38,8 @@ public:
 
   /// Get the Op name.
   inline auto &getName() const { return name; }
+  /// Get the Op's dialect.
+  inline auto *getDialect() const { return dialect; }
 
   /// Add a DynamicTrait to this Op. Traits specify invariants on an
   /// Operation checked under verifyInvariants(). OpTraits should be

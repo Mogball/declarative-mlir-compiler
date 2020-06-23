@@ -24,7 +24,6 @@ PYBIND11_MODULE(mlir, m) {
                                     dialectOp.getName().str()};
       auto *dialect =
           mlir::py::getMLIRContext()->getRegisteredDialect(dialectOp.getName());
-      dmc::py::exposeDialectInternal(dynamic_cast<DynamicDialect *>(dialect));
       ret.append(eval(dialect->getNamespace().str(),
                       module::import("mlir").attr("__dict__")));
     }
