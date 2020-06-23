@@ -18,6 +18,13 @@ void def_attr(module &m, const char *name, FcnT fcn) {
   });
 }
 
+Operation *builderCreateOp(OpBuilder &builder, object type, pybind11::args args,
+                            pybind11::kwargs kwargs) {
+  auto ret = type(*args, **kwargs);
+  auto *op = ret.cast<Operation *>();
+  return builder.insert(op);
+}
+
 void exposeBuilder(module &m) {
   m.def("I1Type", []() { return getBuilder().getI1Type(); });
   m.def("I8Type", []() { return getBuilder().getIntegerType(8); });
@@ -53,6 +60,25 @@ void exposeBuilder(module &m) {
       refs.emplace_back(s);
     return getBuilder().getStrArrayAttr(refs);
   });
+
+  class_<OpBuilder>(m, "Builder")
+      .def(init([]() { return OpBuilder{getMLIRContext()}; }))
+      .def_static("atStart",
+                  [](Block *block) { return OpBuilder::atBlockBegin(block); })
+      .def_static("atEnd",
+                  [](Block *block) { return OpBuilder::atBlockEnd(block); })
+      .def_static("atTerminator",
+                  [](Block *block) { return OpBuilder::atBlockTerminator(block); })
+      .def("insertBefore",
+           overload<void(OpBuilder::*)(Operation *)>(&OpBuilder::setInsertionPoint))
+      .def("insertAfter", &OpBuilder::setInsertionPointAfter)
+      .def("insertAtStart", &OpBuilder::setInsertionPointToStart)
+      .def("insertAtEnd", &OpBuilder::setInsertionPointToEnd)
+      .def("getCurrentBlock", &OpBuilder::getInsertionBlock,
+           return_value_policy::reference)
+      .def("insert", &OpBuilder::insert, return_value_policy::reference)
+      .def("create", &builderCreateOp, return_value_policy::reference);
+
 }
 
 } // end namespace py

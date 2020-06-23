@@ -188,8 +188,6 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
           << "\")";
     } s.enddef();
   }
-
-  llvm::errs() << cls.str() << "\n";
 }
 
 } // end anonymous namespace
