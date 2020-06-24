@@ -262,14 +262,24 @@ void exposeOps(module &m) {
         if (it == std::end(region))
           throw index_error{};
         return &*it;
-      }, return_value_policy::reference_internal);
+      }, return_value_policy::reference_internal)
+      .def("append", &Region::push_back)
+      .def("push_front", &Region::push_front);
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
+      // Block must be given to a region or else this will leak
+      .def(init([]() { return new Block; }), return_value_policy::reference)
       .def("getNumArguments", &Block::getNumArguments)
       .def("getArgument", &Block::getArgument)
       .def("getArguments", [](Block &block) {
         return make_iterator(block.args_begin(), block.args_end());
-      }, keep_alive<0, 1>());
+      }, keep_alive<0, 1>())
+      .def("addArgs", [](Block &block, TypeListRef types) {
+        block.addArguments(types);
+      })
+      .def("addArg", [](Block &block, Type ty) {
+        block.addArguments(ty);
+      });
 
   exposeModule(m, opCls);
 
