@@ -3,6 +3,7 @@
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 #include "dmc/Dynamic/DynamicDialect.h"
+#include "dmc/Dynamic/DynamicContext.h"
 #include "dmc/Traits/SpecTraits.h"
 #include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Spec/SpecTypes.h"
@@ -64,8 +65,21 @@ struct ArgumentBuilder {
   SmallVector<Argument, 8> defArgs;
 };
 
+TypeMetadata *lookupTypeData(DynamicContext *ctx, Type ty) {
+  if (auto *dialect = ctx->lookupDialectFor(ty))
+    return dialect->lookupTypeData(ty);
+  return nullptr;
+}
+
+AttributeMetadata *lookupAttributeData(DynamicContext *ctx, Attribute attr) {
+  if (auto *dialect = ctx->lookupDialectFor(attr))
+    return dialect->lookupAttributeData(attr);
+  return nullptr;
+}
+
 void exposeDynamicOp(module &m, DynamicOperation *impl) {
   auto *dialect = impl->getDialect();
+  auto *ctx = dialect->getDynContext();
 
   // Declare the class
   auto opName = impl->getName();
@@ -85,16 +99,14 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
     b.add(name, "mlir.Value");
   }
   for (auto &[name, type] : opType.getResults()) {
-    if (auto *data = dialect->lookupTypeData(type);
-        data && data->getBuilder()) {
+    if (auto *data = lookupTypeData(ctx, type); data && data->getBuilder()) {
       b.add(name, *data->getBuilder(), "mlir.Type");
     } else {
       b.add(name, "mlir.Type");
     }
   }
   for (auto &[name, attr] : opAttr) {
-    if (auto *data = dialect->lookupAttributeData(attr);
-        data && data->getBuilder()) {
+    if (auto *data = lookupAttributeData(ctx, attr); data && data->getBuilder()) {
       b.add(name, *data->getBuilder(), "mlir.Attribute");
     } else if (attr.isa<DefaultAttr>()) {
       std::string buf;
@@ -132,6 +144,7 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
   // Call to generic operation constructor
   {
     auto line = s.line() << "theOp = mlir.Operation(loc, \"" << opName << "\", [";
+    /// TODO unpack arrays for variadic operands, results, and successors
     interleaveComma(opType.getResults(), line,
                     [&](const NamedType &ty) { line << ty.name; });
     line << "], [";
@@ -192,17 +205,20 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
 
 } // end anonymous namespace
 
-void exposeDialectInternal(DynamicDialect *dialect) {
+void exposeDialectInternal(DynamicDialect *dialect, ArrayRef<StringRef> scope) {
   auto m = reinterpret_borrow<module>(
       PyImport_AddModule(dialect->getNamespace().str().c_str()));
   ensureBuiltins(m);
   exec("import mlir", m.attr("__dict__"));
+  exec("from mlir import *", m.attr("__dict__"));
   auto regFcn = "register_internal_module_" + dialect->getNamespace().str();
   getInternalModule().def(regFcn.c_str(), [m]() { return m; });
   exec(dialect->getNamespace().str() + " = " + regFcn + "()",
        getInternalScope());
-  exec(dialect->getNamespace().str() + " = mlir." + regFcn + "()",
-       m.attr("__dict__"));
+  for (auto name : scope) {
+    exec(name.str() + " = mlir.register_internal_module_" +
+         name.str() + "()", m.attr("__dict__"));
+  }
   for (auto *ty : dialect->getTypes()) {
     exposeDynamicType(m, ty);
   }

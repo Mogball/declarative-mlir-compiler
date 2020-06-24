@@ -11,7 +11,7 @@ Dialect @lua {
     { builder = "IntegerType(1)" }
 
   // Lua uses 64-bit integers and floats
-  Alias @real -> f64 { builder = "F64()" }
+  Alias @real -> f64 { builder = "F64Type()" }
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @number -> !dmc.AnyOf<!lua.real, !lua.integer>
 
@@ -60,6 +60,21 @@ Dialect @lua {
     config { fmt = "$tbl `[` $key `]` `=` $value attr-dict" }
   Op @table_size(tbl: !lua.Value) -> (res: !lua.Value)
     config { fmt = "$tbl attr-dict" }
+
+  //--------------------------------------------------------------------------//
+  // Functions
+  //--------------------------------------------------------------------------//
+  Op @call(arg: !dmc.Variadic<!lua.Value>) -> (res: !dmc.Variadic<!lua.Value>)
+    { callee = #dmc.String }
+    traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
+    config { fmt = "symbol($callee) `(` operands `)` `:` functional-type(operands, results) attr-dict" }
+  Op @ret(arg: !dmc.Variadic<!lua.Value>) -> ()
+    traits [@SameVariadicOperandSizes]
+    config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
+  Op @func() -> (res: !dmc.Variadic<!lua.Value>)
+    (body: Any)
+    traits [@SameVariadicResultSizes]
+    config { fmt = "`(` type(results) `)` attr-dict `:` $body" }
 }
 
 Dialect @luac {

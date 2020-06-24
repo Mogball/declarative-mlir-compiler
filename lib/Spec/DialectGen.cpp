@@ -180,7 +180,8 @@ LogicalResult registerAlias(AliasOp aliasOp, DynamicDialect *dialect) {
   return success();
 }
 
-LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
+LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx,
+                              ArrayRef<StringRef> scope) {
   /// Create the dynamic dialect
   auto *dialect = ctx->createDynamicDialect(dialectOp.getName());
   dialect->allowUnknownOperations(dialectOp.allowsUnknownOps());
@@ -207,13 +208,15 @@ LogicalResult registerDialect(DialectOp dialectOp, DynamicContext *ctx) {
         return failure();
     }
   }
-  py::exposeDialectInternal(dialect);
+  py::exposeDialectInternal(dialect, scope);
   return success();
 }
 
 LogicalResult registerAllDialects(ModuleOp dialects, DynamicContext *ctx) {
+  std::vector<StringRef> scope;
   for (auto dialectOp : dialects.getOps<DialectOp>()) {
-    if (failed(registerDialect(dialectOp, ctx)))
+    scope.push_back(dialectOp.getName());
+    if (failed(registerDialect(dialectOp, ctx, scope)))
       return failure();
   }
   return success();

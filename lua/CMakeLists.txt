@@ -43,7 +43,7 @@ function(compile_lua_ir OUT IR_FILE DIALECT_FILE LIB_FILE)
   add_custom_command(
     OUTPUT ${mlir_out}
     COMMAND ${LUAC_EXE} ${abs_ir_file} -dialect=${abs_dialect_file} -lualib=${abs_lib_file} -lower-all -o ${mlir_out}
-    DEPENDS ${abs_ir_file}
+    DEPENDS ${abs_ir_file} ${abs_dialect_file} ${abs_lib_file}
     COMMENT "Lowering LUA IR ${IR_FILE}"
     )
   add_custom_command(

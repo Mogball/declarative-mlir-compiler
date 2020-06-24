@@ -18,8 +18,10 @@ PYBIND11_MODULE(mlir, m) {
 
   m.def("registerDynamicDialects", [ctx](ModuleOp module) {
     list ret;
+    std::vector<StringRef> scope;
     for (auto dialectOp : module.getOps<DialectOp>()) {
-      if (failed(registerDialect(dialectOp, ctx)))
+      scope.push_back(dialectOp.getName());
+      if (failed(registerDialect(dialectOp, ctx, scope)))
         throw std::invalid_argument{"Failed to register dialect: " +
                                     dialectOp.getName().str()};
       auto *dialect =
