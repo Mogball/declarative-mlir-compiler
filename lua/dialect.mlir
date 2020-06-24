@@ -71,10 +71,10 @@ Dialect @lua {
   Op @ret(arg: !dmc.Variadic<!lua.Value>) -> ()
     traits [@SameVariadicOperandSizes]
     config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
-  Op @func() -> () { name = #dmc.String, type = #dmc.Type }
+  Op @func() -> () { name = #dmc.String, funcTy = #dmc.Type }
     (body: Any)
     traits [@SameVariadicResultSizes]
-    config { fmt = "symbol($name) $type attr-dict $body" }
+    config { fmt = "symbol($name) $funcTy attr-dict $body" }
 }
 
 Dialect @luac {

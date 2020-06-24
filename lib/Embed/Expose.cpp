@@ -195,14 +195,14 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
   }
   for (auto &[name, succ] : opSucc.getSuccessors()) {
     auto getter = succ.isa<VariadicSuccessor>() ?
-        "getSuccessor" : "getSuccessors";
+        "getSuccessors" : "getSuccessor";
     s.def(name + "(self)"); {
       s.line() << "return mlir.OperationWrap." << getter << "(self, \"" << name
           << "\")";
     } s.enddef();
   }
   for (auto &[name, region] : opRegion.getRegions()) {
-    auto getter = region.isa<VariadicRegion>() ? "getRegion" : "getRegions";
+    auto getter = region.isa<VariadicRegion>() ? "getRegions" : "getRegion";
     s.def(name + "(self)"); {
       s.line() << "return mlir.OperationWrap." << getter << "(self, \"" << name
           << "\")";

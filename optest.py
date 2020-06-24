@@ -5,10 +5,14 @@ lua = dialects[0]
 luac = dialects[1]
 
 m = ModuleOp("luaModule")
-f = FuncOp("luaFunc", FunctionType([I64Type(), I64Type()], [I64Type()]))
+
+f = lua.func(name=StringAttr("luaFunc"),
+             funcTy=TypeAttr(FunctionType([I64Type()], [I64Type()])))
 m.append(f)
 
-entry = f.addEntryBlock()
+entry = Block()
+f.body().append(entry)
+entry.addArgs(f.funcTy().type.inputs)
 b = Builder.atStart(entry)
 b.create(lua.get_string, value=StringAttr("a_string_value"))
 wrap = b.create(luac.wrap_int, val=entry.getArgument(0))

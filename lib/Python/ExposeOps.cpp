@@ -270,7 +270,11 @@ void exposeOps(module &m) {
       // Block must be given to a region or else this will leak
       .def(init([]() { return new Block; }), return_value_policy::reference)
       .def("getNumArguments", &Block::getNumArguments)
-      .def("getArgument", &Block::getArgument)
+      .def("getArgument", [](Block &block, unsigned i) {
+        if (i >= block.getNumArguments())
+          throw index_error{};
+        return block.getArgument(i);
+      })
       .def("getArguments", [](Block &block) {
         return make_iterator(block.args_begin(), block.args_end());
       }, keep_alive<0, 1>())
