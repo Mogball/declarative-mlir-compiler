@@ -77,6 +77,13 @@ AttributeMetadata *lookupAttributeData(DynamicContext *ctx, Attribute attr) {
   return nullptr;
 }
 
+template <typename T> auto inlineOrConcat(PythonGenStream::Line &line) {
+  return [&](const T &t) {
+    line << (t.isVariadic() ? "] + " : "") << t.name
+         << (t.isVariadic() ? " + [" : "");
+  };
+}
+
 void exposeDynamicOp(module &m, DynamicOperation *impl) {
   auto *dialect = impl->getDialect();
   auto *ctx = dialect->getDynContext();
@@ -96,33 +103,30 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
   // Collect arguments, checking for buildable types and attributes
   ArgumentBuilder b;
   for (auto &[name, type] : opType.getOperands()) {
-    b.add(name, "mlir.Value");
+    b.add(name, type.isa<VariadicType>() ? "list" : "mlir.Value");
   }
   for (auto &[name, type] : opType.getResults()) {
+    auto cls = type.isa<VariadicType>() ? "list" : "mlir.Type";
     if (auto *data = lookupTypeData(ctx, type); data && data->getBuilder()) {
-      b.add(name, *data->getBuilder(), "mlir.Type");
+      b.add(name, *data->getBuilder(), cls);
     } else {
-      b.add(name, "mlir.Type");
+      b.add(name, cls);
     }
   }
   for (auto &[name, attr] : opAttr) {
     if (auto *data = lookupAttributeData(ctx, attr); data && data->getBuilder()) {
       b.add(name, *data->getBuilder(), "mlir.Attribute");
     } else if (attr.isa<DefaultAttr>()) {
-      std::string buf;
-      llvm::raw_string_ostream getVal{buf};
-      getVal << "mlir.get_default_attr_value(\"" << dialect->getNamespace()
-          << "\", \"" << name.strref() << "\")";
-      b.add(name, getVal.str(), "mlir.Attribute");
+      throw std::runtime_error{"default attributes expose not implemented"};
     } else {
       b.add(name, "mlir.Attribute");
     }
   }
   for (auto &[name, succ] : opSucc.getSuccessors()) {
-    b.add(name, "mlir.Block");
+    b.add(name, succ.isa<VariadicSuccessor>() ? "list" : "mlir.Block");
   }
-  auto numRegionsStr = std::to_string(opRegion.size());
-  b.add("theNumRegions", numRegionsStr, "int");
+  auto numRegionsStr = std::to_string(opRegion.size()); // keep on stack
+  b.add("numRegions", numRegionsStr, "int");
   b.add("loc", "mlir.UnknownLoc()", "mlir.LocationAttr");
 
   // Declare the constructor
@@ -138,7 +142,10 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
 
   // Insert type checks
   for (auto &a : args) {
-    s.line() << "assert(isinstance(" << a.name << ", " << a.type << "))";
+    s.line() << "if not isinstance(" << a.name << ", " << a.type << "):" << incr; {
+      s.line() << "raise ValueError(\"expected '" << a.name << "' to be of type '"
+               << a.type << "' but got \" + str(type(" << a.name << ")))";
+    } s.endif();
   }
 
   // Call to generic operation constructor
@@ -146,10 +153,10 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
     auto line = s.line() << "theOp = mlir.Operation(loc, \"" << opName << "\", [";
     /// TODO unpack arrays for variadic operands, results, and successors
     interleaveComma(opType.getResults(), line,
-                    [&](const NamedType &ty) { line << ty.name; });
+                    inlineOrConcat<NamedType>(line));
     line << "], [";
     interleaveComma(opType.getOperands(), line,
-                    [&](const NamedType &ty) { line << ty.name; });
+                    inlineOrConcat<NamedType>(line));
     line << "], {";
     interleaveComma(opAttr, line, [&](const NamedAttribute &attr) {
       auto name = attr.first.strref();
@@ -157,8 +164,8 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
     });
     line << "}, [";
     interleaveComma(opSucc.getSuccessors(), line,
-                    [&](const NamedConstraint &succ) { line << succ.name; });
-    line << "], theNumRegions)";
+                    inlineOrConcat<NamedConstraint>(line));
+    line << "], numRegions)";
   }
 
   // Call to parent class constructors

@@ -18,13 +18,11 @@ void def_attr(module &m, const char *name, FcnT fcn) {
   });
 }
 
-Operation *builderCreateOp(OpBuilder &builder, object type, pybind11::args args,
-                           pybind11::kwargs kwargs) {
+auto builderCreateOp(OpBuilder &builder, object type, pybind11::args args,
+                     pybind11::kwargs kwargs) {
   auto ret = type(*args, **kwargs);
-  auto *op = ret.cast<Operation *>();
-  /// TODO return a py::object of the correct type since we can't auto downcast
-  /// to a python-defined class
-  return builder.insert(op);
+  builder.insert(ret.cast<Operation *>());
+  return ret;
 }
 
 void exposeBuilder(module &m) {
