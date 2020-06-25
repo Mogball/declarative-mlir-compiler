@@ -74,7 +74,6 @@ Dialect @lua {
              is_terminator = true }
   Op @func() -> () { name = #dmc.String, funcTy = #dmc.Type }
     (body: Any)
-    traits [@SameVariadicResultSizes]
     config { fmt = "symbol($name) $funcTy attr-dict $body" }
 }
 

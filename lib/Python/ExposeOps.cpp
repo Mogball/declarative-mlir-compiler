@@ -237,6 +237,13 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
 
 }
 
+Block *regionAddEntryBlock(Region &region, TypeListRef types) {
+  auto *entry = new Block{};
+  region.push_back(entry);
+  entry->addArguments(types);
+  return entry;
+}
+
 /// Operation * does not need nullcheck because, unlike Value, Type, and
 /// Attribute, it does not wrap a nullable underlying type.
 void exposeOps(module &m) {
@@ -264,7 +271,8 @@ void exposeOps(module &m) {
         return &*it;
       }, return_value_policy::reference_internal)
       .def("append", &Region::push_back)
-      .def("push_front", &Region::push_front);
+      .def("push_front", &Region::push_front)
+      .def("addEntryBlock", &regionAddEntryBlock);
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak

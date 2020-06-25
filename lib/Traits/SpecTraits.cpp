@@ -19,6 +19,7 @@ template <typename TypeRange>
 auto calcFixedVariadicSize(TypeRange tys, ValueRange vals) {
   unsigned numVariadicTypes = llvm::count_if(tys,
       [](Type ty) { return ty.isa<VariadicType>(); });
+  assert(numVariadicTypes != 0 && "No variadic operands or results");
   unsigned numNonVariadic = llvm::size(tys) - numVariadicTypes;
   unsigned numVariadicVals = llvm::size(vals) - numNonVariadic;
   return std::make_tuple(numVariadicVals, numVariadicTypes);
@@ -36,7 +37,7 @@ LogicalResult checkVariadicValues(TypeRange tys, ValueRange vals) {
 template <typename TypeRange>
 unsigned getFixedSegmentSize(TypeRange tys, ValueRange vals) {
   auto [numVariadicVals, numVariadicTypes] = calcFixedVariadicSize(tys, vals);
-  return numVariadicVals / numVariadicTypes; // previous checked as divisible
+  return numVariadicVals / numVariadicTypes; // previously checked as divisible
 }
 
 template <typename TypeRange>

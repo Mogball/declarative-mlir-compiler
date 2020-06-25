@@ -3,6 +3,7 @@
 #include "Utility.h"
 
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/Verifier.h>
 
 using namespace pybind11;
 
@@ -79,6 +80,9 @@ void exposeBuilder(module &m) {
       .def("insert", &OpBuilder::insert, return_value_policy::reference)
       .def("create", &builderCreateOp, return_value_policy::reference);
 
+  m.def("verify", [](Operation *op) {
+    return succeeded(mlir::verify(op));
+  });
 }
 
 } // end namespace py
