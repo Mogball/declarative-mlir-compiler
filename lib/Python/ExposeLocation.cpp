@@ -40,7 +40,7 @@ void exposeLocation(module &m, class_<Attribute> &attr) {
       .def_property_readonly("caller", &getCaller);
 
   class_<FileLineColLoc>(m, "FileLineColLoc", locAttr)
-      .def(init(&getFileLineColLoc))
+      .def(init(&getFileLineColLoc), "file"_a, "line"_a = 1, "col"_a = 1)
       .def_property_readonly("filename", &getFilename)
       .def_property_readonly("line", &getLine)
       .def_property_readonly("col", &getColumn);

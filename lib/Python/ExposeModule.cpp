@@ -1,9 +1,12 @@
 #include "Expose.h"
+#include "Context.h"
 #include "Location.h"
 #include "Module.h"
 #include "Utility.h"
 #include "Identifier.h"
 #include "OwningModuleRef.h"
+
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 
 #include <pybind11/pybind11.h>
 
@@ -22,6 +25,16 @@ FuncOp functionCtor(std::string name, FunctionType ty, Location loc,
   for (auto &[name, attr] : attrDict)
     attrs.push_back({getIdentifierChecked(name), attr});
   return FuncOp::create(loc, name, ty, ArrayRef<NamedAttribute>{attrs});
+}
+
+ReturnOp returnCtor(ValueListRef operands, Location loc) {
+  OpBuilder b{getMLIRContext()};
+  return b.create<ReturnOp>(loc, operands);
+}
+
+ConstantOp constantCtor(Attribute value, Location loc) {
+  OpBuilder b{getMLIRContext()};
+  return b.create<ConstantOp>(loc, value);
 }
 
 void exposeModule(module &m, OpClass &cls) {
@@ -52,7 +65,17 @@ void exposeModule(module &m, OpClass &cls) {
            "attrs"_a = AttrDict{})
       .def("addEntryBlock", &FuncOp::addEntryBlock,
            return_value_policy::reference)
-      .def("addBlock", &FuncOp::addBlock, return_value_policy::reference);
+      .def("addBlock", &FuncOp::addBlock, return_value_policy::reference)
+      .def("getBody", &FuncOp::getBody, return_value_policy::reference);
+
+  class_<ReturnOp>(m, "ReturnOp", cls)
+      .def(init(&returnCtor), "operands"_a = ValueList{},
+           "loc"_a = getUnknownLoc());
+
+  class_<ConstantOp>(m, "ConstantOp", cls)
+      .def(init(&constantCtor), "value"_a, "loc"_a = getUnknownLoc())
+      .def("value", &ConstantOp::value)
+      .def("result", &ConstantOp::getResult);
 }
 
 } // end namespace py

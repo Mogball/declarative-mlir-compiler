@@ -272,7 +272,10 @@ void exposeOps(module &m) {
       }, return_value_policy::reference_internal)
       .def("append", &Region::push_back)
       .def("push_front", &Region::push_front)
-      .def("addEntryBlock", &regionAddEntryBlock);
+      .def("addEntryBlock", &regionAddEntryBlock)
+      .def("__len__", [](Region &region) -> unsigned {
+        return std::distance(region.begin(), region.end());
+      });
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak

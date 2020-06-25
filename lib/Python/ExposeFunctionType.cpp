@@ -20,7 +20,8 @@ FunctionType getFunctionType(TypeListRef inputs, TypeListRef results) {
 
 void exposeFunctionType(pybind11::module &m, TypeClass &type) {
   class_<FunctionType>(m, "FunctionType", type)
-      .def(init(&getFunctionType))
+      .def(init(&getFunctionType), "inputs"_a = TypeList{},
+           "results"_a = TypeList{})
       .def_property_readonly("inputs", nullcheck([](FunctionType ty) {
         auto inputs = ty.getInputs();
         return new std::vector<Type>{std::begin(inputs), std::end(inputs)};

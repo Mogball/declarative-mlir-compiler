@@ -73,7 +73,7 @@ Dialect @lua {
     config { fmt = "`(` operands `)` `:` type(operands) attr-dict",
              is_terminator = true }
   Op @func() -> () { name = #dmc.String, funcTy = #dmc.Type }
-    (body: Any)
+    (body: Sized<1>)
     config { fmt = "symbol($name) $funcTy attr-dict $body" }
 }
 

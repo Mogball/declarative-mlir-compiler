@@ -79,6 +79,12 @@ void exposeOperationWrap(module &m) {
         for (auto value : values)
           types.append(value.getType());
         return types;
+      })
+      .def("__len__", [](ValueRange &values) {
+        return llvm::size(values);
+      })
+      .def("__getitem__", [](ValueRange &values, unsigned idx) {
+        return *std::next(std::begin(values), idx);
       });
 
   class_<OperationWrap>(m, "OperationWrap")
