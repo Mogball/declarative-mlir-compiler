@@ -17,10 +17,16 @@ public:
 
   auto *getOp() { return op; }
   auto *getSpec() { return spec; }
-  auto *getType() { return type; }
-  auto *getAttr() { return attr; }
-  auto *getSucc() { return succ; }
-  auto *getRegion() { return region; }
+
+  mlir::Value getOperand(std::string name);
+  mlir::Value getResult(std::string name);
+  mlir::Value getOperandOrResult(std::string name);
+
+  mlir::ValueRange getOperandGroup(std::string name);
+  mlir::ValueRange getResultGroup(std::string name);
+  mlir::ValueRange getOperandOrResultGroup(std::string name);
+
+  mlir::Region &getRegion(std::string name);
 
 private:
   mlir::Operation *op;

@@ -64,6 +64,38 @@ getValueOrGroup(OperationWrap &op, GetFcn getVal, std::string name,
 
 } // end anonymous namespace
 
+Value OperationWrap::getOperand(std::string name) {
+  return getValueOrGroup(*this, &py::getOperand, name,
+                         type->getOpType().getOperands());
+}
+
+Value OperationWrap::getResult(std::string name) {
+  return getValueOrGroup(*this, &py::getResult, name,
+                         type->getOpType().getResults());
+}
+
+ValueRange OperationWrap::getOperandGroup(std::string name) {
+  return getValueOrGroup(*this, &py::getOperandGroup, name,
+                         type->getOpType().getOperands());
+}
+
+ValueRange OperationWrap::getResultGroup(std::string name) {
+  return getValueOrGroup(*this, &py::getResultGroup, name,
+                         type->getOpType().getResults());
+}
+
+Region &OperationWrap::getRegion(std::string name) {
+  unsigned idx{};
+  for (auto &region : region->getOpRegions().getRegions()) {
+    if (region.name == name) {
+      return op->getRegion(idx);
+    }
+    ++idx;
+  }
+  throw std::invalid_argument{"Unable to find a region named '" + name +
+                              "' for operation '" + spec->getName() + "'"};
+}
+
 OperationWrap::OperationWrap(Operation *op, DynamicOperation *spec)
     : op{op},
       spec{spec},
@@ -115,37 +147,15 @@ void exposeOperationWrap(module &m) {
           types.append(pybind11::cast(type));
         return types;
       })
-      .def("getOperand", [](OperationWrap &op, std::string name) {
-        return getValueOrGroup(op, &getOperand, std::move(name),
-                               op.getType()->getOpType().getOperands());
-      })
-      .def("getResult", [](OperationWrap &op, std::string name) {
-        return getValueOrGroup(op, &getResult, std::move(name),
-                               op.getType()->getOpType().getResults());
-      })
-      .def("getOperandGroup", [](OperationWrap &op, std::string name) {
-        return getValueOrGroup(op, &getOperandGroup, std::move(name),
-                               op.getType()->getOpType().getOperands());
-      })
-      .def("getResultGroup", [](OperationWrap &op, std::string name) {
-        return getValueOrGroup(op, &getResultGroup, std::move(name),
-                               op.getType()->getOpType().getResults());
-      })
+      .def("getOperand", &OperationWrap::getOperand)
+      .def("getResult", &OperationWrap::getResult)
+      .def("getOperandGroup", &OperationWrap::getOperandGroup)
+      .def("getResultGroup", &OperationWrap::getResultGroup)
       .def("getOperands", [](OperationWrap &op) -> ValueRange {
         return op.getOp()->getOperands();
       })
-      .def("getRegion", [](OperationWrap &op, std::string name) {
-        unsigned idx{};
-        for (auto &region : op.getRegion()->getOpRegions().getRegions()) {
-          if (region.name == name) {
-            return &op.getOp()->getRegion(idx);
-          }
-          ++idx;
-        }
-        throw std::invalid_argument{"Unable to find a region named '" + name +
-                                    "' for operation '" +
-                                    op.getSpec()->getName() + "'"};
-      }, return_value_policy::reference_internal);
+      .def("getRegion", &OperationWrap::getRegion,
+           return_value_policy::reference);
 }
 
 void exposeResultWrap(module &m) {
