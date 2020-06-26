@@ -3,6 +3,7 @@
 #include "Kinds.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 
+#include <mlir/IR/Attributes.h>
 #include <mlir/IR/OpDefinition.h>
 
 /// Bind common OpTraits into DynamicTraits
@@ -169,6 +170,61 @@ public:
 
 private:
   llvm::StringRef terminatorName;
+};
+
+class MemoryAlloc : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "MemoryAlloc"; }
+};
+
+class MemoryFree : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "MemoryFree"; }
+};
+
+class MemoryRead : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "MemoryRead"; }
+};
+
+class MemoryWrite : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "MemoryWrite"; }
+};
+
+class ValueMemoryEffect : public DynamicTrait {
+public:
+  explicit ValueMemoryEffect(std::vector<llvm::StringRef> targets)
+      : targets{std::move(targets)} {}
+
+  auto &getTargets() const { return targets; }
+
+private:
+  std::vector<llvm::StringRef> targets;
+};
+
+class Alloc : public ValueMemoryEffect {
+public:
+  static llvm::StringRef getName() { return "Alloc"; }
+  explicit Alloc(mlir::Attribute targets);
+};
+
+class Free : public ValueMemoryEffect {
+public:
+  static llvm::StringRef getName() { return "Free"; }
+  explicit Free(mlir::Attribute targets);
+};
+
+class ReadFrom : public ValueMemoryEffect {
+public:
+  static llvm::StringRef getName() { return "ReadFrom"; }
+  explicit ReadFrom(mlir::Attribute targets);
+};
+
+class WriteTo : public ValueMemoryEffect {
+public:
+  static llvm::StringRef getName() { return "WriteTo"; }
+  explicit WriteTo(mlir::Attribute targets);
 };
 
 /// TODO Some standard traits not rebound (complexity/API restrictions):

@@ -10,6 +10,7 @@ import sys
 
 def get_dialects(filename='lua.mlir'):
     m = parseSourceFile(filename)
+    assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
     return dialects[0]
 

@@ -16,7 +16,9 @@ class DynamicDialect;
 class DynamicTrait {
 public:
   virtual ~DynamicTrait() = default;
-  virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const = 0;
+  virtual mlir::LogicalResult verifyOp(mlir::Operation *op) const {
+    return mlir::success();
+  }
   virtual mlir::AbstractOperation::OperationProperties
   getTraitProperties() const {
     return mlir::AbstractOperation::OperationProperties{};

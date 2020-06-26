@@ -94,7 +94,7 @@ ParseResult parseOpTrait(OpAsmParser &parser, OpTraitAttr &traitAttr) {
     return failure();
   traitAttr = OpTraitAttr::getChecked(loc, parser.getBuilder().getSymbolRefAttr(
       nameAttr.getValue()), paramAttr);
-  return success();
+  return success(static_cast<bool>(traitAttr));
 }
 
 ParseResult parseOptionalOpTraitList(OpAsmParser &parser,

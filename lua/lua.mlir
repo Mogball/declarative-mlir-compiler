@@ -48,5 +48,4 @@ Dialect @lua {
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
     config { fmt = "$lhs $op $rhs attr-dict" }
-
 }

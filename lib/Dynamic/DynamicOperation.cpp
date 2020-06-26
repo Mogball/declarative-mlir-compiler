@@ -4,6 +4,8 @@
 #include "dmc/Embed/ParserPrinter.h"
 #include "dmc/Spec/SpecAttrs.h"
 #include "dmc/Traits/SpecTraits.h"
+#include "dmc/Traits/StandardTraits.h"
+#include "dmc/Python/OpAsm.h"
 
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
@@ -131,6 +133,9 @@ void DynamicOperation::printOperation(OpAsmPrinter &printer, Operation *op) {
 }
 
 void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
-                        MemoryEffects::Effect>> &effects) {}
+                        MemoryEffects::Effect>> &effects) {
+  // TODO this is slow; perhaps it should be precomputed?
+  OperationWrap op{*this};
+}
 
 } // end namespace dmc

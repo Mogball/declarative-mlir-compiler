@@ -11,11 +11,15 @@ namespace {
 
 /// Unwrap values stored inside attributes.
 template <typename T> struct unwrap {
-  auto operator()(const T &t) { return t.getValue(); }
+  auto operator()(const T &t) const { return t.getValue(); }
 };
 
 template <> struct unwrap<IntegerAttr> {
-  auto operator()(IntegerAttr val) { return val.getValue().getZExtValue(); }
+  auto operator()(IntegerAttr val) const { return val.getValue().getZExtValue(); }
+};
+
+template <> struct unwrap<Attribute> {
+  auto operator()(Attribute val) const { return val; }
 };
 
 /// Get a trait constructor's signature from a function type.
@@ -59,6 +63,8 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
     >();
   registerTraits<
       IsTerminator(), IsCommutative(), IsIsolatedFromAbove(),
+      MemoryAlloc(), MemoryFree(), MemoryRead(), MemoryWrite(),
+      Alloc(Attribute), Free(Attribute), ReadFrom(Attribute), WriteTo(Attribute),
 
       OperandsAreFloatLike(), OperandsAreSignlessIntegerLike(),
       ResultsAreBoolLike(), ResultsAreFloatLike(),

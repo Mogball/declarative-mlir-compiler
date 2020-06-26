@@ -41,4 +41,20 @@ LogicalResult SingleBlockImplicitTerminator::verifyOp(Operation *op) const {
   return success();
 }
 
+static auto unpackTargets(Attribute targets) {
+  std::vector<StringRef> ret;
+  for (auto target : targets.cast<ArrayAttr>())
+    ret.push_back(target.cast<StringAttr>().getValue());
+  return ret;
+}
+
+Alloc::Alloc(Attribute targets)
+    : ValueMemoryEffect{unpackTargets(targets)} {}
+Free::Free(Attribute targets)
+    : ValueMemoryEffect{unpackTargets(targets)} {}
+ReadFrom::ReadFrom(Attribute targets)
+    : ValueMemoryEffect{unpackTargets(targets)} {}
+WriteTo::WriteTo(Attribute targets)
+    : ValueMemoryEffect{unpackTargets(targets)} {}
+
 } // end namespace dmc
