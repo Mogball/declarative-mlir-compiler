@@ -26,14 +26,6 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
   /// Create the dynamic op.
   auto op = dialect->createDynamicOp(opOp.getName());
 
-  /// Add traits for fundamental properties.
-  if (opOp.isTerminator())
-    op->addOpTrait<IsTerminator>();
-  if (opOp.isCommutative())
-    op->addOpTrait<IsCommutative>();
-  if (opOp.isIsolatedFromAbove())
-    op->addOpTrait<IsIsolatedFromAbove>();
-
   /// Process user-defined traits.
   auto *registry = dialect->getContext()
       ->getRegisteredDialect<TraitRegistry>();

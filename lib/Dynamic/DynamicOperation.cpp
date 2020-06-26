@@ -130,4 +130,7 @@ void DynamicOperation::printOperation(OpAsmPrinter &printer, Operation *op) {
   }
 }
 
+void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
+                        MemoryEffects::Effect>> &effects) {}
+
 } // end namespace dmc

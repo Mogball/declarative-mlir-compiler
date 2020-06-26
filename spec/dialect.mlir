@@ -5,8 +5,7 @@ dmc.Dialect @test {
       { attr1 = #dmc.Bool }
   dmc.Op @my_ret(arg0 : !dmc.AnyInteger, arg1 : !dmc.Variadic<!dmc.Any>) -> ()
       { attr2 = #dmc.Optional<#dmc.Bool> }
-      traits [@SameVariadicOperandSizes, @AtLeastNOperands<1>]
-      config { is_terminator = true }
+      traits [@SameVariadicOperandSizes, @AtLeastNOperands<1>, @IsTerminator]
 
   dmc.Type @CustomType
   dmc.Op @op_c(arg0 : !test.CustomType) -> (ret0 : !test.CustomType)
@@ -32,11 +31,11 @@ dmc.Dialect @test {
   dmc.Op @op_e(arg0 : !test.BoxType<#test.Box<6>>) -> ()
 
   dmc.Op @op_regions() -> () {} (r0 : Any, r1 : Sized<2>, Rs : Variadic<IsolatedFromAbove>)
-  dmc.Op @ret() -> () config { is_terminator = true }
+  dmc.Op @ret() -> () traits [@IsTerminator]
 
   dmc.Alias @IsInteger -> !dmc.Py<"isinstance({self}, IntegerType)">
   dmc.Alias @ArraySize3 -> #dmc.Py<"isinstance({self}, ArrayAttr) and len({self}) == 3">
   dmc.Op @op_py(arg0 : !test.IsInteger) -> () { index = #test.ArraySize3 }
 
-  dmc.Op @op_succ() -> () [s0 : Any, s1 : Any, Ss : Variadic<Any>] config { is_terminator = true }
+  dmc.Op @op_succ() -> () [s0 : Any, s1 : Any, Ss : Variadic<Any>] traits [@IsTerminator]
 }

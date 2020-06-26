@@ -69,9 +69,9 @@ Dialect @lua {
     traits [@SameVariadicOperandSizes, @SameVariadicResultSizes]
     config { fmt = "symbol($callee) `(` operands `)` `:` functional-type(operands, results) attr-dict" }
   Op @ret(arg: !dmc.Variadic<!lua.Value>) -> ()
-    traits [@SameVariadicOperandSizes]
-    config { fmt = "`(` operands `)` `:` type(operands) attr-dict",
-             is_terminator = true }
+    traits [@SameVariadicOperandSizes, @IsTerminator]
+    config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
+
   Op @func() -> () { name = #dmc.String, funcTy = #dmc.Type }
     (body: Sized<1>)
     config { fmt = "symbol($name) $funcTy attr-dict $body" }

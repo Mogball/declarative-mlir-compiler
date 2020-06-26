@@ -5,6 +5,7 @@
 #include "dmc/Spec/SpecSuccessor.h"
 #include "dmc/Spec/Parsing.h"
 #include "dmc/Traits/SpecTraits.h"
+#include "dmc/Traits/StandardTraits.h"
 #include "dmc/Traits/Registry.h"
 
 #include <mlir/IR/Builders.h>
@@ -117,16 +118,6 @@ void OperationOp::setOpSuccessors(OpSuccessor opSuccs) {
   setAttr(getOpSuccsAttrName(), opSuccs);
 }
 
-void OperationOp::buildDefaultValuedAttrs(OpBuilder &builder,
-                                          OperationState &result) {
-  auto falseAttr = builder.getBoolAttr(false);
-  addAttributesIfNotPresent({
-      builder.getNamedAttr(getIsTerminatorAttrName(), falseAttr),
-      builder.getNamedAttr(getIsCommutativeAttrName(), falseAttr),
-      builder.getNamedAttr(getIsIsolatedFromAboveAttrName(), falseAttr)},
-      result);
-}
-
 void OperationOp::build(
     OpBuilder &builder, OperationState &result, StringRef name, OpType opType,
     ArrayRef<NamedAttribute> opAttrs, OpRegion opRegion, OpSuccessor opSucc,
@@ -141,7 +132,6 @@ void OperationOp::build(
   result.addAttribute(getOpTraitsAttrName(), opTraits);
   result.attributes.append(std::begin(config), std::end(config));
   result.addRegion();
-  buildDefaultValuedAttrs(builder, result);
 }
 
 // op ::= `dmc.Op` `@`op-name func-type (attr-dict)? (region-list)? (succ-list)?
@@ -178,8 +168,6 @@ ParseResult OperationOp::parse(OpAsmParser &parser, OperationState &result) {
       parser.parseOptionalAttrDict(result.attributes))
     return failure();
   result.addRegion();
-  OpBuilder builder{result.getContext()};
-  buildDefaultValuedAttrs(builder, result);
   return success();
 }
 
@@ -218,19 +206,6 @@ OpSuccessor OperationOp::getOpSuccessors() {
 
 OpTraitsAttr OperationOp::getOpTraits() {
   return getAttrOfType<OpTraitsAttr>(getOpTraitsAttrName());
-}
-
-bool OperationOp::isTerminator() {
-  return getAttrOfType<mlir::BoolAttr>(getIsTerminatorAttrName()).getValue();
-}
-
-bool OperationOp::isCommutative() {
-  return getAttrOfType<mlir::BoolAttr>(getIsCommutativeAttrName()).getValue();
-}
-
-bool OperationOp::isIsolatedFromAbove() {
-  return getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName())
-      .getValue();
 }
 
 std::unique_ptr<DynamicTrait> OperationOp::getTrait(StringRef name) {
@@ -281,16 +256,6 @@ LogicalResult verifyConstraintList(Operation *op, ListT vars, CheckFcn &&is,
 } // end namespace impl
 
 LogicalResult OperationOp::verify() {
-  if (!getAttrOfType<mlir::BoolAttr>(getIsTerminatorAttrName()))
-    return emitOpError("expected BoolAttr named: ")
-        << getIsTerminatorAttrName();
-  if (!getAttrOfType<mlir::BoolAttr>(getIsCommutativeAttrName()))
-    return emitOpError("expected BoolAttr named: ")
-        << getIsCommutativeAttrName();
-  if (!getAttrOfType<mlir::BoolAttr>(getIsIsolatedFromAboveAttrName()))
-    return emitOpError("expected BoolAttr named: ")
-        << getIsIsolatedFromAboveAttrName();
-
   auto opTypeAttr = getAttrOfType<mlir::TypeAttr>(getOpTypeAttrName());
   if (!opTypeAttr)
     return emitOpError("expected TypeAttr named: ")
@@ -349,7 +314,7 @@ LogicalResult OperationOp::verify() {
     return failure();
 
   /// An operator with successors must be a terminator.
-  if (llvm::size(opSuccs) && !isTerminator())
+  if (llvm::size(opSuccs) && !impl::hasTrait<IsTerminator>(opTraits))
     return emitOpError("an operation with successors must be a terminator");
 
   return success();

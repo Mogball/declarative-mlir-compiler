@@ -133,10 +133,6 @@ public:
   OpSuccessor getOpSuccessors();
   OpTraitsAttr getOpTraits();
 
-  bool isTerminator();
-  bool isCommutative();
-  bool isIsolatedFromAbove();
-
   /// Allow querying of traits by temporarily instantiating one.
   std::unique_ptr<DynamicTrait> getTrait(llvm::StringRef name);
   template <typename TraitT> auto getTrait() {
@@ -157,10 +153,6 @@ private:
   /// Replace the Op successors.
   void setOpSuccessors(OpSuccessor opSuccs);
 
-  /// Attributes.
-  static void buildDefaultValuedAttrs(mlir::OpBuilder &builder,
-                                      mlir::OperationState &result);
-
   static inline llvm::StringRef getOpTypeAttrName() {
     return "type";
   }
@@ -175,16 +167,6 @@ private:
   }
   static inline llvm::StringRef getOpSuccsAttrName() {
     return "successors";
-  }
-
-  static inline llvm::StringRef getIsTerminatorAttrName() {
-    return "is_terminator";
-  }
-  static inline llvm::StringRef getIsCommutativeAttrName() {
-    return "is_commutative";
-  }
-  static inline llvm::StringRef getIsIsolatedFromAboveAttrName() {
-    return "is_isolated_from_above";
   }
 };
 

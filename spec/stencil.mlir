@@ -51,7 +51,6 @@ Dialect @stencil {
   /// ReturnOp
   Op @return(operands: !dmc.Variadic<!stencil.Element>) -> ()
     { unroll = #stencil.OptionalIndex }
-    traits [@SameVariadicOperandSizes, @HasParent<"stencil.apply">]
-    config { is_terminator = true,
-             fmt = "(`unroll` $unroll^)? $operands attr-dict-with-keyword `:` type($operands)" }
+    traits [@SameVariadicOperandSizes, @HasParent<"stencil.apply">, @IsTerminator]
+    config { fmt = "(`unroll` $unroll^)? $operands attr-dict-with-keyword `:` type($operands)" }
 }
