@@ -19,7 +19,7 @@ sudo pacman -Sy cmake python antlr4
 ### MacOS
 
 ```
-brew install cmake python3
+brew install cmake python3 antlr
 ```
 
 ### Python Dependencies

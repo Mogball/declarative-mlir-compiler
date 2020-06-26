@@ -35,4 +35,17 @@ Dialect @lua {
   Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.AnyI<64>, #dmc.F<64>> }
     config { fmt = "$value attr-dict" }
 
+  // Value operations
+  Alias @BinaryOp -> #dmc.AnyOf<
+      "or", "and",
+      "<", ">", "<=", ">=", "==", "~=",
+      "..",
+      "+", "-", "*", "/", "%", "//",
+      "&", "|", "~", "<<", ">>",
+      "^">
+
+  Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    { op = #lua.BinaryOp }
+    config { fmt = "$lhs $op $rhs attr-dict" }
+
 }

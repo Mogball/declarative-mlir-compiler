@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!python3
 from antlr4 import *
 from mlir import *
 
@@ -113,19 +113,6 @@ class Generator:
             raise ValueError("Unknown StatContext case")
 
 
-    def functioncall(self, ctx:LuaParser.FunctioncallContext):
-        # `myFcn (a, b, c) {a: b} "abc" {} "" (c, b, d)` is valid syntax
-        fcn = self.varOrExp(ctx.varOrExp())
-        allArgs = ctx.nameAndArgs()
-        assert len(allArgs) == 1, "trailing function calls unimplemented"
-
-        args = self.nameAndArgs(allArgs[0])
-        concat = self.builder.create(lua.concat, vals=args,
-                                     loc=self.getStartLoc(ctx))
-        self.builder.create(lua.call, fcn=fcn, args=concat.pack(),
-                            loc=self.getStartLoc(ctx))
-
-
     def assignlist(self, ctx:LuaParser.AssignlistContext):
         varList = self.varlist(ctx.varlist())
         expList = self.explist(ctx.explist())
@@ -210,7 +197,7 @@ class Generator:
         elif ctx.functiondef():
             raise NotImplementedError("functiondef not implemented")
         elif ctx.prefixexp():
-            raise NotImplementedError("prefixexp not implemented")
+            return self.prefixexp(ctx.prefixexp())
         elif ctx.tableconstructor():
             raise NotImplementedError("tableconstructor not implemented")
         elif ctx.operatorUnary():
@@ -254,6 +241,37 @@ class Generator:
         number = self.builder.create(lua.number, value=attr,
                                      loc=self.getStartLoc(ctx))
         return number.res()
+
+
+    def prefixexp(self, ctx:LuaParser.PrefixexpContext):
+        # A variable or expression, with optional trailing function calls
+        # `myFcn (a, b, c) {a: b} "abc" {} "" (c, b, d)` is valid syntax
+        val = self.varOrExp(ctx.varOrExp())
+        allArgs = ctx.nameAndArgs()
+
+        if len(allArgs) == 0:
+            return val
+        assert len(allArgs) == 1, "trailing function calls unimplemented"
+
+        args = self.nameAndArgs(allArgs[0])
+        concat = self.builder.create(lua.concat, vals=args,
+                                     loc=self.getStartLoc(ctx))
+        call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
+                                   loc=self.getStartLoc(ctx))
+        # Return a value pack. This means that self.exp could return either a
+        # value or value pack. Module verifier should catch accidental uses of
+        # value pack as value.
+        return call.rets()
+
+
+    def functioncall(self, ctx:LuaParser.FunctioncallContext):
+        # Identical to prefixexp, except len(allArgs) >= 1, and statement does
+        # not return a value
+        self.prefixexp(ctx)
+
+
+    def operatorBinary(self, lhs:LuaParser.ExpContext, rhs:LuaParser.ExpContext, op:str):
+        pass
 
 
 
