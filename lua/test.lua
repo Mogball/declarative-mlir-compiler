@@ -5,4 +5,6 @@ print(5, 6)
 print(a, b)
 print(c, d, e)
 
+e = 0
 sum = a + b + c + d + e
+print(sum, a + b * c, (a + b) * c)

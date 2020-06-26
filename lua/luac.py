@@ -203,21 +203,21 @@ class Generator:
         elif ctx.operatorUnary():
             raise NotImplementedError("operatorUnary not implemented")
         elif ctx.operatorPower():
-            raise NotImplementedError("operatorPower not implemented")
+            return self.operatorBinary(ctx, ctx.operatorPower())
         elif ctx.operatorMulDivMod():
-            raise NotImplementedError("operatorMulDivMod not implemented")
+            return self.operatorBinary(ctx, ctx.operatorMulDivMod())
         elif ctx.operatorAddSub():
-            raise NotImplementedError("operatorAddSub not implemented")
+            return self.operatorBinary(ctx, ctx.operatorAddSub())
         elif ctx.operatorStrcat():
-            raise NotImplementedError("operatorStrcat not implemented")
+            return self.operatorBinary(ctx, ctx.operatorStrcat())
         elif ctx.operatorComparison():
-            raise NotImplementedError("operatorComparison not implemented")
+            return self.operatorBinary(ctx, ctx.operatorComparison())
         elif ctx.operatorAnd():
-            raise NotImplementedError("operatorAnd not implemented")
+            return self.operatorBinary(ctx, ctx.operatorAnd())
         elif ctx.operatorOr():
-            raise NotImplementedError("operatorOr not implemented")
+            return self.operatorBinary(ctx, ctx.operatorOr())
         elif ctx.operatorBitwise():
-            raise NotImplementedError("operatorBitwise not implemented")
+            return self.operatorBinary(ctx, ctx.operatorBitwise())
         else:
             raise ValueError("Unknown ExpContext case")
 
@@ -270,8 +270,13 @@ class Generator:
         self.prefixexp(ctx)
 
 
-    def operatorBinary(self, lhs:LuaParser.ExpContext, rhs:LuaParser.ExpContext, op:str):
-        pass
+    def operatorBinary(self, expCtx, opCtx):
+        lhsVal = self.exp(expCtx.exp(0))
+        rhsVal = self.exp(expCtx.exp(1))
+        binary = self.builder.create(lua.binary, lhs=lhsVal, rhs=rhsVal,
+                                     op=StringAttr(opCtx.getText()),
+                                     loc=self.getStartLoc(opCtx))
+        return binary.res()
 
 
 
