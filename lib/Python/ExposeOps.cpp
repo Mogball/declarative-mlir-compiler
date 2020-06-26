@@ -233,7 +233,10 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
       .def("useEmpty", wrap<T>(&Operation::use_empty))
       .def("getUsers", [](Operation *op) {
         return make_iterator(op->user_begin(), op->user_end());
-      }, keep_alive<0, 1>());
+      }, keep_alive<0, 1>())
+      .def("__hash__", [](Operation *op) -> size_t {
+        return hash_value(op);
+      });
 
 }
 
@@ -275,7 +278,10 @@ void exposeOps(module &m) {
       .def("addEntryBlock", &regionAddEntryBlock)
       .def("__len__", [](Region &region) -> unsigned {
         return std::distance(region.begin(), region.end());
-      });
+      })
+      .def("__iter__", [](Region &region) {
+        return make_iterator(region.begin(), region.end());
+      }, keep_alive<0, 1>());
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak
@@ -294,7 +300,10 @@ void exposeOps(module &m) {
       })
       .def("addArg", [](Block &block, Type ty) {
         block.addArguments(ty);
-      });
+      })
+      .def("__iter__", [](Block &block) {
+        return make_iterator(block.begin(), block.end());
+      }, keep_alive<0, 1>());
 
   exposeModule(m, opCls);
 

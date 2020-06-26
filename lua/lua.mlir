@@ -23,6 +23,7 @@ Dialect @lua {
   // Variable handling
   Op @get_or_alloc() -> (res: !lua.value) { var = #dmc.String }
     config { fmt = "$var attr-dict" }
+  Op @alloc() -> (res: !lua.value) config { fmt = "attr-dict" }
   Op @assign(tgt: !lua.value, val: !dmc.Any) -> ()
     config { fmt = "$tgt `=` $val `:` type($val) attr-dict" }
 

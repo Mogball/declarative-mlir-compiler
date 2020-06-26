@@ -36,7 +36,7 @@ void exposeAttribute(module &m) {
       .def("__repr__", StringPrinter<Attribute>{})
       .def("__bool__", &Attribute::operator bool)
       .def("__invert__", &Attribute::operator!)
-      .def("__hash__", overload<hash_code(Attribute)>(&hash_value))
+      .def("__hash__", [](Attribute attr) -> size_t { return hash_value(attr); })
       .def_property_readonly("kind", nullcheck(&Attribute::getKind))
       .def_property_readonly("type", nullcheck(&Attribute::getType))
       .def_property_readonly("dialect", nullcheck(&Attribute::getDialect),

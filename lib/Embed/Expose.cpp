@@ -55,7 +55,7 @@ struct Argument {
 
 struct ArgumentBuilder {
   void add(StringRef name, StringRef type) {
-    args.push_back({name, type});
+    args.push_back({name, type, "None"});
   }
   void add(StringRef name, StringRef value, StringRef type) {
     defArgs.push_back({name, type, value});
@@ -133,19 +133,24 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
   auto allArgs = concat<Argument>(b.args, b.defArgs);
   auto args = make_range(std::begin(allArgs), std::end(allArgs));
   {
-    auto line = s.line() << "def __init__(self, ";
+    auto line = s.line() << "def __init__(self, theOp=None, ";
     interleaveComma(args, line, [&](const Argument &a) {
-      line << a.name << (a.value.empty() ? Twine{} : Twine{"="} + a.value);
+      line << a.name << "=" << a.value;
     });
     line << "):" << incr;
   }
 
+  s.if_("not theOp");
+
   // Insert type checks
+  for (auto &a : b.args) {
+    s.line() << "assert " << a.name << " != None, \"missing positional argument"
+        << " '" << a.name << "'\"";
+  }
   for (auto &a : args) {
-    s.line() << "if not isinstance(" << a.name << ", " << a.type << "):" << incr; {
-      s.line() << "raise ValueError(\"expected '" << a.name << "' to be of type '"
-               << a.type << "' but got \" + str(type(" << a.name << ")))";
-    } s.endif();
+    s.line() << "assert isinstance(" << a.name << ", " << a.type << "), "
+      << "\"expected '" << a.name << "' to be of type '" << a.type
+      << "' but got \" + str(type(" << a.name << "))";
   }
 
   // Call to generic operation constructor
@@ -168,12 +173,18 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
     line << "], numRegions)";
   }
 
+  s.endif();
+
   // Call to parent class constructors
   s.line() << "mlir.Op.__init__(self, theOp)";
   s.line() << "mlir.OperationWrap.__init__(self, theOp)";
   s.enddef();
 
   // Define getters
+  s.line() << "@staticmethod";
+  s.def("getName()"); {
+    s.line() << "return \"" << impl->getName() << "\"";
+  } s.enddef();
   for (auto &[name, type] : opType.getOperands()) {
     auto getter = type.isa<VariadicType>() ? "getOperandGroup" : "getOperand";
     s.def(name + "(self)"); {

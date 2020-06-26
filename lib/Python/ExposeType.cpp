@@ -28,6 +28,8 @@ TypeClass exposeTypeBase(module &m) {
       .def(init<Type>())
       .def(self == self)
       .def(self != self)
+      .def("__eq__", &Type::operator==)
+      .def("__ne__", &Type::operator!=)
       .def("__repr__", StringPrinter<Type>{})
       .def("__bool__", &Type::operator bool)
       .def("__invert__", &Type::operator!)

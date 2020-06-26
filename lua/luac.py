@@ -42,7 +42,6 @@ class Generator:
         endTok = self.stream.get(b)
         return FileLineColLoc(self.filename, endTok.line, endTok.column)
 
-
     ############################################################################
     # AST Walker
     ############################################################################
@@ -61,13 +60,13 @@ class Generator:
 
         # Return the module
         assert verify(module), "module failed to verify"
-        return module
-
+        return module, main
 
     def block(self, ctx:LuaParser.BlockContext):
         # Add an entry block to the enclosing region and set it
         self.block = self.addEntryBlock(self.region)
-        self.builder = Builder.atStart(self.block)
+        self.builder = Builder()
+        self.builder.insertAtStart(self.block)
 
         # Process the statements
         for stat in ctx.stat():
@@ -78,7 +77,6 @@ class Generator:
             raise NotImplementedError("return statements not handled")
         else:
             self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
-
 
     def stat(self, ctx:LuaParser.StatContext):
         if ctx.assignlist():
@@ -112,7 +110,6 @@ class Generator:
         else:
             raise ValueError("Unknown StatContext case")
 
-
     def assignlist(self, ctx:LuaParser.AssignlistContext):
         varList = self.varlist(ctx.varlist())
         expList = self.explist(ctx.explist())
@@ -130,13 +127,11 @@ class Generator:
             self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
                                 loc=self.getStartLoc(ctx))
 
-
     def varlist(self, ctx:LuaParser.VarlistContext):
         varList = []
         for var in ctx.var():
             varList.append(self.var(var))
         return varList
-
 
     def explist(self, ctx:LuaParser.ExplistContext):
         expList = []
@@ -144,11 +139,9 @@ class Generator:
             expList.append(self.exp(exp))
         return expList
 
-
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
         assert ctx.NAME() == None, "colon operator unimplemented"
         return self.args(ctx.args())
-
 
     def args(self, ctx:LuaParser.ArgsContext):
         if ctx.explist():
@@ -161,7 +154,6 @@ class Generator:
         else:
             raise ValueError("Unknown ArgsContext case")
 
-
     def varOrExp(self, ctx:LuaParser.VarOrExpContext):
         if ctx.var():
             return self.var(ctx.var())
@@ -169,7 +161,6 @@ class Generator:
             return self.exp(ctx.exp())
         else:
             raise ValueError("Unknown VarOrExpContext case")
-
 
     def var(self, ctx:LuaParser.VarContext):
         assert ctx.exp() == None and len(ctx.varSuffix()) == 0, \
@@ -179,7 +170,6 @@ class Generator:
                                     var=StringAttr(ctx.NAME().getText()),
                                     loc=self.getStartLoc(ctx))
         return alloc.res()
-
 
     def exp(self, ctx:LuaParser.ExpContext):
         if ctx.nilvalue():
@@ -221,11 +211,9 @@ class Generator:
         else:
             raise ValueError("Unknown ExpContext case")
 
-
     def nilvalue(self, ctx:LuaParser.NilvalueContext):
         nil = self.builder.create(lua.nil, loc=self.getStartLoc(ctx))
         return nil.res()
-
 
     def number(self, ctx:LuaParser.NumberContext):
         if ctx.INT():
@@ -241,7 +229,6 @@ class Generator:
         number = self.builder.create(lua.number, value=attr,
                                      loc=self.getStartLoc(ctx))
         return number.res()
-
 
     def prefixexp(self, ctx:LuaParser.PrefixexpContext):
         # A variable or expression, with optional trailing function calls
@@ -263,12 +250,10 @@ class Generator:
         # value pack as value.
         return call.rets()
 
-
     def functioncall(self, ctx:LuaParser.FunctioncallContext):
         # Identical to prefixexp, except len(allArgs) >= 1, and statement does
         # not return a value
         self.prefixexp(ctx)
-
 
     def operatorBinary(self, expCtx, opCtx):
         lhsVal = self.exp(expCtx.exp(0))
@@ -279,6 +264,70 @@ class Generator:
         return binary.res()
 
 
+class AllocVisitor:
+    def __init__(self):
+        self.scope = {}
+        self.builder = Builder()
+        self.removed = set()
+
+    def visitAll(self, ops:Region):
+        worklist = []
+        for op in ops: # iterator is invalidated if an op is removed
+            worklist.append(op)
+        for op in worklist:
+            if op not in self.removed:
+                self.visit(op)
+
+    def visit(self, op:Operation):
+        if isa(op, lua.get_or_alloc):
+            self.visitGetOrAlloc(lua.get_or_alloc(op))
+
+    def visitGetOrAlloc(self, op:lua.get_or_alloc):
+        if op.var() not in self.scope:
+            self.builder.insertBefore(op)
+            alloc = self.builder.create(lua.alloc, loc=op.loc)
+            self.scope[op.var()] = alloc.res()
+        self.builder.replace(op, [self.scope[op.var()]])
+        self.removed.add(op)
+
+
+def elideAssign(op:lua.assign, rewriter:Builder):
+    # since scopes/control flow is unimplemented, all assignments are trivial
+    op.tgt().replaceAllUsesWith(op.val())
+    rewriter.erase(op)
+    return True
+
+def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
+    parent = op.pack().definingOp
+    if not isa(parent, lua.concat):
+        return False
+    concat = lua.concat(parent)
+    trivialUnpack = all(val.type == lua.ref() for val in concat.vals())
+    if not trivialUnpack:
+        return False
+    newVals = []
+    for i in range(0, min(len(concat.vals()), len(op.vals()))):
+        newVals.append(concat.vals()[i])
+    nil = rewriter.create(lua.nil, loc=op.loc)
+    for i in range(len(newVals), len(op.vals())):
+        newVals.append(nil.res())
+    rewriter.replace(op, newVals)
+    return True
+
+
+def lowerToLuac(main:FuncOp):
+    # Main function has one Sized<1> region
+    region = main.getBody()
+    ops = region.getBlock(0)
+
+    # Non-trivial passes
+    AllocVisitor().visitAll(ops)
+
+    # Trivial passes as patterns
+    applyOptPatterns(main, [
+        Pattern(lua.assign, elideAssign),
+        Pattern(lua.unpack, elideConcatAndUnpack),
+    ])
 
 def main():
     if len(sys.argv) != 2:
@@ -294,8 +343,9 @@ def main():
 
     generator = Generator(filename, stream)
 
-    module = generator.chunk(parser.chunk())
-    print(module)
+    module, main = generator.chunk(parser.chunk())
+    lowerToLuac(main)
+    print(main)
 
 if __name__ == '__main__':
     main()

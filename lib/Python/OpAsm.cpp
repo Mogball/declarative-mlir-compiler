@@ -83,6 +83,9 @@ void exposeOperationWrap(module &m) {
       .def("__len__", [](ValueRange &values) {
         return llvm::size(values);
       })
+      .def("__iter__", [](ValueRange &values) {
+        return make_iterator(values.begin(), values.end());
+      }, keep_alive<0, 1>())
       .def("__getitem__", [](ValueRange &values, unsigned idx) {
         return *std::next(std::begin(values), idx);
       });

@@ -3,12 +3,18 @@
 #include "Utility.h"
 
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/PatternMatch.h>
 #include <mlir/IR/Verifier.h>
 
 using namespace pybind11;
 
 namespace mlir {
 namespace py {
+
+class ConcreteBuilder : public PatternRewriter {
+public:
+  explicit ConcreteBuilder() : PatternRewriter{getMLIRContext()} {}
+};
 
 static Builder getBuilder() { return Builder{getMLIRContext()}; }
 
@@ -19,11 +25,48 @@ void def_attr(module &m, const char *name, FcnT fcn) {
   });
 }
 
-auto builderCreateOp(OpBuilder &builder, object type, pybind11::args args,
+auto builderCreateOp(ConcreteBuilder &builder, object type, pybind11::args args,
                      pybind11::kwargs kwargs) {
   auto ret = type(*args, **kwargs);
   builder.insert(ret.cast<Operation *>());
   return ret;
+}
+
+bool operationIsa(Operation *op, object cls) {
+  return op->getName().getStringRef() ==
+      cls.attr("getName")().cast<std::string>();
+}
+
+struct PyPattern {
+  PyPattern(object cls, object fcn, unsigned benefit)
+      : cls{cls}, fcn{fcn}, benefit{benefit} {}
+
+  object cls, fcn;
+  unsigned benefit;
+};
+
+struct PyPatternImpl : public RewritePattern {
+  explicit PyPatternImpl(PyPattern &pattern)
+      : RewritePattern{pattern.cls.attr("getName")().cast<std::string>(),
+                       pattern.benefit, getMLIRContext()},
+        cls{pattern.cls}, fcn{pattern.fcn} {}
+
+  LogicalResult
+  matchAndRewrite(Operation *op, PatternRewriter &rewriter) const override {
+    auto concreteOp = cls(op);
+    return success(fcn(concreteOp,
+                       static_cast<ConcreteBuilder &>(rewriter)).cast<bool>());
+  }
+
+  object cls, fcn;
+};
+
+void applyOptPatterns(Operation *op, std::vector<PyPattern> patterns) {
+  OwningRewritePatternList patternList;
+  for (auto &pattern : patterns) {
+    patternList.insert<PyPatternImpl>(pattern);
+  }
+  applyPatternsAndFoldGreedily(op, patternList);
 }
 
 void exposeBuilder(module &m) {
@@ -62,27 +105,44 @@ void exposeBuilder(module &m) {
     return getBuilder().getStrArrayAttr(refs);
   });
 
-  class_<OpBuilder>(m, "Builder")
-      .def(init([]() { return OpBuilder{getMLIRContext()}; }))
-      .def_static("atStart",
-                  [](Block *block) { return OpBuilder::atBlockBegin(block); })
-      .def_static("atEnd",
-                  [](Block *block) { return OpBuilder::atBlockEnd(block); })
-      .def_static("atTerminator",
-                  [](Block *block) { return OpBuilder::atBlockTerminator(block); })
+  class_<ConcreteBuilder>(m, "Builder")
+      .def(init<>())
       .def("insertBefore",
-           overload<void(OpBuilder::*)(Operation *)>(&OpBuilder::setInsertionPoint))
-      .def("insertAfter", &OpBuilder::setInsertionPointAfter)
-      .def("insertAtStart", &OpBuilder::setInsertionPointToStart)
-      .def("insertAtEnd", &OpBuilder::setInsertionPointToEnd)
-      .def("getCurrentBlock", &OpBuilder::getInsertionBlock,
+           overload<void(ConcreteBuilder::*)(Operation *)>(&ConcreteBuilder::setInsertionPoint))
+      .def("insertAfter", &ConcreteBuilder::setInsertionPointAfter)
+      .def("insertAtStart", &ConcreteBuilder::setInsertionPointToStart)
+      .def("insertAtEnd", &ConcreteBuilder::setInsertionPointToEnd)
+      .def("getCurrentBlock", &ConcreteBuilder::getInsertionBlock,
            return_value_policy::reference)
-      .def("insert", &OpBuilder::insert, return_value_policy::reference)
-      .def("create", &builderCreateOp, return_value_policy::reference);
+      .def("insert", &ConcreteBuilder::insert, return_value_policy::reference)
+      .def("create", &builderCreateOp, return_value_policy::reference)
+      .def("replace", [](ConcreteBuilder &builder, Operation *op,
+                         ValueListRef newValues) {
+        builder.replaceOp(op, newValues);
+      })
+      .def("erase", &ConcreteBuilder::eraseOp)
+      .def("erase", &ConcreteBuilder::eraseBlock);
 
   m.def("verify", [](Operation *op) {
     return succeeded(mlir::verify(op));
   });
+  m.def("walkOperations", [](Operation *op, object func) {
+    op->walk([func{std::move(func)}](Operation *op) {
+      auto ret = func(op);
+      if (ret.is(pybind11::cast<pybind11::none>(Py_None)) ||
+          ret.cast<bool>()) {
+        return WalkResult::advance();
+      } else {
+        return WalkResult::interrupt();
+      }
+    });
+  });
+  m.def("isa", &operationIsa);
+  m.def("applyOptPatterns", &applyOptPatterns);
+
+  class_<PyPattern>(m, "Pattern")
+      .def(init<object, object, unsigned>(), "cls"_a, "matchFcn"_a,
+           "benefit"_a = 0);
 }
 
 } // end namespace py
