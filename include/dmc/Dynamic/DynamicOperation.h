@@ -5,6 +5,7 @@
 #include <llvm/ADT/StringMap.h>
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/Interfaces/SideEffects.h>
 
 namespace dmc {
 
@@ -115,10 +116,12 @@ public:
 };
 
 /// Define base properies of all dynamic ops.
-class BaseOp : public mlir::Op<BaseOp, DynamicOpTrait> {
+class BaseOp : public mlir::Op<BaseOp, DynamicOpTrait,
+               mlir::MemoryEffectOpInterface::Trait> {
 public:
   using Op::Op;
 
+  // AbstractOperation
   static mlir::ParseResult parseAssembly(mlir::OpAsmParser &parser,
                                          mlir::OperationState &result);
 
@@ -139,6 +142,13 @@ public:
     // TODO custom fold hooks
     return mlir::failure();
   }
+
+  // MemoryEffectOpInterface
+  void getEffects(llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
+                  mlir::MemoryEffects::Effect>> &effects);
+
+  // Custom isa<T>
+  static bool classof(mlir::Operation *op);
 };
 
 } // end namespace dmc

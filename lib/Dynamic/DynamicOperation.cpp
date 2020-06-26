@@ -32,6 +32,10 @@ DynamicOperation *DynamicOperation::of(Operation *op) {
   return dialect->lookupOp(op->getName());
 }
 
+bool BaseOp::classof(mlir::Operation *op) {
+  return dynamic_cast<DynamicDialect *>(op->getDialect());
+}
+
 DynamicOperation::DynamicOperation(StringRef name, DynamicDialect *dialect)
     : DynamicObject{dialect->getDynContext()},
       name{(dialect->getNamespace() + "." + name).str()},
@@ -86,7 +90,8 @@ LogicalResult DynamicOperation::verifyOpTraits(Operation *op) const {
   return success();
 }
 
-AbstractOperation::OperationProperties DynamicOperation::getOpProperties() const {
+AbstractOperation::OperationProperties
+DynamicOperation::getOpProperties() const {
   AbstractOperation::OperationProperties props{};
   for (const auto &trait : traits) {
     props |= trait.second->getTraitProperties();

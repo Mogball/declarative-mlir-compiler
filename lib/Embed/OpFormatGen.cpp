@@ -1122,7 +1122,7 @@ private:
 
   /// Returns an argument with the given name that has been seen within the
   /// format.
-  const NamedType *findSeenArg(StringRef name);
+  //const NamedType *findSeenArg(StringRef name);
 
   /// Parse a specific element.
   LogicalResult parseElement(std::unique_ptr<Element> &element,
@@ -1458,13 +1458,13 @@ void FormatParser::handleSameTypesConstraint(
   }
 }
 
-const NamedType *FormatParser::findSeenArg(StringRef name) {
-  if (auto *arg = findArg(opTy.getOperands(), name))
-    return seenOperandTypes.test(arg - opTy.operand_begin()) ? arg : nullptr;
-  if (auto *arg = findArg(opTy.getResults(), name))
-    return seenResultTypes.test(arg - opTy.result_begin()) ? arg : nullptr;
-  return nullptr;
-}
+//const NamedType *FormatParser::findSeenArg(StringRef name) {
+//  if (auto *arg = findArg(opTy.getOperands(), name))
+//    return seenOperandTypes.test(arg - opTy.operand_begin()) ? arg : nullptr;
+//  if (auto *arg = findArg(opTy.getResults(), name))
+//    return seenResultTypes.test(arg - opTy.result_begin()) ? arg : nullptr;
+//  return nullptr;
+//}
 
 LogicalResult FormatParser::parseElement(std::unique_ptr<Element> &element,
                                          bool isTopLevel) {
