@@ -20,13 +20,12 @@ public:
 
   mlir::Value getOperand(std::string name);
   mlir::Value getResult(std::string name);
-  mlir::Value getOperandOrResult(std::string name);
-
   mlir::ValueRange getOperandGroup(std::string name);
   mlir::ValueRange getResultGroup(std::string name);
-  mlir::ValueRange getOperandOrResultGroup(std::string name);
-
   mlir::Region &getRegion(std::string name);
+
+  mlir::Value getOperandOrResult(llvm::StringRef name);
+  mlir::ValueRange getOperandOrResultGroup(llvm::StringRef name);
 
 private:
   mlir::Operation *op;

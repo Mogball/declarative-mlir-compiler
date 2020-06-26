@@ -62,7 +62,33 @@ getValueOrGroup(OperationWrap &op, GetFcn getVal, std::string name,
                               "' for op '" + op.getSpec()->getName() + "'"};
 }
 
+auto isOperandOrResult(OpType opType, StringRef name) {
+  auto pred = [name](const NamedType &ty) { return ty.name == name; };
+  return std::make_pair(llvm::count_if(opType.getOperands(), pred),
+                        llvm::count_if(opType.getResults(), pred));
+}
+
 } // end anonymous namespace
+
+Value OperationWrap::getOperandOrResult(StringRef name) {
+  auto [isOperand, isResult] = isOperandOrResult(type->getOpType(), name);
+  if (isOperand)
+    return getOperand(name.str());
+  if (isResult)
+    return getResult(name.str());
+  throw std::invalid_argument{name.str() + " is neither an operand nor a result"
+                              "of op '" + spec->getName() + "'"};
+}
+
+ValueRange OperationWrap::getOperandOrResultGroup(StringRef name) {
+  auto [isOperand, isResult] = isOperandOrResult(type->getOpType(), name);
+  if (isOperand)
+    return getOperandGroup(name.str());
+  if (isResult)
+    return getResultGroup(name.str());
+  throw std::invalid_argument{name.str() + " is neither an operand nor a result"
+                              "of op '" + spec->getName() + "'"};
+}
 
 Value OperationWrap::getOperand(std::string name) {
   return getValueOrGroup(*this, &py::getOperand, name,

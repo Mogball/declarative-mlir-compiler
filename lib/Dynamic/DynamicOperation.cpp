@@ -135,7 +135,16 @@ void DynamicOperation::printOperation(OpAsmPrinter &printer, Operation *op) {
 void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
                         MemoryEffects::Effect>> &effects) {
   // TODO this is slow; perhaps it should be precomputed?
-  py::OperationWrap op{*this, DynamicOperation::of(*this)};
+  auto *impl = DynamicOperation::of(*this);
+  py::OperationWrap op{*this, impl};
+  if (impl->getTrait<MemoryAlloc>())
+    effects.emplace_back(MemoryEffects::Allocate::get());
+  if (impl->getTrait<MemoryFree>())
+    effects.emplace_back(MemoryEffects::Free::get());
+  if (impl->getTrait<MemoryRead>())
+    effects.emplace_back(MemoryEffects::Read::get());
+  if (impl->getTrait<MemoryWrite>())
+    effects.emplace_back(MemoryEffects::Write::get());
 }
 
 } // end namespace dmc

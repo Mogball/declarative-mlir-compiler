@@ -29,6 +29,7 @@ Dialect @lua {
 
   // Function calls
   Op @call(fcn: !lua.value, args: !lua.value_pack) -> (rets: !lua.value_pack)
+    traits [@MemoryWrite]
     config { fmt = "$fcn `(` $args `)` attr-dict" }
 
   // Value getters
