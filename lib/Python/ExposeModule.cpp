@@ -37,6 +37,12 @@ ConstantOp constantCtor(Attribute value, Location loc) {
   return b.create<ConstantOp>(loc, value);
 }
 
+CallIndirectOp callIndirectCtor(Value callee, ValueListRef operands,
+                                Location loc) {
+  OpBuilder b{getMLIRContext()};
+  return b.create<CallIndirectOp>(loc, callee, operands);
+}
+
 void exposeModule(module &m, OpClass &cls) {
   class_<ModuleOp>(m, "ModuleOp", cls)
       .def(init([](Location loc) { return ModuleOp::create(loc); }),
@@ -79,6 +85,16 @@ void exposeModule(module &m, OpClass &cls) {
                   []() { return ConstantOp::getOperationName().str(); })
       .def("value", &ConstantOp::value)
       .def("result", &ConstantOp::getResult);
+
+  class_<CallIndirectOp>(m, "CallIndirectOp", cls)
+      .def(init(&callIndirectCtor), "callee"_a, "operands"_a = ValueList{},
+           "loc"_a = getUnknownLoc())
+      .def_static("getName",
+                  []() { return CallIndirectOp::getOperationName().str(); })
+      .def("callee", &CallIndirectOp::callee)
+      .def("operands", &CallIndirectOp::operands)
+      .def("results",
+           [](CallIndirectOp op) -> ValueRange { return op.results(); });
 }
 
 } // end namespace py

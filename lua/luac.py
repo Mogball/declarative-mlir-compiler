@@ -282,6 +282,8 @@ class AllocVisitor:
     def visit(self, op:Operation):
         if isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
+        elif isa(op, lua.call):
+            self.visitCall(lua.call(op))
 
     def visitGetOrAlloc(self, op:lua.get_or_alloc):
         if op.var() not in self.scope:
@@ -290,6 +292,12 @@ class AllocVisitor:
             self.scope[op.var()] = alloc.res()
         self.builder.replace(op, [self.scope[op.var()]])
         self.removed.add(op)
+
+    def visitCall(self, op:lua.call):
+        if op.rets().useEmpty():
+            self.builder.insertAfter(op)
+            # unused return values
+            self.builder.create(luac.delete_pack, pack=op.rets(), loc=op.loc)
 
 
 def elideAssign(op:lua.assign, rewriter:Builder):
@@ -361,25 +369,93 @@ def getExpanderFor(opStr, binOpCls):
 
     return expandFcn
 
+def allocAndSet(setOp):
+    def matchFcn(op, rewriter:Builder):
+        alloc = rewriter.create(luac.alloc, loc=op.loc)
+        const = rewriter.create(ConstantOp, value=luac.type_num(), loc=op.loc)
+        rewriter.create(setOp, tgt=alloc.res(), num=op.num(), loc=op.loc)
+        rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
+                        loc=op.loc)
+        rewriter.replace(op, [alloc.res()])
+        return True
+
+    return matchFcn
+
+def setToNil(op:lua.nil, rewriter:Builder):
+    alloc = rewriter.create(luac.alloc, loc=op.loc)
+    const = rewriter.create(ConstantOp, value=luac.type_nil(), loc=op.loc)
+    rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
+                    loc=op.loc)
+    rewriter.replace(op, [alloc.res()])
+    return True
+
+def expandConcat(op:lua.concat, rewriter:Builder):
+    assert op.pack().hasOneUse(), "value pack can only be used once"
+    const = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
+                            loc=op.loc)
+    newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
+    for val in op.vals():
+        if val.type == lua.ref():
+            rewriter.create(luac.pack_push, pack=newPack.pack(), val=val,
+                            loc=op.loc)
+        else:
+            assert val.hasOneUse(), "value pack can only be used once"
+            rewriter.create(luac.pack_push_all, pack=newPack.pack(), vals=val,
+                            loc=op.loc)
+            rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
+    rewriter.replace(op, [newPack.pack()])
+    return True
+
+def expandUnpack(op:lua.unpack, rewriter:Builder):
+    assert op.pack().hasOneUse(), "value pack can only be used once"
+    newVals = []
+    for val in op.vals():
+        pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
+        newVals.append(pull.val())
+    rewriter.replace(op, newVals)
+    rewriter.create(luac.delete_pack, pack=op.pack(), loc=op.loc)
+    return True
+
+def expandCall(op:lua.call, rewriter:Builder):
+    getAddr = rewriter.create(luac.get_fcn_addr, fcn=op.fcn(), loc=op.loc)
+    icall = rewriter.create(CallIndirectOp, callee=getAddr.fcn_addr(),
+                            operands=[op.args()], loc=op.loc)
+    rewriter.replace(op, icall.results())
+    return True
+
 def lowerToLuac(main:FuncOp):
     target = ConversionTarget()
+
     target.addLegalDialect(luac)
     target.addLegalDialect("std")
     target.addLegalOp(FuncOp)
-    target.addLegalOp(lua.nil)
+
+    target.addIllegalOp(luac.wrap_int)
+    target.addIllegalOp(luac.wrap_real)
+
     target.addLegalOp(lua.builtin)
-    target.addLegalOp(lua.concat)
-    target.addLegalOp(lua.unpack)
-    target.addLegalOp(lua.call)
 
     applyFullConversion(main, [
         Pattern(lua.number, getWrapperFor(luac.integer(), luac.wrap_int),
                 [ConstantOp, luac.wrap_int]),
         Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
                 [ConstantOp, luac.wrap_real]),
+
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
+
+        Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
+                [luac.alloc, luac.set_int64_val, luac.set_type, ConstantOp]),
+        Pattern(luac.wrap_real, allocAndSet(luac.set_double_val),
+                [luac.alloc, luac.set_double_val, luac.set_type, ConstantOp]),
+        Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
+
+        Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
+                                           luac.pack_push_all]),
+        Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
+                                           luac.delete_pack]),
+        Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
     ], target)
 
 
@@ -399,10 +475,10 @@ def main():
 
     module, main = generator.chunk(parser.chunk())
     varAllocPass(main)
-    print(main)
     lowerToLuac(main)
-    print(main)
-    verify(main)
+
+    print(module)
+    verify(module)
 
 if __name__ == '__main__':
     main()

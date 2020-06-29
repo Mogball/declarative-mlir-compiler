@@ -250,6 +250,10 @@ void exposeDialectInternal(DynamicDialect *dialect, ArrayRef<StringRef> scope) {
     auto name = ty->getName().str();
     m.def(name.c_str(), [ty]() { return ty->getAliasedType(); });
   }
+  for (auto *attr : dialect->getAttrAliases()) {
+    auto name = attr->getName().str();
+    m.def(name.c_str(), [attr]() { return attr->getAliasedAttr(); });
+  }
 }
 
 } // end namespace py

@@ -100,6 +100,7 @@ public:
   std::vector<DynamicTypeImpl *> getTypes();
   std::vector<DynamicAttributeImpl *> getAttributes();
   std::vector<TypeAlias *> getTypeAliases();
+  std::vector<AttributeAlias *> getAttrAliases();
 
 private:
   class Impl;

@@ -161,4 +161,8 @@ std::vector<TypeAlias *> DynamicDialect::getTypeAliases() {
   return getDialectObjs<TypeAlias>(impl->typeAliases);
 }
 
+std::vector<AttributeAlias *> DynamicDialect::getAttrAliases() {
+  return getDialectObjs<AttributeAlias>(impl->attrAliases);
+}
+
 } // end namespace dmc

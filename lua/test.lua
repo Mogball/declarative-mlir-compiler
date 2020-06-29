@@ -11,3 +11,4 @@ print(sum, a + b * c, (a + b) * c)
 print(a, print(b), c)
 
 p, q, r, s = a, print(b), c
+print(p, q, r, s)

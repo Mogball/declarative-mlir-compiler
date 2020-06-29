@@ -66,6 +66,18 @@ Dialect @luac {
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
 
+  Alias @pack_fcn -> (!lua.pack) -> !lua.pack
+    { builder = "FunctionType([lua.pack()], [lua.pack()])" }
+
+  Alias @type_enum -> i32 { builder = "IntegerType(32)" }
+  Alias @type_nil -> 0 : i32
+  Alias @type_bool -> 1 : i32
+  Alias @type_num -> 2 : i32
+  Alias @type_str -> 3 : i32
+  Alias @type_tbl -> 4 : i32
+  Alias @type_fcn -> 5 : i32
+  // userdata, thread unimplemented
+
   Op @wrap_int(num: !luac.integer) -> (res: !lua.value)
     config { fmt = "$num attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
@@ -80,4 +92,36 @@ Dialect @luac {
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+
+  Op @alloc() -> (res: !lua.value)
+    traits [@Alloc<"res">] config { fmt = "attr-dict" }
+
+  Op @set_type(tgt: !lua.value, ty: !luac.type_enum) -> ()
+    traits [@WriteTo<"tgt">]
+    config { fmt = "`type` `(` $tgt `)` `=` $ty attr-dict" }
+  Op @set_int64_val(tgt: !lua.value, num: !luac.integer) -> ()
+    traits [@WriteTo<"tgt">]
+    config { fmt = "$tgt `=` $num attr-dict" }
+  Op @set_double_val(tgt: !lua.value, num: !luac.real) -> ()
+    traits [@WriteTo<"tgt">]
+    config { fmt = "$tgt `=` $num attr-dict" }
+  Op @get_fcn_addr(fcn: !lua.value) -> (fcn_addr: !luac.pack_fcn)
+    traits [@ReadFrom<"val">]
+    config { fmt = "$fcn attr-dict" }
+
+  Op @new_pack(rsv: i32) -> (pack: !lua.value_pack)
+    traits [@Alloc<"pack">]
+    config { fmt = "`[` $rsv `]` attr-dict" }
+  Op @delete_pack(pack: !lua.value_pack) -> ()
+    traits [@Free<"pack">]
+    config { fmt = "$pack attr-dict" }
+  Op @pack_push(pack: !lua.value_pack, val: !lua.value) -> ()
+    traits [@WriteTo<"pack">, @ReadFrom<["pack", "val"]>]
+    config { fmt = "`(` $pack `,` `[` $val `]` `)` attr-dict" }
+  Op @pack_push_all(pack: !lua.value_pack, vals: !lua.value_pack) -> ()
+    traits [@WriteTo<"pack">, @ReadFrom<["pack", "vals"]>]
+    config { fmt = "`(` $pack `,` $vals `)` attr-dict" }
+  Op @pack_pull_one(pack: !lua.value_pack) -> (val: !lua.value)
+    traits [@WriteTo<"pack">, @ReadFrom<"pack">]
+    config { fmt = "$pack attr-dict" }
 }
