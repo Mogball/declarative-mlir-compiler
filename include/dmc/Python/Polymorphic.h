@@ -170,6 +170,6 @@ template <typename... DerivedTs> struct polymorphic_op_type {
 
 template <> struct polymorphic_type_hook<Operation>
     : public polymorphic_op_type<
-      ModuleOp> {};
+      ModuleOp, FuncOp> {};
 
 } // end namespace pybind11

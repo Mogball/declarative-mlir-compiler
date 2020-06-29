@@ -63,6 +63,7 @@ Dialect @lua {
 }
 
 Dialect @luac {
+  Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
 
@@ -96,15 +97,32 @@ Dialect @luac {
   Op @alloc() -> (res: !lua.value)
     traits [@Alloc<"res">] config { fmt = "attr-dict" }
 
+
   Op @set_type(tgt: !lua.value, ty: !luac.type_enum) -> ()
     traits [@WriteTo<"tgt">]
     config { fmt = "`type` `(` $tgt `)` `=` $ty attr-dict" }
+  Op @get_type(tgt: !lua.value) -> (ty: !luac.type_enum)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "`type` `(` $tgt `)` attr-dict" }
+
   Op @set_int64_val(tgt: !lua.value, num: !luac.integer) -> ()
     traits [@WriteTo<"tgt">]
     config { fmt = "$tgt `=` $num attr-dict" }
+  Op @get_int64_val(tgt: !lua.value) -> (num: !luac.integer)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
+
   Op @set_double_val(tgt: !lua.value, num: !luac.real) -> ()
     traits [@WriteTo<"tgt">]
     config { fmt = "$tgt `=` $num attr-dict" }
+  Op @get_double_val(tgt: !lua.value) -> (num: !luac.real)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
+
+  Op @is_float(tgt: !lua.value) -> (ret: !luac.bool)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
+
   Op @get_fcn_addr(fcn: !lua.value) -> (fcn_addr: !luac.pack_fcn)
     traits [@ReadFrom<"val">]
     config { fmt = "$fcn attr-dict" }

@@ -477,6 +477,10 @@ def main():
     varAllocPass(main)
     lowerToLuac(main)
 
+    lib = parseSourceFile("lib.mlir")
+    for func in lib.getOps(FuncOp):
+        module.append(func.clone())
+
     print(module)
     verify(module)
 

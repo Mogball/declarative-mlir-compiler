@@ -307,7 +307,7 @@ void exposeOps(module &m) {
 
   exposeModule(m, opCls);
 
-  op_implicit_conversion<ModuleOp>(baseCls);
+  op_implicit_conversion<ModuleOp, FuncOp>(baseCls);
 }
 
 } // end namespace py

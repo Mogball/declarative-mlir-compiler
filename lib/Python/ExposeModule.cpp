@@ -60,6 +60,13 @@ void exposeModule(module &m, OpClass &cls) {
       .def("__iter__", nullcheck([](ModuleOp module) {
         return make_iterator(module.begin(), module.end());
       }), keep_alive<0, 1>())
+      .def("getOps", nullcheck([](ModuleOp module, object cls) {
+        auto name = cls.attr("getName")().cast<std::string>();
+        auto ops = llvm::make_filter_range(module, [name](Operation &op) {
+          return op.getName().getStringRef() == name;
+        });
+        return make_iterator(ops.begin(), ops.end());
+      }), keep_alive<0, 1>())
       .def("append", nullcheck(&ModuleOp::push_back), "op"_a)
       .def("insertBefore",
            nullcheck(overload<void(ModuleOp::*)(Operation *, Operation *)>(
@@ -73,7 +80,8 @@ void exposeModule(module &m, OpClass &cls) {
       .def("addEntryBlock", &FuncOp::addEntryBlock,
            return_value_policy::reference)
       .def("addBlock", &FuncOp::addBlock, return_value_policy::reference)
-      .def("getBody", &FuncOp::getBody, return_value_policy::reference);
+      .def("getBody", &FuncOp::getBody, return_value_policy::reference)
+      .def("clone", overload<FuncOp(FuncOp::*)()>(&FuncOp::clone));
 
   class_<ReturnOp>(m, "ReturnOp", cls)
       .def(init(&returnCtor), "operands"_a = ValueList{},
