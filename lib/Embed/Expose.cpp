@@ -233,6 +233,8 @@ void exposeDialectInternal(DynamicDialect *dialect, ArrayRef<StringRef> scope) {
   getInternalModule().def(regFcn.c_str(), [m]() { return m; });
   exec(dialect->getNamespace().str() + " = " + regFcn + "()",
        getInternalScope());
+  exec("name = \"" + dialect->getNamespace().str() + "\"",
+       m.attr("__dict__"));
   for (auto name : scope) {
     exec(name.str() + " = mlir.register_internal_module_" +
          name.str() + "()", m.attr("__dict__"));

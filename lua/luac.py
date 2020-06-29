@@ -12,9 +12,9 @@ def get_dialects(filename='lua.mlir'):
     m = parseSourceFile(filename)
     assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
-    return dialects[0]
+    return dialects[0], dialects[1]
 
-lua = get_dialects()
+lua, luac = get_dialects()
 
 class Generator:
     ############################################################################
@@ -340,7 +340,11 @@ def varAllocPass(main:FuncOp):
     ])
 
 def lowerToLuac(main:FuncOp):
-    pass
+    target = ConversionTarget()
+    target.addLegalDialect(luac)
+    target.addIllegalDialect(lua)
+    applyPartialConversion(main, [
+    ], target)
 
 
 def main():
@@ -359,6 +363,8 @@ def main():
 
     module, main = generator.chunk(parser.chunk())
     varAllocPass(main)
+    print(main)
+    lowerToLuac(main)
     print(main)
 
 if __name__ == '__main__':

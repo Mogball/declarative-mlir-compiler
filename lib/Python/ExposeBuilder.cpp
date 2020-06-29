@@ -201,6 +201,9 @@ void exposeBuilder(module &m) {
         auto name = cls.attr("name").cast<std::string>();
         target.addIllegalDialect(name);
       });
+
+  m.def("applyPartialConversion", &applyPartialConversion);
+  m.def("applyFullConversion", &applyFullConversion);
 }
 
 } // end namespace py
