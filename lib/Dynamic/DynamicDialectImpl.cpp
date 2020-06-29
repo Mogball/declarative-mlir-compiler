@@ -132,11 +132,16 @@ AttributeMetadata *DynamicDialect::lookupAttributeData(mlir::Attribute attr) {
   return nullptr;
 }
 
+template <typename T> struct unwrap_ptr {
+  static T *get(T &ref) { return &ref; }
+  static T *get(const std::unique_ptr<T> &uptr) { return uptr.get(); }
+};
+
 template <typename E, typename MapT> static auto getDialectObjs(MapT &objs) {
   std::vector<E *> ret;
   ret.reserve(std::size(objs));
   for (auto &obj : llvm::make_second_range(objs))
-    ret.push_back(obj.get());
+    ret.push_back(unwrap_ptr<E>::get(obj));
   return ret;
 }
 
@@ -150,6 +155,10 @@ std::vector<DynamicTypeImpl *> DynamicDialect::getTypes() {
 
 std::vector<DynamicAttributeImpl *> DynamicDialect::getAttributes() {
   return getDialectObjs<DynamicAttributeImpl>(impl->dynAttrs);
+}
+
+std::vector<TypeAlias *> DynamicDialect::getTypeAliases() {
+  return getDialectObjs<TypeAlias>(impl->typeAliases);
 }
 
 } // end namespace dmc

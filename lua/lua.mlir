@@ -63,11 +63,21 @@ Dialect @lua {
 }
 
 Dialect @luac {
-  Alias @int -> i64 { builder = "IntegerType(64)" }
+  Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
 
-  Op @wrap_int(iv: !luac.int) -> (res: !lua.value)
-    config { fmt = "$iv attr-dict" }
-  Op @wrap_real(fp: !luac.real) -> (res: !lua.value)
-    config { fmt = "$fp attr-dict" }
+  Op @wrap_int(num: !luac.integer) -> (res: !lua.value)
+    config { fmt = "$num attr-dict" }
+  Op @wrap_real(num: !luac.real) -> (res: !lua.value)
+    config { fmt = "$num attr-dict" }
+
+  Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
+  Op @sub(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
+  Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
 }

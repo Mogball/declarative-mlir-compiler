@@ -99,6 +99,7 @@ public:
   std::vector<DynamicOperation *> getOps();
   std::vector<DynamicTypeImpl *> getTypes();
   std::vector<DynamicAttributeImpl *> getAttributes();
+  std::vector<TypeAlias *> getTypeAliases();
 
 private:
   class Impl;

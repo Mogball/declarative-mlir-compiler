@@ -17,6 +17,8 @@ public:
   explicit ConcreteBuilder() : PatternRewriter{getMLIRContext()} {}
 };
 
+static ConcreteBuilder builderInstance;
+
 static Builder getBuilder() { return Builder{getMLIRContext()}; }
 
 template <typename ValT, typename FcnT>
@@ -26,7 +28,7 @@ void def_attr(module &m, const char *name, FcnT fcn) {
   });
 }
 
-auto builderCreateOp(ConcreteBuilder &builder, object type, pybind11::args args,
+auto builderCreateOp(PatternRewriter &builder, object type, pybind11::args args,
                      pybind11::kwargs kwargs) {
   auto ret = type(*args, **kwargs);
   builder.insert(ret.cast<Operation *>());
@@ -72,8 +74,8 @@ struct PyPatternImpl : public RewritePattern {
   LogicalResult
   matchAndRewrite(Operation *op, PatternRewriter &rewriter) const override {
     auto concreteOp = cls(op);
-    return success(fcn(concreteOp,
-                       static_cast<ConcreteBuilder &>(rewriter)).cast<bool>());
+    return success(fcn.operator()<return_value_policy::reference>(
+        concreteOp, static_cast<PatternRewriter &>(rewriter)).cast<bool>());
   }
 
   object cls, fcn;
@@ -140,23 +142,23 @@ void exposeBuilder(module &m) {
     return getBuilder().getStrArrayAttr(refs);
   });
 
-  class_<ConcreteBuilder>(m, "Builder")
-      .def(init<>())
+  class_<PatternRewriter, std::unique_ptr<PatternRewriter, nodelete>>(m, "Builder")
+      .def(init([]() { return &builderInstance; }), return_value_policy::reference)
       .def("insertBefore",
-           overload<void(ConcreteBuilder::*)(Operation *)>(&ConcreteBuilder::setInsertionPoint))
-      .def("insertAfter", &ConcreteBuilder::setInsertionPointAfter)
-      .def("insertAtStart", &ConcreteBuilder::setInsertionPointToStart)
-      .def("insertAtEnd", &ConcreteBuilder::setInsertionPointToEnd)
-      .def("getCurrentBlock", &ConcreteBuilder::getInsertionBlock,
+           overload<void(PatternRewriter::*)(Operation *)>(&PatternRewriter::setInsertionPoint))
+      .def("insertAfter", &PatternRewriter::setInsertionPointAfter)
+      .def("insertAtStart", &PatternRewriter::setInsertionPointToStart)
+      .def("insertAtEnd", &PatternRewriter::setInsertionPointToEnd)
+      .def("getCurrentBlock", &PatternRewriter::getInsertionBlock,
            return_value_policy::reference)
-      .def("insert", &ConcreteBuilder::insert, return_value_policy::reference)
+      .def("insert", &PatternRewriter::insert, return_value_policy::reference)
       .def("create", &builderCreateOp, return_value_policy::reference)
-      .def("replace", [](ConcreteBuilder &builder, Operation *op,
+      .def("replace", [](PatternRewriter &builder, Operation *op,
                          ValueListRef newValues) {
         builder.replaceOp(op, newValues);
       })
-      .def("erase", &ConcreteBuilder::eraseOp)
-      .def("erase", &ConcreteBuilder::eraseBlock);
+      .def("erase", &PatternRewriter::eraseOp)
+      .def("erase", &PatternRewriter::eraseBlock);
 
   m.def("verify", [](Operation *op) {
     return succeeded(mlir::verify(op));
@@ -193,9 +195,15 @@ void exposeBuilder(module &m) {
         target.setOpAction(opName,
                            ConversionTarget::LegalizationAction::Illegal);
       })
+      .def("addLegalDialect", [](ConversionTarget &target, std::string name) {
+        target.addLegalDialect(name);
+      })
       .def("addLegalDialect", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("name").cast<std::string>();
         target.addLegalDialect(name);
+      })
+      .def("addIllegalDialect", [](ConversionTarget &target, std::string name) {
+        target.addIllegalDialect(name);
       })
       .def("addIllegalDialect", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("name").cast<std::string>();

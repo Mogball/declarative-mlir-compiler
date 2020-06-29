@@ -1,5 +1,6 @@
 #include "Scope.h"
 #include "dmc/Embed/InMemoryDef.h"
+#include "dmc/Dynamic/Alias.h"
 #include "dmc/Dynamic/DynamicType.h"
 #include "dmc/Dynamic/DynamicOperation.h"
 #include "dmc/Dynamic/DynamicDialect.h"
@@ -244,6 +245,10 @@ void exposeDialectInternal(DynamicDialect *dialect, ArrayRef<StringRef> scope) {
   }
   for (auto *op : dialect->getOps()) {
     exposeDynamicOp(m, op);
+  }
+  for (auto *ty : dialect->getTypeAliases()) {
+    auto name = ty->getName().str();
+    m.def(name.c_str(), [ty]() { return ty->getAliasedType(); });
   }
 }
 

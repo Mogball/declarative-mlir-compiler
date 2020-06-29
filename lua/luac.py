@@ -339,11 +339,47 @@ def varAllocPass(main:FuncOp):
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
     ])
 
+def getWrapperFor(numberTy, opCls):
+    def wrapFcn(op:lua.number, rewriter:Builder):
+        if op.value().type != numberTy:
+            return False
+        const = rewriter.create(ConstantOp, value=op.value(), loc=op.loc)
+        wrap = rewriter.create(opCls, num=const.result(), loc=op.loc)
+        rewriter.replace(op, [wrap.res()])
+        return True
+
+    return wrapFcn
+
+def getExpanderFor(opStr, binOpCls):
+    def expandFcn(op:lua.binary, rewriter:Builder):
+        if op.op().getValue() != opStr:
+            return False
+        binOp = rewriter.create(binOpCls, lhs=op.lhs(), rhs=op.rhs(),
+                                loc=op.loc)
+        rewriter.replace(op, [binOp.res()])
+        return True
+
+    return expandFcn
+
 def lowerToLuac(main:FuncOp):
     target = ConversionTarget()
     target.addLegalDialect(luac)
-    target.addIllegalDialect(lua)
-    applyPartialConversion(main, [
+    target.addLegalDialect("std")
+    target.addLegalOp(FuncOp)
+    target.addLegalOp(lua.nil)
+    target.addLegalOp(lua.builtin)
+    target.addLegalOp(lua.concat)
+    target.addLegalOp(lua.unpack)
+    target.addLegalOp(lua.call)
+
+    applyFullConversion(main, [
+        Pattern(lua.number, getWrapperFor(luac.integer(), luac.wrap_int),
+                [ConstantOp, luac.wrap_int]),
+        Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
+                [ConstantOp, luac.wrap_real]),
+        Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
+        Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
+        Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
     ], target)
 
 
@@ -366,6 +402,7 @@ def main():
     print(main)
     lowerToLuac(main)
     print(main)
+    verify(main)
 
 if __name__ == '__main__':
     main()

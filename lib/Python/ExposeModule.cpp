@@ -63,6 +63,7 @@ void exposeModule(module &m, OpClass &cls) {
   class_<FuncOp>(m, "FuncOp", cls)
       .def(init(&functionCtor), "name"_a, "type"_a, "loc"_a = getUnknownLoc(),
            "attrs"_a = AttrDict{})
+      .def_static("getName", []() { return FuncOp::getOperationName().str(); })
       .def("addEntryBlock", &FuncOp::addEntryBlock,
            return_value_policy::reference)
       .def("addBlock", &FuncOp::addBlock, return_value_policy::reference)
@@ -74,6 +75,8 @@ void exposeModule(module &m, OpClass &cls) {
 
   class_<ConstantOp>(m, "ConstantOp", cls)
       .def(init(&constantCtor), "value"_a, "loc"_a = getUnknownLoc())
+      .def_static("getName",
+                  []() { return ConstantOp::getOperationName().str(); })
       .def("value", &ConstantOp::value)
       .def("result", &ConstantOp::getResult);
 }
