@@ -1,31 +1,6 @@
-add_library(LuaToLuaC
-  LuaToLuaC.cpp
-  LuaToLLVM.cpp
-  LuaToLuaLib.cpp
-  )
-target_link_libraries(LuaToLuaC PUBLIC
-  MLIRIR
-  DMCDynamic
-  DMCEmbedInit
-  )
-
-add_executable(luac luac.cpp)
-target_link_libraries(luac
-  LuaToLuaC
-  DMCSpec
-  DMCDynamic
-  DMCTraits
-  DMCEmbed
-  DMCEmbedInit
-  MLIRParser
-  MLIRLLVMIR
-  MLIRLoopToStandard
-  MLIRStandardToLLVM
-  )
-
-set(LUAC_EXE $<TARGET_FILE:luac>)
-set(MLIR_TRANSLATE_EXE $<TARGET_FILE:mlir-translate>)
-set(CLANG_EXE $<TARGET_FILE:clang>)
+#set(LUAC_EXE $<TARGET_FILE:luac>)
+#set(MLIR_TRANSLATE_EXE $<TARGET_FILE:mlir-translate>)
+#set(CLANG_EXE $<TARGET_FILE:clang>)
 
 find_program(ANTLR NAMES antlr ntlr4 REQUIRED)
 add_custom_command(
@@ -41,8 +16,6 @@ add_custom_command(
   COMMENT "Generating Lua parser from ANTLR"
   )
 add_custom_target(lua-parser DEPENDS parser/LuaParser.py)
-
-set(luair_file main.mlir)
 
 function(compile_lua_ir OUT IR_FILE DIALECT_FILE LIB_FILE)
   get_filename_component(abs_dialect_file ${DIALECT_FILE} ABSOLUTE)
@@ -76,17 +49,17 @@ function(compile_lua_ir OUT IR_FILE DIALECT_FILE LIB_FILE)
   set(${OUT} ${obj_out} PARENT_SCOPE)
 endfunction()
 
-set(DIALECT_FILE dialect.mlir)
-set(LIB_FILE lib.mlir)
-compile_lua_ir(MAIN_FILE main.mlir ${DIALECT_FILE} ${LIB_FILE})
+#set(DIALECT_FILE dialect.mlir)
+#set(LIB_FILE lib.mlir)
+#compile_lua_ir(MAIN_FILE main.mlir ${DIALECT_FILE} ${LIB_FILE})
 
-include(CheckPIESupported)
-check_pie_supported()
-add_executable(main impl.cpp ${MAIN_FILE})
-set_property(TARGET main PROPERTY POSITION_INDEPENDENT_CODE TRUE)
-set_source_files_properties(
-  ${MAIN_FILE}
-  PROPERTIES
-  EXTERNAL_OBJECT true
-  GENERATED true
-  )
+#include(CheckPIESupported)
+#check_pie_supported()
+#add_executable(main impl.cpp ${MAIN_FILE})
+#set_property(TARGET main PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+#set_source_files_properties(
+#  ${MAIN_FILE}
+#  PROPERTIES
+#  EXTERNAL_OBJECT true
+#  GENERATED true
+#  )
