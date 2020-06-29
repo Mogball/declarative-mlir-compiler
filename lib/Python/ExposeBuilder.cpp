@@ -5,6 +5,7 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/IR/Verifier.h>
+#include <mlir/Transforms/DialectConversion.h>
 
 using namespace pybind11;
 
@@ -78,12 +79,29 @@ struct PyPatternImpl : public RewritePattern {
   object cls, fcn;
 };
 
-void applyOptPatterns(Operation *op, std::vector<PyPattern> patterns) {
+static auto getPatternList(std::vector<PyPattern> patterns) {
   OwningRewritePatternList patternList;
   for (auto &pattern : patterns) {
     patternList.insert<PyPatternImpl>(pattern);
   }
-  applyPatternsAndFoldGreedily(op, patternList);
+  return patternList;
+}
+
+bool applyOptPatterns(Operation *op, std::vector<PyPattern> patterns) {
+  auto patternList = getPatternList(std::move(patterns));
+  return applyPatternsAndFoldGreedily(op, patternList);
+}
+
+bool applyPartialConversion(Operation *op, std::vector<PyPattern> patterns,
+                            ConversionTarget target) {
+  auto patternList = getPatternList(std::move(patterns));
+  return succeeded(applyPartialConversion(op, target, patternList, nullptr));
+}
+
+bool applyFullConversion(Operation *op, std::vector<PyPattern> patterns,
+                         ConversionTarget target) {
+  auto patternList = getPatternList(std::move(patterns));
+  return succeeded(applyFullConversion(op, target, patternList, nullptr));
 }
 
 void exposeBuilder(module &m) {
@@ -160,6 +178,29 @@ void exposeBuilder(module &m) {
   class_<PyPattern>(m, "Pattern")
       .def(init<object, object, list, unsigned>(), "cls"_a, "matchFcn"_a,
            "generatedOps"_a = list{}, "benefit"_a = 0);
+
+  class_<ConversionTarget>(m, "ConversionTarget")
+      .def(init([]() { return new ConversionTarget{*getMLIRContext()}; }))
+      .def("addLegalOp", [](ConversionTarget &target, object cls) {
+        auto name = cls.attr("getName")().cast<std::string>();
+        OperationName opName{name, getMLIRContext()};
+        target.setOpAction(opName,
+                           ConversionTarget::LegalizationAction::Legal);
+      })
+      .def("addIllegalOp", [](ConversionTarget &target, object cls) {
+        auto name = cls.attr("getName")().cast<std::string>();
+        OperationName opName{name, getMLIRContext()};
+        target.setOpAction(opName,
+                           ConversionTarget::LegalizationAction::Illegal);
+      })
+      .def("addLegalDialect", [](ConversionTarget &target, object cls) {
+        auto name = cls.attr("name").cast<std::string>();
+        target.addLegalDialect(name);
+      })
+      .def("addIllegalDialect", [](ConversionTarget &target, object cls) {
+        auto name = cls.attr("name").cast<std::string>();
+        target.addIllegalDialect(name);
+      });
 }
 
 } // end namespace py
