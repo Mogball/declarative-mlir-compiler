@@ -227,6 +227,11 @@ public:
   explicit WriteTo(mlir::Attribute targets);
 };
 
+class NoSideEffects : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "NoSideEffects"; }
+};
+
 /// TODO Some standard traits not rebound (complexity/API restrictions):
 /// - AutomaticAllocationScope
 /// - ConstantLike

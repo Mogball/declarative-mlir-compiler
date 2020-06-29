@@ -35,6 +35,7 @@ DynamicOperation *DynamicOperation::of(Operation *op) {
 }
 
 bool BaseOp::classof(mlir::Operation *op) {
+  /// An Operation can be casted to dmc::BaseOp if it is a dynamic operation.
   return dynamic_cast<DynamicDialect *>(op->getDialect());
 }
 
@@ -145,6 +146,50 @@ void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
     effects.emplace_back(MemoryEffects::Read::get());
   if (impl->getTrait<MemoryWrite>())
     effects.emplace_back(MemoryEffects::Write::get());
+
+  if (auto *trait = impl->getTrait<Alloc>()) {
+    for (auto target : trait->getTargets()) {
+      for (auto val : op.getOperandOrResultGroup(target)) {
+        effects.emplace_back(MemoryEffects::Allocate::get(), val);
+      }
+    }
+  }
+  if (auto *trait = impl->getTrait<Free>()) {
+    for (auto target : trait->getTargets()) {
+      for (auto val : op.getOperandOrResultGroup(target)) {
+        effects.emplace_back(MemoryEffects::Free::get(), val);
+      }
+    }
+  }
+  if (auto *trait = impl->getTrait<ReadFrom>()) {
+    for (auto target : trait->getTargets()) {
+      for (auto val : op.getOperandOrResultGroup(target)) {
+        effects.emplace_back(MemoryEffects::Read::get(), val);
+      }
+    }
+  }
+  if (auto *trait = impl->getTrait<WriteTo>()) {
+    for (auto target : trait->getTargets()) {
+      for (auto val : op.getOperandOrResultGroup(target)) {
+        effects.emplace_back(MemoryEffects::Write::get(), val);
+      }
+    }
+  }
+}
+
+void *BaseOp::getRawInterface(TypeID id) {
+  /// Special logic: ignore query for MemoryEffectOpInterface if `NoSideEffects`
+  /// is specified.
+  if (id == MemoryEffectOpInterface::Trait<BaseOp>::getInterfaceID()) {
+    // Can't access member functions...
+    //if (getTrait<NoSideEffects>())
+    //  return nullptr;
+  }
+  return Op::getRawInterface(id);
+}
+
+bool BaseOp::hasTrait(TypeID id) {
+  return Op::hasTrait(id);
 }
 
 } // end namespace dmc

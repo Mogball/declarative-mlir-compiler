@@ -38,16 +38,33 @@ bool operationIsa(Operation *op, object cls) {
 }
 
 struct PyPattern {
-  PyPattern(object cls, object fcn, unsigned benefit)
-      : cls{cls}, fcn{fcn}, benefit{benefit} {}
+  PyPattern(object cls, object fcn, list generated, unsigned benefit)
+      : cls{cls}, fcn{fcn}, generated{generated}, benefit{benefit} {}
 
   object cls, fcn;
+  list generated;
   unsigned benefit;
 };
+
+static ArrayRef<StringRef> getGeneratedOps(list generated) {
+  // Need to keep references alive until RewritePattern constructor is done
+  thread_local std::vector<std::string> names;
+  thread_local std::vector<StringRef> ret;
+  ret.clear();
+  names.clear();
+  ret.reserve(generated.size());
+  names.reserve(generated.size());
+  for (auto cls : generated) {
+    names.push_back(cls.attr("getName")().cast<std::string>());
+    ret.push_back(names.back());
+  }
+  return ret;
+}
 
 struct PyPatternImpl : public RewritePattern {
   explicit PyPatternImpl(PyPattern &pattern)
       : RewritePattern{pattern.cls.attr("getName")().cast<std::string>(),
+                       py::getGeneratedOps(pattern.generated),
                        pattern.benefit, getMLIRContext()},
         cls{pattern.cls}, fcn{pattern.fcn} {}
 
@@ -141,8 +158,8 @@ void exposeBuilder(module &m) {
   m.def("applyOptPatterns", &applyOptPatterns);
 
   class_<PyPattern>(m, "Pattern")
-      .def(init<object, object, unsigned>(), "cls"_a, "matchFcn"_a,
-           "benefit"_a = 0);
+      .def(init<object, object, list, unsigned>(), "cls"_a, "matchFcn"_a,
+           "generatedOps"_a = list{}, "benefit"_a = 0);
 }
 
 } // end namespace py

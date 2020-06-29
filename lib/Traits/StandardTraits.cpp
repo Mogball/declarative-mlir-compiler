@@ -43,8 +43,12 @@ LogicalResult SingleBlockImplicitTerminator::verifyOp(Operation *op) const {
 
 static auto unpackTargets(Attribute targets) {
   std::vector<StringRef> ret;
-  for (auto target : targets.cast<ArrayAttr>())
-    ret.push_back(target.cast<StringAttr>().getValue());
+  if (auto name = targets.dyn_cast<StringAttr>()) {
+    ret.push_back(name.getValue());
+  } else {
+    for (auto target : targets.cast<ArrayAttr>())
+      ret.push_back(target.cast<StringAttr>().getValue());
+  }
   return ret;
 }
 

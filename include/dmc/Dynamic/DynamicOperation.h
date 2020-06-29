@@ -149,6 +149,9 @@ public:
   void getEffects(llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
                   mlir::MemoryEffects::Effect>> &effects);
 
+  static void *getRawInterface(mlir::TypeID id);
+  static bool hasTrait(mlir::TypeID id);
+
   // Custom isa<T>
   static bool classof(mlir::Operation *op);
 };

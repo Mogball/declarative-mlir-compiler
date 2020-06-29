@@ -286,7 +286,7 @@ class AllocVisitor:
     def visitGetOrAlloc(self, op:lua.get_or_alloc):
         if op.var() not in self.scope:
             self.builder.insertBefore(op)
-            alloc = self.builder.create(lua.alloc, loc=op.loc)
+            alloc = self.builder.create(lua.alloc, var=op.var(), loc=op.loc)
             self.scope[op.var()] = alloc.res()
         self.builder.replace(op, [self.scope[op.var()]])
         self.removed.add(op)
@@ -315,8 +315,16 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     rewriter.replace(op, newVals)
     return True
 
+lua_builtins = set(["print"])
+def raiseBuiltins(op:lua.alloc, rewriter:Builder):
+    if op.var().getValue() not in lua_builtins:
+        return False
+    builtin = rewriter.create(lua.builtin, var=op.var(), loc=op.loc)
+    rewriter.replace(op, [builtin.val()])
+    return True
 
-def lowerToLuac(main:FuncOp):
+
+def varAllocPass(main:FuncOp):
     # Main function has one Sized<1> region
     region = main.getBody()
     ops = region.getBlock(0)
@@ -327,8 +335,13 @@ def lowerToLuac(main:FuncOp):
     # Trivial passes as patterns
     applyOptPatterns(main, [
         Pattern(lua.assign, elideAssign),
-        Pattern(lua.unpack, elideConcatAndUnpack),
+        Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
+        Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
     ])
+
+def lowerToLuac(main:FuncOp):
+    pass
+
 
 def main():
     if len(sys.argv) != 2:
@@ -345,7 +358,7 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
-    lowerToLuac(main)
+    varAllocPass(main)
     print(main)
 
 if __name__ == '__main__':
