@@ -13,6 +13,8 @@
 #include <mlir/IR/Function.h>
 #include <mlir/IR/Operation.h>
 
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+
 /// Shorthand for declaring polymorphic type hooks for MLIR-style RTTI.
 namespace detail {
 

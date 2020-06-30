@@ -125,8 +125,9 @@ class Generator:
         vals = unpack.vals()
         assert len(vals) == len(varList)
         for i in range(0, len(varList)):
+            var = varList[i].definingOp.getAttr("var")
             self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
-                                loc=self.getStartLoc(ctx))
+                                var=var, loc=self.getStartLoc(ctx))
 
     def varlist(self, ctx:LuaParser.VarlistContext):
         varList = []
@@ -282,6 +283,8 @@ class AllocVisitor:
     def visit(self, op:Operation):
         if isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
+        elif isa(op, lua.assign):
+            self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
             self.visitCall(lua.call(op))
 
@@ -293,18 +296,16 @@ class AllocVisitor:
         self.builder.replace(op, [self.scope[op.var()]])
         self.removed.add(op)
 
+    def visitAssign(self, op:lua.assign):
+        assert op.var() in self.scope
+        self.scope[op.var()] = op.res()
+
     def visitCall(self, op:lua.call):
         if op.rets().useEmpty():
             self.builder.insertAfter(op)
             # unused return values
             self.builder.create(luac.delete_pack, pack=op.rets(), loc=op.loc)
 
-
-def elideAssign(op:lua.assign, rewriter:Builder):
-    # since scopes/control flow is unimplemented, all assignments are trivial
-    op.tgt().replaceAllUsesWith(op.val())
-    rewriter.erase(op)
-    return True
 
 def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     parent = op.pack().definingOp
@@ -331,6 +332,10 @@ def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     rewriter.replace(op, [builtin.val()])
     return True
 
+def elideAssign(op:lua.assign, rewriter:Builder):
+    # Since scopes not implemented, all assignments are trivial
+    rewriter.replace(op, [op.val()])
+    return True
 
 def varAllocPass(main:FuncOp):
     # Main function has one Sized<1> region
@@ -342,9 +347,9 @@ def varAllocPass(main:FuncOp):
 
     # Trivial passes as patterns
     applyOptPatterns(main, [
-        Pattern(lua.assign, elideAssign),
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
+        Pattern(lua.assign, elideAssign),
     ])
 
 def getWrapperFor(numberTy, opCls):
@@ -391,7 +396,7 @@ def setToNil(op:lua.nil, rewriter:Builder):
 
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
-    const = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
+    const = rewriter.create(ConstantOp, value=I64Attr(len(op.vals())),
                             loc=op.loc)
     newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
     for val in op.vals():
@@ -423,6 +428,38 @@ def expandCall(op:lua.call, rewriter:Builder):
     rewriter.replace(op, icall.results())
     return True
 
+def lowerAlloc(op:lua.alloc, rewriter:Builder):
+    nil = rewriter.create(lua.nil, loc=op.loc)
+    rewriter.replace(op, [nil.res()])
+    return True
+
+
+class ConstantElVisitor:
+    def __init__(self):
+        self.consts = {}
+        self.removed = set()
+        self.builder = Builder()
+
+    def visitAll(self, ops:Region):
+        worklist = []
+        for op in ops: # iterator is invalidated if an op is removed
+            worklist.append(op)
+        for op in worklist:
+            if op not in self.removed:
+                self.visit(op)
+
+    def visit(self, op:Operation):
+        if isa(op, ConstantOp):
+            self.visitConstantOp(ConstantOp(op))
+
+    def visitConstantOp(self, op:ConstantOp):
+        if op.value() in self.consts:
+            self.builder.insertBefore(op)
+            self.builder.replace(op, [self.consts[op.value()]])
+        else:
+            self.consts[op.value()] = op.result()
+
+
 def lowerToLuac(main:FuncOp):
     target = ConversionTarget()
 
@@ -436,6 +473,8 @@ def lowerToLuac(main:FuncOp):
     target.addLegalOp(lua.builtin)
 
     applyFullConversion(main, [
+        Pattern(lua.alloc, lowerAlloc, [lua.nil]),
+
         Pattern(lua.number, getWrapperFor(luac.integer(), luac.wrap_int),
                 [ConstantOp, luac.wrap_int]),
         Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
@@ -458,6 +497,8 @@ def lowerToLuac(main:FuncOp):
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
     ], target)
 
+    ConstantElVisitor().visitAll(main.getBody().getBlock(0))
+
 
 def main():
     if len(sys.argv) != 2:
@@ -477,9 +518,9 @@ def main():
     varAllocPass(main)
     lowerToLuac(main)
 
-    lib = parseSourceFile("lib.mlir")
-    for func in lib.getOps(FuncOp):
-        module.append(func.clone())
+    #lib = parseSourceFile("lib.mlir")
+    #for func in lib.getOps(FuncOp):
+    #    module.append(func.clone())
 
     print(module)
     verify(module)

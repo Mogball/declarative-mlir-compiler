@@ -27,9 +27,10 @@ Dialect @lua {
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
     traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
-  Op @assign(tgt: !lua.value, val: !dmc.Any) -> ()
+  Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
+    { var = #dmc.String }
     traits [@WriteTo<"tgt">, @ReadFrom<"val">]
-    config { fmt = "$tgt `=` $val `:` type($val) attr-dict" }
+    config { fmt = "$var $tgt `=` $val attr-dict" }
 
   // Function calls
   Op @call(fcn: !lua.value, args: !lua.value_pack) -> (rets: !lua.value_pack)
@@ -70,13 +71,13 @@ Dialect @luac {
   Alias @pack_fcn -> (!lua.pack) -> !lua.pack
     { builder = "FunctionType([lua.pack()], [lua.pack()])" }
 
-  Alias @type_enum -> i32 { builder = "IntegerType(32)" }
-  Alias @type_nil -> 0 : i32
-  Alias @type_bool -> 1 : i32
-  Alias @type_num -> 2 : i32
-  Alias @type_str -> 3 : i32
-  Alias @type_tbl -> 4 : i32
-  Alias @type_fcn -> 5 : i32
+  Alias @type_enum -> i16 { builder = "IntegerType(16)" }
+  Alias @type_nil -> 0 : i16
+  Alias @type_bool -> 1 : i16
+  Alias @type_num -> 2 : i16
+  Alias @type_str -> 3 : i16
+  Alias @type_tbl -> 4 : i16
+  Alias @type_fcn -> 5 : i16
   // userdata, thread unimplemented
 
   Op @wrap_int(num: !luac.integer) -> (res: !lua.value)
@@ -119,15 +120,22 @@ Dialect @luac {
     traits [@ReadFrom<"tgt">]
     config { fmt = "$tgt attr-dict" }
 
-  Op @is_float(tgt: !lua.value) -> (ret: !luac.bool)
-    traits [@ReadFrom<"tgt">]
-    config { fmt = "$tgt attr-dict" }
-
   Op @get_fcn_addr(fcn: !lua.value) -> (fcn_addr: !luac.pack_fcn)
     traits [@ReadFrom<"val">]
     config { fmt = "$fcn attr-dict" }
 
-  Op @new_pack(rsv: i32) -> (pack: !lua.value_pack)
+  Op @get_value_union(tgt: !lua.value) -> (u: i64)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
+  Op @set_value_union(tgt: !lua.value, u: i64) -> ()
+    traits [@WriteTo<"tgt">]
+    config { fmt = "$tgt `=` $u attr-dict" }
+
+  Op @is_int(tgt: !lua.value) -> (ret: !luac.bool)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
+
+  Op @new_pack(rsv: i64) -> (pack: !lua.value_pack)
     traits [@Alloc<"pack">]
     config { fmt = "`[` $rsv `]` attr-dict" }
   Op @delete_pack(pack: !lua.value_pack) -> ()

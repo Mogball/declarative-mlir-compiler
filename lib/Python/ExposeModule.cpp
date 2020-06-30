@@ -89,6 +89,7 @@ void exposeModule(module &m, OpClass &cls) {
 
   class_<ConstantOp>(m, "ConstantOp", cls)
       .def(init(&constantCtor), "value"_a, "loc"_a = getUnknownLoc())
+      .def(init([](Operation *op) { return cast<ConstantOp>(op); }))
       .def_static("getName",
                   []() { return ConstantOp::getOperationName().str(); })
       .def("value", &ConstantOp::value)

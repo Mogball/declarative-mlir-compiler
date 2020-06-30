@@ -65,7 +65,7 @@ void exposeValue(module &m) {
       .def(init<const Value &>())
       .def("__bool__", &Value::operator bool)
       .def("__repr__", StringPrinter<Value>{})
-      .def("__hash__", overload<hash_code(Value)>(&hash_value))
+      .def("__hash__", [](Value v) -> size_t { return hash_value(v); })
       .def(self == self)
       .def(self != self)
       .def("getType", nullcheck(&Value::getType))
