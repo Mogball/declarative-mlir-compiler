@@ -10,6 +10,7 @@
 #include "dmc/Spec/SpecTypes.h"
 #include "dmc/Spec/SpecRegion.h"
 #include "dmc/Spec/SpecSuccessor.h"
+#include "dmc/Python/Polymorphic.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <pybind11/pybind11.h>
