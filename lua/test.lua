@@ -10,6 +10,6 @@ sum = a + b + c + d + e
 print(sum, a + b * c, (a + b) * c)
 print(a, print(b), c)
 
-a, b, c = 5, 6, 8
 p, q, r, s = a, print(b), c
 print(p, q, r, s)
+print(print)
