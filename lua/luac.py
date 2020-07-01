@@ -1,4 +1,7 @@
-#!python3
+#!/usr/local/bin/python3
+import os
+import sys
+
 from antlr4 import *
 from mlir import *
 
@@ -12,9 +15,9 @@ def get_dialects(filename='lua.mlir'):
     m = parseSourceFile(filename)
     assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
-    return dialects[0], dialects[1]
+    return dialects[0], dialects[1], dialects[2]
 
-lua, luac = get_dialects()
+lua, luac, luallvm = get_dialects()
 
 class Generator:
     ############################################################################
@@ -396,15 +399,22 @@ def setToNil(op:lua.nil, rewriter:Builder):
 
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
-    const = rewriter.create(ConstantOp, value=I64Attr(len(op.vals())),
-                            loc=op.loc)
-    newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
+    fixedSz = sum(1 if val.type == lua.ref() else 0 for val in op.vals())
+    const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
+    szVar = const.result()
+    for val in op.vals():
+        if val.type == lua.pack():
+            getSz = rewriter.create(luac.pack_get_size, pack=val, loc=op.loc)
+            addI = rewriter.create(AddIOp, lhs=szVar, rhs=getSz.sz(),
+                                   ty=IntegerType(64), loc=op.loc)
+            szVar = addI.result()
+
+    newPack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc)
     for val in op.vals():
         if val.type == lua.ref():
             rewriter.create(luac.pack_push, pack=newPack.pack(), val=val,
                             loc=op.loc)
         else:
-            assert val.hasOneUse(), "value pack can only be used once"
             rewriter.create(luac.pack_push_all, pack=newPack.pack(), vals=val,
                             loc=op.loc)
             rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
@@ -459,8 +469,22 @@ class ConstantElVisitor:
         else:
             self.consts[op.value()] = op.result()
 
+def convertToLibCall(module:ModuleOp, funcName:str):
+    def convertFcn(op:Operation, rewriter:Builder):
+        rawOp = module.lookup(funcName)
+        assert rawOp, "cannot find lib.mlir function '" + funcName + "'"
+        call = rewriter.create(CallOp, callee=rawOp,
+                               operands=op.getOperands(), loc=op.loc)
+        results = call.getResults()
+        if len(results) == 0:
+            rewriter.erase(op)
+        else:
+            rewriter.replace(op, results)
+        return True
 
-def lowerToLuac(main:FuncOp):
+    return convertFcn
+
+def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
 
     target.addLegalDialect(luac)
@@ -471,8 +495,9 @@ def lowerToLuac(main:FuncOp):
     target.addIllegalOp(luac.wrap_real)
 
     target.addLegalOp(lua.builtin)
+    target.addLegalOp(ModuleOp)
 
-    applyFullConversion(main, [
+    patterns = [
         Pattern(lua.alloc, lowerAlloc, [lua.nil]),
 
         Pattern(lua.number, getWrapperFor(luac.integer(), luac.wrap_int),
@@ -491,13 +516,82 @@ def lowerToLuac(main:FuncOp):
         Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
 
         Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
-                                           luac.pack_push_all]),
+                                           luac.pack_push_all,
+                                           luac.pack_get_size]),
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
                                            luac.delete_pack]),
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
-    ], target)
+    ]
 
-    ConstantElVisitor().visitAll(main.getBody().getBlock(0))
+    for func in module.getOps(FuncOp):
+        applyFullConversion(func, patterns, target)
+
+
+def valueConverter(ty:Type):
+    if ty != lua.ref():
+        return None
+    return luallvm.ref()
+
+def packConverter(ty:Type):
+    if ty != lua.pack():
+        return None
+    return luallvm.pack()
+
+def convertToFunc(module:ModuleOp, funcName:str):
+    def convertFcn(op:Operation, rewriter:Builder):
+        rawOp = module.lookup(funcName)
+        assert rawOp, "cannot find libc function '" + funcName + "'"
+        llvmCall = rewriter.create(LLVMCallOp, func=LLVMFuncOp(rawOp),
+                                   operands=op.getOperands(), loc=op.loc)
+        results = llvmCall.getResults()
+        if len(results) == 0:
+            rewriter.erase(op)
+        else:
+            rewriter.replace(op, results)
+        return True
+
+    return convertFcn
+
+def luaToLLVM(module):
+    def convert(opCls, funcName:str):
+        return Pattern(opCls, convertToLibCall(module, funcName), [CallOp])
+
+    def convertLibc(opCls, funcName:str):
+        return Pattern(opCls, convertToFunc(module, funcName), [LLVMCallOp])
+
+    def builtin(varName:str):
+        return Pattern(lua.builtin,
+                       convertToFunc(module, "lua_builtin_" + varName),
+                       [LLVMCallOp])
+
+
+    llvmPats = [
+        convert(luac.add, "lua_add"),
+        convert(luac.sub, "lua_sub"),
+        convert(luac.mul, "lua_mul"),
+
+        convertLibc(luac.alloc, "lua_alloc"),
+        convertLibc(luac.get_type, "lua_get_type"),
+        convertLibc(luac.set_type, "lua_set_type"),
+        convertLibc(luac.get_int64_val, "lua_get_int64_val"),
+        convertLibc(luac.set_int64_val, "lua_set_int64_val"),
+        convertLibc(luac.get_double_val, "lua_get_double_val"),
+        convertLibc(luac.set_double_val, "lua_set_double_val"),
+        convertLibc(luac.get_fcn_addr, "lua_get_fcn_addr"),
+        convertLibc(luac.get_value_union, "lua_get_value_union"),
+        convertLibc(luac.set_value_union, "lua_set_value_union"),
+        convertLibc(luac.is_int, "lua_is_int"),
+        convertLibc(luac.new_pack, "lua_new_pack"),
+        convertLibc(luac.delete_pack, "lua_delete_pack"),
+        convertLibc(luac.pack_push, "lua_pack_push"),
+        convertLibc(luac.pack_pull_one, "lua_pack_pull_one"),
+        convertLibc(luac.pack_push_all, "lua_pack_push_all"),
+        convertLibc(luac.pack_get_size, "lua_pack_get_size"),
+
+        builtin("print"),
+    ]
+    lowerToLLVM(module, LLVMConversionTarget(), llvmPats,
+                [valueConverter, packConverter])
 
 
 def main():
@@ -516,14 +610,36 @@ def main():
 
     module, main = generator.chunk(parser.chunk())
     varAllocPass(main)
-    lowerToLuac(main)
 
-    #lib = parseSourceFile("lib.mlir")
-    #for func in lib.getOps(FuncOp):
-    #    module.append(func.clone())
+    lib = parseSourceFile("lib.mlir")
+    for func in lib.getOps(FuncOp):
+        module.append(func.clone())
 
-    print(module)
+    lowerSCFToStandard(module)
+    lowerToLuac(module)
+    ConstantElVisitor().visitAll(main.getBody().getBlock(0))
+
+    os.system("clang -S -emit-llvm lib.c -o lib.ll")
+    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    libc = parseSourceFile("libc.mlir")
+    for glob in libc.getOps(LLVMGlobalOp):
+        module.append(glob.clone())
+    for func in libc.getOps(LLVMFuncOp):
+        module.append(func.clone())
+
+    luaToLLVM(module)
     verify(module)
+
+    with open("main.mlir", "w") as f:
+        stdout = sys.stdout
+        sys.stdout = f
+        print(module)
+        sys.stdout = stdout
+
+    os.system("clang++ -c builtins.cpp -o builtins.o -g")
+    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+    os.system("clang -c main.ll -o main.o")
+    os.system("ld main.o builtins.o -lc -lc++ -o main")
 
 if __name__ == '__main__':
     main()

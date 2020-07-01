@@ -67,7 +67,6 @@ Dialect @luac {
   Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
-
   Alias @pack_fcn -> (!lua.pack) -> !lua.pack
     { builder = "FunctionType([lua.pack()], [lua.pack()])" }
 
@@ -97,7 +96,6 @@ Dialect @luac {
 
   Op @alloc() -> (res: !lua.value)
     traits [@Alloc<"res">] config { fmt = "attr-dict" }
-
 
   Op @set_type(tgt: !lua.value, ty: !luac.type_enum) -> ()
     traits [@WriteTo<"tgt">]
@@ -150,4 +148,12 @@ Dialect @luac {
   Op @pack_pull_one(pack: !lua.value_pack) -> (val: !lua.value)
     traits [@WriteTo<"pack">, @ReadFrom<"pack">]
     config { fmt = "$pack attr-dict" }
+  Op @pack_get_size(pack: !lua.value_pack) -> (sz: i64)
+    traits [@ReadFrom<"pack">]
+    config { fmt = "$pack attr-dict" }
+}
+
+Dialect @luallvm {
+  Alias @ref -> !llvm<"{ i16, i16, { i64 } }*">
+  Alias @pack -> !llvm<"{ i64, i64, { i16, i16, { i64 } }** }*">
 }

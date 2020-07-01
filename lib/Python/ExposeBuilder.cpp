@@ -5,7 +5,12 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/IR/Verifier.h>
+#include <mlir/Pass/Pass.h>
+#include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include <mlir/Conversion/LoopToStandard/ConvertLoopToStandard.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h>
 
 using namespace pybind11;
 
@@ -95,15 +100,82 @@ bool applyOptPatterns(Operation *op, std::vector<PyPattern> patterns) {
 }
 
 bool applyPartialConversion(Operation *op, std::vector<PyPattern> patterns,
-                            ConversionTarget target) {
+                            ConversionTarget &target) {
   auto patternList = getPatternList(std::move(patterns));
   return succeeded(applyPartialConversion(op, target, patternList, nullptr));
 }
 
 bool applyFullConversion(Operation *op, std::vector<PyPattern> patterns,
-                         ConversionTarget target) {
+                         ConversionTarget &target) {
   auto patternList = getPatternList(std::move(patterns));
   return succeeded(applyFullConversion(op, target, patternList, nullptr));
+}
+
+bool lowerSCFToStandard(ModuleOp module) {
+  PassManager mgr{getMLIRContext()};
+  mgr.addPass(createLowerToCFGPass());
+  return succeeded(mgr.run(module));
+}
+
+namespace LLVM {
+struct LLVMLoweringPass : public OperationPass<ModuleOp> {
+  LLVMLoweringPass(ConversionTarget &target, std::vector<PyPattern> extraPatterns,
+                   list typeConverters)
+        : OperationPass{TypeID::get<LLVMLoweringPass>()},
+          target{target},
+          extraPatterns{std::move(extraPatterns)},
+          typeConverters{std::move(typeConverters)} {
+  }
+
+  llvm::StringRef getName() const override {
+    return "llvm-lowering-pass";
+  }
+
+  std::unique_ptr<Pass> clonePass() const override {
+    return std::make_unique<LLVMLoweringPass>(target, extraPatterns,
+                                              typeConverters);
+  }
+
+  /// Run the dialect converter on the module.
+  void runOnOperation() override {
+    ModuleOp m = getOperation();
+
+    LLVMTypeConverter typeConverter(&getContext());
+
+    OwningRewritePatternList patterns;
+    populateStdToLLVMConversionPatterns(typeConverter, patterns,
+                                        false, false);
+
+    for (auto &pattern : extraPatterns) {
+      patterns.insert<PyPatternImpl>(pattern);
+    }
+    for (auto converter : typeConverters) {
+      typeConverter.addConversion([converter](Type ty) -> llvm::Optional<Type> {
+        auto ret = converter(ty);
+        if (ret.is(pybind11::cast<pybind11::none>(Py_None))) {
+          return llvm::None;
+        }
+        return ret.cast<Type>();
+      });
+    }
+
+    if (failed(applyPartialConversion(m, target, patterns, &typeConverter)))
+      signalPassFailure();
+  }
+
+  ConversionTarget &target;
+  std::vector<PyPattern> extraPatterns;
+  list typeConverters;
+};
+} // end namespace LLVM
+
+bool lowerToLLVM(ModuleOp module, ConversionTarget &target,
+                 std::vector<PyPattern> extraPatterns,
+                 list typeConverters) {
+  PassManager mgr{getMLIRContext()};
+  mgr.addPass(std::make_unique<LLVM::LLVMLoweringPass>(
+      target, std::move(extraPatterns), typeConverters));
+  return succeeded(mgr.run(module));
 }
 
 void exposeBuilder(module &m) {
@@ -212,6 +284,11 @@ void exposeBuilder(module &m) {
 
   m.def("applyPartialConversion", &applyPartialConversion);
   m.def("applyFullConversion", &applyFullConversion);
+  m.def("lowerSCFToStandard", &lowerSCFToStandard);
+  m.def("lowerToLLVM", &lowerToLLVM);
+  m.def("LLVMConversionTarget", []() -> ConversionTarget * {
+    return new LLVMConversionTarget{*getMLIRContext()};
+  });
 }
 
 } // end namespace py

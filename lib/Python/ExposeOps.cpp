@@ -113,6 +113,8 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
       .def("isProperAncestor", wrap<T>(&Operation::isProperAncestor))
       .def("isAncestor", wrap<T>(&Operation::isAncestor))
       .def("replaceUsesOfWith", wrap<T>(&Operation::replaceUsesOfWith))
+      .def("clone", wrap<T>(overload<Operation *(Operation::*)()>(&Operation::clone)),
+           return_value_policy::reference)
       .def("destroy", wrap<T>(&Operation::destroy))
       .def("dropAllReferences", wrap<T>(&Operation::dropAllReferences))
       .def("dropAllDefinedValueUses",
@@ -141,8 +143,9 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
         op->eraseOperand(idx);
       })
       .def("getOperands", [](Operation *op) {
-        return make_iterator(op->operand_begin(), op->operand_end());
-      }, keep_alive<0, 1>())
+        std::vector<Value> operands{op->operand_begin(), op->operand_end()};
+        return operands;
+      })
       .def("getOpOperands", [](Operation *op) {
         auto opOperands = op->getOpOperands();
         return make_iterator(std::begin(opOperands), std::end(opOperands));
@@ -160,8 +163,9 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
         return op->getResult(idx);
       })
       .def("getResults", [](Operation *op) {
-        return make_iterator(op->result_begin(), op->result_end());
-      }, keep_alive<0, 1>())
+        std::vector<Value> results{op->result_begin(), op->result_end()};
+       return results;
+      })
       .def("getOpResults", [](Operation *op) {
         auto opResults = op->getOpResults();
         return make_iterator(std::begin(opResults), std::end(opResults));

@@ -7,6 +7,7 @@
 #include "OwningModuleRef.h"
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 
 #include <pybind11/pybind11.h>
 
@@ -43,6 +44,11 @@ CallIndirectOp callIndirectCtor(Value callee, ValueListRef operands,
   return b.create<CallIndirectOp>(loc, callee, operands);
 }
 
+AddIOp addICtor(Value lhs, Value rhs, Type ty, Location loc) {
+  OpBuilder b{getMLIRContext()};
+  return b.create<AddIOp>(loc, ty, lhs, rhs);
+}
+
 void exposeModule(module &m, OpClass &cls) {
   class_<ModuleOp>(m, "ModuleOp", cls)
       .def(init([](Location loc) { return ModuleOp::create(loc); }),
@@ -67,11 +73,16 @@ void exposeModule(module &m, OpClass &cls) {
         });
         return make_iterator(ops.begin(), ops.end());
       }), keep_alive<0, 1>())
+      .def("lookup", [](ModuleOp module, std::string name) {
+        return module.lookupSymbol(name);
+      }, return_value_policy::reference)
       .def("append", nullcheck(&ModuleOp::push_back), "op"_a)
       .def("insertBefore",
            nullcheck(overload<void(ModuleOp::*)(Operation *, Operation *)>(
                &ModuleOp::insert)),
-           "insertPt"_a, "op"_a);
+           "insertPt"_a, "op"_a)
+      .def_static("getName",
+                  []() { return ModuleOp::getOperationName().str(); });
 
   class_<FuncOp>(m, "FuncOp", cls)
       .def(init(&functionCtor), "name"_a, "type"_a, "loc"_a = getUnknownLoc(),
@@ -104,6 +115,36 @@ void exposeModule(module &m, OpClass &cls) {
       .def("operands", &CallIndirectOp::operands)
       .def("results",
            [](CallIndirectOp op) -> ValueRange { return op.results(); });
+
+  class_<CallOp>(m, "CallOp", cls)
+      .def(init([](FuncOp callee, ValueListRef operands, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<CallOp>(loc, callee, operands);
+      }), "callee"_a, "operands"_a, "loc"_a = getUnknownLoc())
+      .def_static("getName", []() { return CallOp::getOperationName().str(); });
+
+  class_<AddIOp>(m, "AddIOp", cls)
+      .def(init(&addICtor), "lhs"_a, "rhs"_a, "ty"_a, "loc"_a = getUnknownLoc())
+      .def("lhs", &AddIOp::lhs)
+      .def("rhs", &AddIOp::rhs)
+      .def("result", &AddIOp::getResult);
+
+  class_<LLVM::CallOp>(m, "LLVMCallOp", cls)
+      .def(init([](LLVM::LLVMFuncOp func, ValueListRef operands, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::CallOp>(loc, func, operands);
+      }), "func"_a, "operands"_a, "loc"_a = getUnknownLoc())
+      .def_static("getName",
+                  []() { return LLVM::CallOp::getOperationName().str(); });
+  class_<LLVM::LLVMFuncOp>(m, "LLVMFuncOp", cls)
+      .def(init([](Operation *op) { return cast<LLVM::LLVMFuncOp>(op); }))
+      .def_static("getName",
+                  []() { return LLVM::LLVMFuncOp::getOperationName().str(); });
+
+  class_<LLVM::GlobalOp>(m, "LLVMGlobalOp", cls)
+      .def(init([](Operation *op) { return cast<LLVM::GlobalOp>(op); }))
+      .def_static("getName",
+                  []() { return LLVM::GlobalOp::getOperationName().str(); });
 }
 
 } // end namespace py
