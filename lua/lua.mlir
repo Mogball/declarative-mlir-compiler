@@ -119,7 +119,7 @@ Dialect @luac {
     config { fmt = "$tgt attr-dict" }
 
   Op @get_fcn_addr(fcn: !lua.value) -> (fcn_addr: !luac.pack_fcn)
-    traits [@ReadFrom<"val">]
+    traits [@ReadFrom<"fcn">]
     config { fmt = "$fcn attr-dict" }
 
   Op @get_value_union(tgt: !lua.value) -> (u: i64)

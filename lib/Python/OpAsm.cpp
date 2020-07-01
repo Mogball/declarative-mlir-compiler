@@ -77,7 +77,7 @@ Value OperationWrap::getOperandOrResult(StringRef name) {
   if (isResult)
     return getResult(name.str());
   throw std::invalid_argument{name.str() + " is neither an operand nor a result"
-                              "of op '" + spec->getName() + "'"};
+                              " of op '" + spec->getName() + "'"};
 }
 
 ValueRange OperationWrap::getOperandOrResultGroup(StringRef name) {
@@ -87,7 +87,7 @@ ValueRange OperationWrap::getOperandOrResultGroup(StringRef name) {
   if (isResult)
     return getResultGroup(name.str());
   throw std::invalid_argument{name.str() + " is neither an operand nor a result"
-                              "of op '" + spec->getName() + "'"};
+                              " of op '" + spec->getName() + "'"};
 }
 
 Value OperationWrap::getOperand(std::string name) {

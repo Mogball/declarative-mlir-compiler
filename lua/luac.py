@@ -619,13 +619,15 @@ def main():
     lowerToLuac(module)
     ConstantElVisitor().visitAll(main.getBody().getBlock(0))
 
-    os.system("clang -S -emit-llvm lib.c -o lib.ll")
+    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
     os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
     libc = parseSourceFile("libc.mlir")
     for glob in libc.getOps(LLVMGlobalOp):
         module.append(glob.clone())
     for func in libc.getOps(LLVMFuncOp):
         module.append(func.clone())
+
+    runAllOpts(module)
 
     luaToLLVM(module)
     verify(module)
@@ -636,9 +638,9 @@ def main():
         print(module)
         sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g")
+    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o")
+    os.system("clang -c main.ll -o main.o -O2")
     os.system("ld main.o builtins.o -lc -lc++ -o main")
 
 if __name__ == '__main__':

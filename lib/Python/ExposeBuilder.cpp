@@ -7,6 +7,7 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <mlir/Conversion/LoopToStandard/ConvertLoopToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
@@ -178,6 +179,19 @@ bool lowerToLLVM(ModuleOp module, ConversionTarget &target,
   return succeeded(mgr.run(module));
 }
 
+bool runAllOpts(ModuleOp module) {
+  PassManager mgr{getMLIRContext()};
+  mgr.addPass(mlir::createSymbolDCEPass());
+  mgr.addPass(mlir::createCanonicalizerPass());
+  mgr.addPass(mlir::createInlinerPass());
+  mgr.addPass(mlir::createCSEPass());
+  mgr.addPass(mlir::createLoopFusionPass());
+  mgr.addPass(mlir::createLoopInvariantCodeMotionPass());
+  mgr.addPass(mlir::createLoopCoalescingPass());
+  mgr.addPass(mlir::createSCCPPass());
+  return succeeded(mgr.run(module));
+}
+
 void exposeBuilder(module &m) {
   m.def("I1Type", []() { return getBuilder().getI1Type(); });
   m.def("I8Type", []() { return getBuilder().getIntegerType(8); });
@@ -289,6 +303,7 @@ void exposeBuilder(module &m) {
   m.def("LLVMConversionTarget", []() -> ConversionTarget * {
     return new LLVMConversionTarget{*getMLIRContext()};
   });
+  m.def("runAllOpts", &runAllOpts);
 }
 
 } // end namespace py

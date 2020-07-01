@@ -60,6 +60,7 @@ target_link_libraries(pymlir PUBLIC
   MLIRTransformUtils
   MLIRLoopToStandard
   MLIRStandardToLLVM
+  MLIRTransforms
   )
 
 add_library(DMCDLLInit DllInit.cpp)
