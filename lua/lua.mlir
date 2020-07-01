@@ -61,6 +61,12 @@ Dialect @lua {
     { op = #lua.BinaryOp }
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "$lhs $op $rhs attr-dict" }
+
+  Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
+    (region: Sized<1>)
+    traits [@ReadFrom<["lower", "upper", "step"]>]
+    config { fmt = "`[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
+  Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
 }
 
 Dialect @luac {

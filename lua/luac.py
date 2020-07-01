@@ -28,14 +28,6 @@ class Generator:
         self.filename = filename
         self.stream = stream
 
-    @staticmethod
-    def addEntryBlock(region:Region):
-        assert region != None, "no region currently set"
-        assert len(region) == 0, "region already has a block"
-
-        # All main blocks will have zero arguments
-        return region.addEntryBlock([])
-
     def getStartLoc(self, ctx:ParserRuleContext):
         a, b = ctx.getSourceInterval()
         startTok = self.stream.get(a)
@@ -58,29 +50,26 @@ class Generator:
 
         # Set the current region
         self.region = main.getBody()
+        self.curBlock = self.region.addEntryBlock([])
+        self.builder = Builder()
 
         # Process the block
         self.block(ctx.block())
+        self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
 
         # Return the module
         assert verify(module), "module failed to verify"
         return module, main
 
     def block(self, ctx:LuaParser.BlockContext):
-        # Add an entry block to the enclosing region and set it
-        self.block = self.addEntryBlock(self.region)
-        self.builder = Builder()
-        self.builder.insertAtStart(self.block)
+        self.builder.insertAtStart(self.curBlock)
 
         # Process the statements
         for stat in ctx.stat():
             self.stat(stat)
 
-        # Process the return statement or insert an empty terminator
-        if ctx.retstat():
-            raise NotImplementedError("return statements not handled")
-        else:
-            self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
+        # Process the return statement
+        assert ctx.retstat() == None, "return statements not implemented"
 
     def stat(self, ctx:LuaParser.StatContext):
         if ctx.assignlist():
@@ -102,7 +91,7 @@ class Generator:
         elif ctx.conditionalchain():
             raise NotImplementedError("conditionalchain not implemented")
         elif ctx.numericfor():
-            raise NotImplementedError("numericfor not implemented")
+            self.numericfor(ctx.numericfor())
         elif ctx.genericfor():
             raise NotImplementedError("genericfor not implemented")
         elif ctx.namedfunctiondef():
@@ -267,6 +256,30 @@ class Generator:
                                      op=StringAttr(opCtx.getText()),
                                      loc=self.getStartLoc(opCtx))
         return binary.res()
+
+    def numericfor(self, ctx:LuaParser.NumericforContext):
+        lower = self.exp(ctx.exp(0))
+        upper = self.exp(ctx.exp(1))
+        if len(ctx.exp()) == 2:
+            num = self.builder.create(lua.number, value=I64Attr(1),
+                    loc=self.getStartLoc(ctx))
+            step = num.res()
+        else:
+            step = self.exp(ctx.exp(2))
+
+        loop = self.builder.create(lua.numeric_for, lower=lower, upper=upper,
+                                   step=step, loc=self.getStartLoc(ctx))
+
+        prevBlock = self.curBlock
+
+        loop.region().addEntryBlock([])
+        self.curBlock = loop.region().getBlock(0)
+        self.block(ctx.block())
+        self.builder.create(lua.end, loc=self.getStartLoc(ctx))
+
+        self.curBlock = prevBlock
+        self.builder.insertAtEnd(self.curBlock)
+        pass
 
 
 class AllocVisitor:
@@ -609,39 +622,40 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
-    varAllocPass(main)
+    print(main)
+    #varAllocPass(main)
 
-    lib = parseSourceFile("lib.mlir")
-    for func in lib.getOps(FuncOp):
-        module.append(func.clone())
+    #lib = parseSourceFile("lib.mlir")
+    #for func in lib.getOps(FuncOp):
+    #    module.append(func.clone())
 
-    lowerSCFToStandard(module)
-    lowerToLuac(module)
-    ConstantElVisitor().visitAll(main.getBody().getBlock(0))
+    #lowerSCFToStandard(module)
+    #lowerToLuac(module)
+    #ConstantElVisitor().visitAll(main.getBody().getBlock(0))
 
-    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
-    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-    libc = parseSourceFile("libc.mlir")
-    for glob in libc.getOps(LLVMGlobalOp):
-        module.append(glob.clone())
-    for func in libc.getOps(LLVMFuncOp):
-        module.append(func.clone())
+    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    #libc = parseSourceFile("libc.mlir")
+    #for glob in libc.getOps(LLVMGlobalOp):
+    #    module.append(glob.clone())
+    #for func in libc.getOps(LLVMFuncOp):
+    #    module.append(func.clone())
 
-    runAllOpts(module)
+    #runAllOpts(module)
 
-    luaToLLVM(module)
-    verify(module)
+    #luaToLLVM(module)
+    #verify(module)
 
-    with open("main.mlir", "w") as f:
-        stdout = sys.stdout
-        sys.stdout = f
-        print(module)
-        sys.stdout = stdout
+    #with open("main.mlir", "w") as f:
+    #    stdout = sys.stdout
+    #    sys.stdout = f
+    #    print(module)
+    #    sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
-    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -O2")
-    os.system("ld main.o builtins.o -lc -lc++ -o main")
+    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
+    #os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+    #os.system("clang -c main.ll -o main.o -O2")
+    #os.system("ld main.o builtins.o -lc -lc++ -o main")
 
 if __name__ == '__main__':
     main()
