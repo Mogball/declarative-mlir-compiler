@@ -53,7 +53,7 @@ TPack *fcn_builtin_print(TPack *pack) {
 TObject *construct_builtin_print() {
   TObject *ret = lua_alloc();
   lua_set_type(ret, FCN);
-  ret->gc = new TComplex{};
+  ret->gc = (TComplex *) malloc(sizeof(TComplex));
   ret->gc->fcn_addr = &fcn_builtin_print;
   return ret;
 }
