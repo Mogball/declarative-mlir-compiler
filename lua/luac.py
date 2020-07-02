@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 import os
 import sys
 
@@ -748,7 +748,7 @@ def main():
     os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -O2")
-    os.system("ld main.o builtins.o -lc -lc++ -o main")
+    os.system("clang main.o builtins.o -o main")
 
     #print(main)
     #verify(main)
