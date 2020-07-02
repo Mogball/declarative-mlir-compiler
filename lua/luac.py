@@ -19,10 +19,13 @@ def get_dialects(filename='lua.mlir'):
 
 lua, luac, luallvm = get_dialects()
 
+################################################################################
+# Front-End: Parser and AST Walker / MLIR Generator
+################################################################################
+
 class Generator:
-    ############################################################################
-    # Constructor and Helpers
-    ############################################################################
+    #### Helpers
+    ###############
 
     def __init__(self, filename:str, stream:CommonTokenStream):
         self.filename = filename
@@ -49,10 +52,16 @@ class Generator:
             self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
                                 var=var, loc=loc)
 
+    def handleBinaryOp(self, expCtx, opCtx):
+        lhsVal = self.exp(expCtx.exp(0))
+        rhsVal = self.exp(expCtx.exp(1))
+        binary = self.builder.create(lua.binary, lhs=lhsVal, rhs=rhsVal,
+                                     op=StringAttr(opCtx.getText()),
+                                     loc=self.getStartLoc(opCtx))
+        return binary.res()
 
-    ############################################################################
-    # AST Walker
-    ############################################################################
+    #### AST Walker
+    ###############
 
     def chunk(self, ctx:LuaParser.ChunkContext):
         # Create the Lua module
@@ -106,7 +115,7 @@ class Generator:
         elif ctx.genericfor():
             raise NotImplementedError("genericfor not implemented")
         elif ctx.namedfunctiondef():
-            raise NotImplementedError("namedfunctiondef not implemented")
+            self.namedfunctiondef(ctx.namedfunctiondef())
         elif ctx.localnamedfunctiondef():
             raise NotImplementedError("localnamedfunctiondef not implemented")
         elif ctx.localvarlist():
@@ -155,7 +164,7 @@ class Generator:
         elif ctx.string():
             return [self.string(ctx.string())]
         else:
-            raise ValueError("Unknown ArgsContext case")
+            return []
 
     def varOrExp(self, ctx:LuaParser.VarOrExpContext):
         if ctx.var():
@@ -196,21 +205,21 @@ class Generator:
         elif ctx.operatorUnary():
             raise NotImplementedError("operatorUnary not implemented")
         elif ctx.operatorPower():
-            return self.operatorBinary(ctx, ctx.operatorPower())
+            return self.handleBinaryOp(ctx, ctx.operatorPower())
         elif ctx.operatorMulDivMod():
-            return self.operatorBinary(ctx, ctx.operatorMulDivMod())
+            return self.handleBinaryOp(ctx, ctx.operatorMulDivMod())
         elif ctx.operatorAddSub():
-            return self.operatorBinary(ctx, ctx.operatorAddSub())
+            return self.handleBinaryOp(ctx, ctx.operatorAddSub())
         elif ctx.operatorStrcat():
-            return self.operatorBinary(ctx, ctx.operatorStrcat())
+            return self.handleBinaryOp(ctx, ctx.operatorStrcat())
         elif ctx.operatorComparison():
-            return self.operatorBinary(ctx, ctx.operatorComparison())
+            return self.handleBinaryOp(ctx, ctx.operatorComparison())
         elif ctx.operatorAnd():
-            return self.operatorBinary(ctx, ctx.operatorAnd())
+            return self.handleBinaryOp(ctx, ctx.operatorAnd())
         elif ctx.operatorOr():
-            return self.operatorBinary(ctx, ctx.operatorOr())
+            return self.handleBinaryOp(ctx, ctx.operatorOr())
         elif ctx.operatorBitwise():
-            return self.operatorBinary(ctx, ctx.operatorBitwise())
+            return self.handleBinaryOp(ctx, ctx.operatorBitwise())
         else:
             raise ValueError("Unknown ExpContext case")
 
@@ -258,14 +267,6 @@ class Generator:
         # not return a value
         self.prefixexp(ctx)
 
-    def operatorBinary(self, expCtx, opCtx):
-        lhsVal = self.exp(expCtx.exp(0))
-        rhsVal = self.exp(expCtx.exp(1))
-        binary = self.builder.create(lua.binary, lhs=lhsVal, rhs=rhsVal,
-                                     op=StringAttr(opCtx.getText()),
-                                     loc=self.getStartLoc(opCtx))
-        return binary.res()
-
     def numericfor(self, ctx:LuaParser.NumericforContext):
         loc = self.getStartLoc(ctx)
 
@@ -292,8 +293,39 @@ class Generator:
         self.builder.create(lua.end, loc=loc)
         self.curBlock = prevBlock
         self.builder.insertAtEnd(self.curBlock)
-        pass
 
+    def funcname(self, ctx:LuaParser.FuncnameContext):
+        assert len(ctx.NAME()) == 1, "only simple function names supported"
+        return StringAttr(ctx.NAME(0).getText())
+
+    def parlist(self, ctx:LuaParser.ParlistContext):
+        assert ctx.elipsis() == None, "variadic functions unsupported"
+        return ArrayAttr([StringAttr(n.getText()) for n in ctx.namelist().NAME()])
+
+    def funcbody(self, ctx:LuaParser.FuncbodyContext):
+        return self.parlist(ctx.parlist()) if ctx.parlist() else ArrayAttr([])
+
+    def namedfunctiondef(self, ctx:LuaParser.NamedfunctiondefContext):
+        name = self.funcname(ctx.funcname())
+        params = self.funcbody(ctx.funcbody())
+        loc = self.getStartLoc(ctx)
+        fcnDef = self.builder.create(lua.function_def, params=params, loc=loc)
+        alloc = self.builder.create(lua.get_or_alloc, var=name, loc=loc)
+        self.builder.create(lua.assign, tgt=alloc.res(), val=fcnDef.fcn(),
+                            var=name, loc=loc)
+
+        prevBlock = self.curBlock
+        self.curBlock = fcnDef.region().addEntryBlock([lua.ref()] * len(params))
+        self.builder.insertAtStart(self.curBlock)
+
+        self.block(ctx.funcbody().block())
+        self.builder.create(lua.ret, vals=[], loc=loc)
+        self.curBlock = prevBlock
+        self.builder.insertAtEnd(self.curBlock)
+
+################################################################################
+# Front-End: Variable Allocation and SSA
+################################################################################
 
 class ScopedMap:
     def __init__(self):
@@ -325,6 +357,13 @@ class ScopedMap:
     def pop_scope(self):
         self.scopes.pop()
 
+def walkInOrder(op, func):
+    func(op)
+    for region in op.getRegions():
+        for block in region:
+            for o in block:
+                walkInOrder(o, func)
+
 
 class AllocVisitor:
     def __init__(self):
@@ -335,15 +374,7 @@ class AllocVisitor:
     def visitAll(self, main:FuncOp):
         worklist = []
         self.global_block = main.getBody().getBlock(0)
-
-        def processWork(op:Operation):
-            worklist.append(op)
-            for region in op.getRegions():
-                for block in region:
-                    for op in block:
-                        processWork(op)
-
-        processWork(main)
+        walkInOrder(main, lambda op : worklist.append(op))
         for op in worklist:
             if op not in self.removed:
                 self.visit(op)
@@ -359,6 +390,7 @@ class AllocVisitor:
             self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
             self.visitCall(lua.call(op))
+        # TODO var alloc pass function_def
 
         if op.getNumRegions() != 0:
             self.scope.push_scope()
@@ -447,6 +479,104 @@ def varAllocPass(main:FuncOp):
         Pattern(lua.assign, elideAssign),
     ])
 
+################################################################################
+# IR: Dialect Conversion to SCF
+################################################################################
+
+def copyInto(newBlk, oldBlk, termCls, bvm=BlockAndValueMapping()):
+    for oldOp in oldBlk:
+        if not isa(oldOp, termCls):
+            newBlk.append(oldOp.clone(bvm))
+
+def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
+    def toIndex(val):
+        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
+        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
+                            loc=op.loc)
+        return i.result()
+    # this is a little messy
+    upper = toIndex(op.upper())
+    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
+    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
+                           ty=IndexType(), loc=op.loc)
+    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
+                           upperBound=incr.result(), step=toIndex(op.step()),
+                           loc=op.loc)
+    loop.region().getBlock(0).erase()
+    loopBlk = loop.region().addEntryBlock([IndexType()])
+    forBlk = op.region().getBlock(0)
+
+    rewriter.insertAtStart(loopBlk)
+    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
+                        type=luac.integer(), loc=op.loc)
+    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
+    bvm = BlockAndValueMapping()
+    bvm[forBlk.getArgument(0)] = val.res()
+    copyInto(loopBlk, forBlk, lua.end, bvm)
+    rewriter.insertAtEnd(loopBlk)
+    rewriter.create(YieldOp, loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+anon_name_counter = 0
+def lowerFunctionDef(module:ModuleOp):
+    def lowerFcn(op:lua.function_def, rewriter:Builder):
+        captures = set()
+        def collectCaptures(o):
+            for val in o.getOperands():
+                if not op.isProperAncestor(val.definingOp):
+                    captures.add(val)
+        walkInOrder(op, collectCaptures)
+        captures = list(captures)
+        concatCaps = rewriter.create(lua.concat, vals=captures, loc=op.loc)
+
+        global anon_name_counter
+        name = "lua_anon_fcn_" + str(anon_name_counter)
+        anon_name_counter += 1
+        func = FuncOp(name, luac.pack_fcn(), op.loc)
+        module.append(func)
+        block = func.getBody().addEntryBlock([lua.pack(), lua.pack()])
+        rewriter.insertAtStart(block)
+        unpack = rewriter.create(lua.unpack, pack=block.getArgument(0),
+                                 vals=[lua.ref()] * len(captures), loc=op.loc)
+
+        bvm = BlockAndValueMapping()
+        for i in range(0, len(captures)):
+            bvm[captures[i]] = unpack.vals()[i]
+        fcnBlk = op.region().getBlock(0)
+        copyInto(block, fcnBlk, lua.ret, bvm)
+
+        ret = lua.ret(fcnBlk.getTerminator())
+        rewriter.insertAtEnd(block)
+        concat = rewriter.create(lua.concat, vals=ret.getOperands(), loc=op.loc)
+        rewriter.create(ReturnOp, operands=[concat.pack()], loc=op.loc)
+        rewriter.insertBefore(op)
+
+        fcnAddr = rewriter.create(ConstantOp, value=FlatSymbolRefAttr(name),
+                                  ty=luac.pack_fcn(), loc=op.loc)
+        alloc = rewriter.create(luac.alloc, loc=op.loc)
+        const = rewriter.create(ConstantOp, value=luac.type_fcn(), loc=op.loc)
+        rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
+                        loc=op.loc)
+        rewriter.create(luac.set_fcn_addr, fcn=alloc.res(),
+                        fcn_addr=fcnAddr.result(), loc=op.loc)
+        rewriter.create(luac.set_capture_pack, fcn=alloc.res(),
+                        pack=concatCaps.pack(), loc=op.loc)
+        rewriter.replace(op, [alloc.res()])
+        return True
+
+    return lowerFcn
+
+def cfExpand(module:ModuleOp, main:FuncOp):
+    applyOptPatterns(main, [
+        Pattern(lua.numeric_for, lowerNumericFor),
+        Pattern(lua.function_def, lowerFunctionDef(module)),
+    ])
+
+################################################################################
+# IR: Dialect Conversion to StandardOps
+################################################################################
+
 def getWrapperFor(numberTy, opCls):
     def wrapFcn(op:lua.number, rewriter:Builder):
         if op.value().type != numberTy:
@@ -491,6 +621,8 @@ def setToNil(op:lua.nil, rewriter:Builder):
 
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
+    if len(op.vals()) == 0:
+        return False
     fixedSz = sum(1 if val.type == lua.ref() else 0 for val in op.vals())
     const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
     szVar = const.result()
@@ -500,7 +632,6 @@ def expandConcat(op:lua.concat, rewriter:Builder):
             addI = rewriter.create(AddIOp, lhs=szVar, rhs=getSz.sz(),
                                    ty=IntegerType(64), loc=op.loc)
             szVar = addI.result()
-
     newPack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc)
     for val in op.vals():
         if val.type == lua.ref():
@@ -510,6 +641,16 @@ def expandConcat(op:lua.concat, rewriter:Builder):
             rewriter.create(luac.pack_push_all, pack=newPack.pack(), vals=val,
                             loc=op.loc)
             rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
+    rewriter.replace(op, [newPack.pack()])
+    return True
+
+def expandEmptyConcat(op:lua.concat, rewriter:Builder):
+    if len(op.vals()) != 0:
+        return False
+    const = rewriter.create(ConstantOp, value=I64Attr(1), loc=op.loc)
+    newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
+    nil = rewriter.create(lua.nil, loc=op.loc)
+    rewriter.create(luac.pack_push, pack=newPack.pack(), val=nil.res(), op=op.loc)
     rewriter.replace(op, [newPack.pack()])
     return True
 
@@ -525,8 +666,9 @@ def expandUnpack(op:lua.unpack, rewriter:Builder):
 
 def expandCall(op:lua.call, rewriter:Builder):
     getAddr = rewriter.create(luac.get_fcn_addr, fcn=op.fcn(), loc=op.loc)
+    getPack = rewriter.create(luac.get_capture_pack, fcn=op.fcn(), loc=op.loc)
     icall = rewriter.create(CallIndirectOp, callee=getAddr.fcn_addr(),
-                            operands=[op.args()], loc=op.loc)
+                            operands=[getPack.pack(), op.args()], loc=op.loc)
     rewriter.replace(op, icall.results())
     return True
 
@@ -557,40 +699,6 @@ def convertToLibCall(module:ModuleOp, funcName:str):
         return True
 
     return convertFcn
-
-def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
-    def toIndex(val):
-        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
-        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
-                            loc=op.loc)
-        return i.result()
-
-    upper = toIndex(op.upper())
-    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
-    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
-                           ty=IndexType(), loc=op.loc)
-    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
-                           upperBound=incr.result(), step=toIndex(op.step()),
-                           loc=op.loc)
-    loop.region().getBlock(0).erase()
-    loopBlk = loop.region().addEntryBlock([IndexType()])
-    forBlk = op.region().getBlock(0)
-
-    rewriter.insertAtStart(loopBlk)
-    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
-                        type=luac.integer(), loc=op.loc)
-    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
-    bvm = BlockAndValueMapping()
-    bvm[forBlk.getArgument(0)] = val.res()
-    for oldOp in forBlk:
-        if not isa(oldOp, lua.end):
-            newOp = oldOp.clone(bvm)
-            loopBlk.append(newOp)
-    rewriter.insertAtEnd(loopBlk)
-    rewriter.create(YieldOp, loc=op.loc)
-    rewriter.erase(op)
-    return True
-
 
 def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
@@ -625,19 +733,23 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
 
         Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
-                                           luac.pack_push_all,
-                                           luac.pack_get_size]),
+                                           luac.pack_push_all, luac.pack_get_size]),
+        Pattern(lua.concat, expandEmptyConcat, [luac.new_pack, luac.pack_push,
+                                                lua.nil]),
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
                                            luac.delete_pack]),
-        Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
+        Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp,
+                                       luac.get_capture_pack]),
         Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
                                            luac.get_type, luac.get_value_union]),
-        Pattern(lua.numeric_for, lowerNumericFor),
     ]
 
     for func in module.getOps(FuncOp):
         applyFullConversion(func, patterns, target)
 
+################################################################################
+# IR: Dialect Conversion to LLVM IR
+################################################################################
 
 def valueConverter(ty:Type):
     if ty != lua.ref():
@@ -690,6 +802,9 @@ def luaToLLVM(module):
         convertLibc(luac.get_double_val, "lua_get_double_val"),
         convertLibc(luac.set_double_val, "lua_set_double_val"),
         convertLibc(luac.get_fcn_addr, "lua_get_fcn_addr"),
+        convertLibc(luac.set_fcn_addr, "lua_set_fcn_addr"),
+        convertLibc(luac.get_capture_pack, "lua_get_capture_pack"),
+        convertLibc(luac.set_capture_pack, "lua_set_capture_pack"),
         convertLibc(luac.get_value_union, "lua_get_value_union"),
         convertLibc(luac.set_value_union, "lua_set_value_union"),
         convertLibc(luac.is_int, "lua_is_int"),
@@ -722,6 +837,7 @@ def main():
 
     module, main = generator.chunk(parser.chunk())
     varAllocPass(main)
+    cfExpand(module, main)
 
     #lib = parseSourceFile("lib.mlir")
     #for func in lib.getOps(FuncOp):
@@ -751,11 +867,11 @@ def main():
 
     #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
     #os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    #os.system("clang -c main.ll -o main.o -O2")
-    #os.system("clang main.o builtins.o -o main")
+    #os.system("clang -c main.ll -o main.o -g -O2")
+    #os.system("clang main.o builtins.o -o main -g -O2")
 
-    print(main)
-    verify(main)
+    print(module)
+    verify(module)
 
 if __name__ == '__main__':
     main()

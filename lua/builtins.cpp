@@ -6,7 +6,7 @@
 
 extern "C" {
 
-TPack *fcn_builtin_print(TPack *pack) {
+TPack *fcn_builtin_print(TPack *, TPack *pack) {
   while (pack->idx != pack->size) {
     TObject *val = lua_pack_pull_one(pack);
     switch (lua_get_type(val)) {
@@ -55,6 +55,7 @@ TObject *construct_builtin_print() {
   lua_set_type(ret, FCN);
   ret->gc = (TComplex *) malloc(sizeof(TComplex));
   ret->gc->fcn_addr = &fcn_builtin_print;
+  ret->gc->cap_pack = nullptr;
   return ret;
 }
 

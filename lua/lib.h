@@ -33,10 +33,13 @@ typedef struct Pack {
   struct Object **objs;
 } TPack;
 
-typedef TPack *(*lua_fcn_t)(TPack *);
+typedef TPack *(*lua_fcn_t)(TPack *, TPack *);
 
 typedef union Complex {
-  lua_fcn_t fcn_addr;
+  struct {
+    lua_fcn_t fcn_addr;
+    TPack *cap_pack;
+  };
 } TComplex;
 
 typedef struct Object {
@@ -60,6 +63,9 @@ void lua_set_int64_val(TObject *val, int64_t iv);
 double lua_get_double_val(TObject *val);
 void lua_set_double_val(TObject *val, double fp);
 lua_fcn_t lua_get_fcn_addr(TObject *val);
+void lua_set_fcn_addr(TObject *val, lua_fcn_t fcn_addr);
+TPack *lua_get_capture_pack(TObject *val);
+void lua_set_capture_pack(TObject *val, TPack *pack);
 uint64_t lua_get_value_union(TObject *val);
 void lua_set_value_union(TObject *val, uint64_t u);
 bool lua_is_int(TObject *val);

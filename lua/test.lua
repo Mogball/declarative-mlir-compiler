@@ -1,22 +1,20 @@
+--
+-- lua.function_def @something [] () {
+--   ....
+--   lua.ret
+-- }
+--
+--
+--
 a = 5
-for i=1,1 do
-  print(a)
-  local a
-  print(a)
-  a = 10
-  print(a)
-
-  for j=1,1 do
-    a = 11
-    print(a)
-    local a = 99
-    print(a)
-  end
-
-
-  print(a)
-
-
+function something()
+  print(42, a)
 end
 
-print(a)
+something()
+
+function something()
+  print(5, a)
+end
+
+something()

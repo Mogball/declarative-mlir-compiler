@@ -67,15 +67,22 @@ Dialect @lua {
     { ivar = #dmc.String } (region: Sized<1>)
     traits [@ReadFrom<["lower", "upper", "step"]>]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
+  Op @function_def() -> (fcn: !lua.value)
+    { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
+    traits [@MemoryWrite]
+    config { fmt = "$params $region attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
+  Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
+    traits [@IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
+    config { fmt = "($vals^ `:` type($vals))? attr-dict" }
 }
 
 Dialect @luac {
   Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
-  Alias @pack_fcn -> (!lua.pack) -> !lua.pack
-    { builder = "FunctionType([lua.pack()], [lua.pack()])" }
+  Alias @pack_fcn -> (!lua.pack, !lua.pack) -> !lua.pack
+    { builder = "FunctionType([lua.pack(), lua.pack()], [lua.pack()])" }
 
   Alias @type_enum -> i16 { builder = "IntegerType(16)" }
   Alias @type_nil -> 0 : i16
@@ -130,6 +137,15 @@ Dialect @luac {
   Op @get_fcn_addr(fcn: !lua.value) -> (fcn_addr: !luac.pack_fcn)
     traits [@ReadFrom<"fcn">]
     config { fmt = "$fcn attr-dict" }
+  Op @set_fcn_addr(fcn: !lua.value, fcn_addr: !luac.pack_fcn) -> ()
+    traits [@WriteTo<"fcn">]
+    config { fmt = "$fcn `=` $fcn_addr attr-dict" }
+  Op @get_capture_pack(fcn: !lua.value) -> (pack: !lua.value_pack)
+    traits [@ReadFrom<"fcn">]
+    config { fmt = "$fcn `[` `]` attr-dict" }
+  Op @set_capture_pack(fcn: !lua.value, pack: !lua.value_pack) -> ()
+    traits [@WriteTo<"fcn">]
+    config { fmt = "$fcn `[` `]` `=` $pack attr-dict" }
 
   Op @get_value_union(tgt: !lua.value) -> (u: i64)
     traits [@ReadFrom<"tgt">]

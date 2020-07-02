@@ -34,11 +34,6 @@ ReturnOp returnCtor(ValueListRef operands, Location loc) {
   return b.create<ReturnOp>(loc, operands);
 }
 
-ConstantOp constantCtor(Attribute value, Location loc) {
-  OpBuilder b{getMLIRContext()};
-  return b.create<ConstantOp>(loc, value);
-}
-
 CallIndirectOp callIndirectCtor(Value callee, ValueListRef operands,
                                 Location loc) {
   OpBuilder b{getMLIRContext()};
@@ -100,7 +95,14 @@ void exposeModule(module &m, OpClass &cls) {
            "loc"_a = getUnknownLoc());
 
   class_<ConstantOp>(m, "ConstantOp", cls)
-      .def(init(&constantCtor), "value"_a, "loc"_a = getUnknownLoc())
+      .def(init([](Attribute value, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<ConstantOp>(loc, value);
+      }), "value"_a, "loc"_a = getUnknownLoc())
+      .def(init([](Attribute value, Type ty, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<ConstantOp>(loc, ty, value);
+      }), "value"_a, "ty"_a, "loc"_a = getUnknownLoc())
       .def(init([](Operation *op) { return cast<ConstantOp>(op); }))
       .def_static("getName",
                   []() { return ConstantOp::getOperationName().str(); })

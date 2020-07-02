@@ -1,4 +1,5 @@
 #include "Expose.h"
+#include "Location.h"
 #include "Identifier.h"
 #include "Context.h"
 #include "Utility.h"
@@ -286,6 +287,9 @@ void exposeOps(module &m) {
       .def("__len__", [](Region &region) -> unsigned {
         return std::distance(region.begin(), region.end());
       })
+      .def("isIsolatedFromAbove", [](Region &region, Location loc) {
+        return region.isIsolatedFromAbove(loc);
+      }, "loc"_a = getUnknownLoc())
       .def("__iter__", [](Region &region) {
         return make_iterator(region.begin(), region.end());
       }, keep_alive<0, 1>());
@@ -299,6 +303,8 @@ void exposeOps(module &m) {
           throw index_error{};
         return block.getArgument(i);
       })
+      .def("getTerminator", &Block::getTerminator,
+           return_value_policy::reference)
       .def("getArguments", [](Block &block) {
         return make_iterator(block.args_begin(), block.args_end());
       }, keep_alive<0, 1>())

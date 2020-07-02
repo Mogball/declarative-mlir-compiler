@@ -37,6 +37,18 @@ lua_fcn_t lua_get_fcn_addr(TObject *val) {
   return val->gc->fcn_addr;
 }
 
+void lua_set_fcn_addr(TObject *val, lua_fcn_t fcn_addr) {
+  val->gc->fcn_addr = fcn_addr;
+}
+
+TPack *lua_get_capture_pack(TObject *val) {
+  return val->gc->cap_pack;
+}
+
+void lua_set_capture_pack(TObject *val, TPack *pack) {
+  val->gc->cap_pack = pack;
+}
+
 uint64_t lua_get_value_union(TObject *val) {
   return val->u;
 }

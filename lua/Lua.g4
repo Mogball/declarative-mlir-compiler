@@ -176,7 +176,7 @@ funcbody
     ;
 
 parlist
-    : namelist (',' '...')? | '...'
+    : namelist (',' elipsis)? | elipsis
     ;
 
 tableconstructor
