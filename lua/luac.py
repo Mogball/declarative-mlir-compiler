@@ -279,28 +279,17 @@ class Generator:
             step = self.exp(ctx.exp(2))
 
         # Create the loop
-        loop = self.builder.create(lua.numeric_for, lower=lower, upper=upper,
-                                   step=step, loc=loc)
-
-        # Save previous block
-        prevBlock = self.curBlock
-
-        # Add the entry block
-        loop.region().addEntryBlock([lua.ref()])
-        self.curBlock = loop.region().getBlock(0)
-        self.builder.insertAtStart(self.curBlock)
-
-        # Prepend the induction variable
         varName = StringAttr(ctx.NAME().getText())
-        lalloc = self.builder.create(lua.alloc_local, var=varName, loc=loc)
-        self.builder.create(lua.assign, tgt=lalloc.res(), var=varName,
-                            val=self.curBlock.getArgument(0), loc=loc)
+        loop = self.builder.create(lua.numeric_for, lower=lower, upper=upper,
+                                   step=step, loc=loc, ivar=varName)
 
-        # Process the block
+        # Save previous block and add entry block
+        prevBlock = self.curBlock
+        self.curBlock = loop.region().addEntryBlock([lua.ref()])
+        self.builder.insertAtStart(self.curBlock)
+        # Process the block and restore builder
         self.block(ctx.block())
         self.builder.create(lua.end, loc=loc)
-
-        # Reset the builder and block
         self.curBlock = prevBlock
         self.builder.insertAtEnd(self.curBlock)
         pass
@@ -364,6 +353,8 @@ class AllocVisitor:
             self.visitGetOrAlloc(lua.get_or_alloc(op))
         elif isa(op, lua.alloc_local):
             self.visitAllocLocal(lua.alloc_local(op))
+        elif isa(op, lua.numeric_for):
+            self.visitNumericFor(lua.numeric_for(op))
         elif isa(op, lua.assign):
             self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
@@ -389,6 +380,9 @@ class AllocVisitor:
         self.scope.set_local(op.var(), alloc.res())
         self.builder.replace(op, [alloc.res()])
         self.removed.add(op)
+
+    def visitNumericFor(self, op:lua.numeric_for):
+        self.scope.set_local(op.ivar(), op.region().getBlock(0).getArgument(0))
 
     def visitAssign(self, op:lua.assign):
         assert self.scope.contains(op.var())
@@ -442,39 +436,6 @@ def elideAssign(op:lua.assign, rewriter:Builder):
         return True
     return False
 
-def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
-    def toIndex(val):
-        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
-        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
-                            loc=op.loc)
-        return i.result()
-
-    upper = toIndex(op.upper())
-    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
-    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
-                           ty=IndexType(), loc=op.loc)
-    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
-                           upperBound=incr.result(), step=toIndex(op.step()),
-                           loc=op.loc)
-    loop.region().getBlock(0).erase()
-    loopBlk = loop.region().addEntryBlock([IndexType()])
-    forBlk = op.region().getBlock(0)
-
-    rewriter.insertAtStart(loopBlk)
-    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
-                        type=luac.integer(), loc=op.loc)
-    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
-    bvm = BlockAndValueMapping()
-    bvm[forBlk.getArgument(0)] = val.res()
-    for oldOp in forBlk:
-        if not isa(oldOp, lua.end):
-            newOp = oldOp.clone(bvm)
-            loopBlk.append(newOp)
-    rewriter.insertAtEnd(loopBlk)
-    rewriter.create(YieldOp, loc=op.loc)
-    rewriter.erase(op)
-    return True
-
 def varAllocPass(main:FuncOp):
     # Non-trivial passes
     AllocVisitor().visitAll(main)
@@ -484,8 +445,6 @@ def varAllocPass(main:FuncOp):
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
         Pattern(lua.assign, elideAssign),
-
-        Pattern(lua.numeric_for, lowerNumericFor),
     ])
 
 def getWrapperFor(numberTy, opCls):
@@ -599,6 +558,40 @@ def convertToLibCall(module:ModuleOp, funcName:str):
 
     return convertFcn
 
+def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
+    def toIndex(val):
+        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
+        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
+                            loc=op.loc)
+        return i.result()
+
+    upper = toIndex(op.upper())
+    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
+    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
+                           ty=IndexType(), loc=op.loc)
+    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
+                           upperBound=incr.result(), step=toIndex(op.step()),
+                           loc=op.loc)
+    loop.region().getBlock(0).erase()
+    loopBlk = loop.region().addEntryBlock([IndexType()])
+    forBlk = op.region().getBlock(0)
+
+    rewriter.insertAtStart(loopBlk)
+    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
+                        type=luac.integer(), loc=op.loc)
+    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
+    bvm = BlockAndValueMapping()
+    bvm[forBlk.getArgument(0)] = val.res()
+    for oldOp in forBlk:
+        if not isa(oldOp, lua.end):
+            newOp = oldOp.clone(bvm)
+            loopBlk.append(newOp)
+    rewriter.insertAtEnd(loopBlk)
+    rewriter.create(YieldOp, loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+
 def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
 
@@ -639,6 +632,7 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
         Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
                                            luac.get_type, luac.get_value_union]),
+        Pattern(lua.numeric_for, lowerNumericFor),
     ]
 
     for func in module.getOps(FuncOp):
@@ -729,39 +723,39 @@ def main():
     module, main = generator.chunk(parser.chunk())
     varAllocPass(main)
 
-    lib = parseSourceFile("lib.mlir")
-    for func in lib.getOps(FuncOp):
-        module.append(func.clone())
+    #lib = parseSourceFile("lib.mlir")
+    #for func in lib.getOps(FuncOp):
+    #    module.append(func.clone())
 
-    lowerSCFToStandard(module)
-    lowerToLuac(module)
+    #lowerSCFToStandard(module)
+    #lowerToLuac(module)
 
-    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
-    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-    libc = parseSourceFile("libc.mlir")
-    for glob in libc.getOps(LLVMGlobalOp):
-        module.append(glob.clone())
-    for func in libc.getOps(LLVMFuncOp):
-        module.append(func.clone())
+    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    #libc = parseSourceFile("libc.mlir")
+    #for glob in libc.getOps(LLVMGlobalOp):
+    #    module.append(glob.clone())
+    #for func in libc.getOps(LLVMFuncOp):
+    #    module.append(func.clone())
 
-    runAllOpts(module)
+    #runAllOpts(module)
 
-    luaToLLVM(module)
-    verify(module)
+    #luaToLLVM(module)
+    #verify(module)
 
-    with open("main.mlir", "w") as f:
-        stdout = sys.stdout
-        sys.stdout = f
-        print(module)
-        sys.stdout = stdout
+    #with open("main.mlir", "w") as f:
+    #    stdout = sys.stdout
+    #    sys.stdout = f
+    #    print(module)
+    #    sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
-    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -O2")
-    os.system("clang main.o builtins.o -o main")
+    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
+    #os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+    #os.system("clang -c main.ll -o main.o -O2")
+    #os.system("clang main.o builtins.o -o main")
 
-    #print(main)
-    #verify(main)
+    print(main)
+    verify(main)
 
 if __name__ == '__main__':
     main()

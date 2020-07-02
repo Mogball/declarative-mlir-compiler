@@ -48,7 +48,7 @@ w1 = NOWORD; w2 = NOWORD     -- reinitialize
 for i=1,MAXGEN do
   local list = statetab[prefix(w1, w2)]
   -- choose a random item from list
-  local r = math.random(table.getn(list))
+  local r = math.random(#list)
   local nextword = list[r]
   if nextword == NOWORD then return end
   io.write(nextword, " ")
