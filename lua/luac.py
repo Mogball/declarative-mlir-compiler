@@ -54,6 +54,7 @@ class Generator:
         self.builder = Builder()
 
         # Process the block
+        self.builder.insertAtStart(self.curBlock)
         self.block(ctx.block())
         self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
 
@@ -62,8 +63,6 @@ class Generator:
         return module, main
 
     def block(self, ctx:LuaParser.BlockContext):
-        self.builder.insertAtStart(self.curBlock)
-
         # Process the statements
         for stat in ctx.stat():
             self.stat(stat)
@@ -258,40 +257,94 @@ class Generator:
         return binary.res()
 
     def numericfor(self, ctx:LuaParser.NumericforContext):
+        loc = self.getStartLoc(ctx)
+
+        # Process expressions for the loop limits
         lower = self.exp(ctx.exp(0))
         upper = self.exp(ctx.exp(1))
         if len(ctx.exp()) == 2:
-            num = self.builder.create(lua.number, value=I64Attr(1),
-                    loc=self.getStartLoc(ctx))
+            num = self.builder.create(lua.number, value=I64Attr(1), loc=loc)
             step = num.res()
         else:
             step = self.exp(ctx.exp(2))
 
+        # Create the loop
         loop = self.builder.create(lua.numeric_for, lower=lower, upper=upper,
-                                   step=step, loc=self.getStartLoc(ctx))
+                                   step=step, loc=loc)
 
+        # Save previous block
         prevBlock = self.curBlock
 
-        loop.region().addEntryBlock([])
+        # Add the entry block
+        loop.region().addEntryBlock([lua.ref()])
         self.curBlock = loop.region().getBlock(0)
-        self.block(ctx.block())
-        self.builder.create(lua.end, loc=self.getStartLoc(ctx))
+        self.builder.insertAtStart(self.curBlock)
 
+        # Prepend the induction variable
+        varName = StringAttr(ctx.NAME().getText())
+        lalloc = self.builder.create(lua.alloc_local, var=varName, loc=loc)
+        self.builder.create(lua.assign, tgt=lalloc.res(), var=varName,
+                            val=self.curBlock.getArgument(0), loc=loc)
+
+        # Process the block
+        self.block(ctx.block())
+        self.builder.create(lua.end, loc=loc)
+
+        # Reset the builder and block
         self.curBlock = prevBlock
         self.builder.insertAtEnd(self.curBlock)
         pass
 
 
+class ScopedMap:
+    def __init__(self):
+        self.scopes = [{}]
+
+    def contains(self, e):
+        for scope in reversed(self.scopes):
+            if e in scope:
+                return True
+        return False
+
+    def lookup(self, k):
+        for scope in reversed(self.scopes):
+            if k in scope:
+                return scope[k]
+        return None
+
+    def set_local(self, k, e):
+        scope = self.scopes[len(self.scopes) - 1]
+        scope[k] = e
+
+    def set_global(self, k, e):
+        scope = self.scopes[0]
+        scope[k] = e
+
+    def push_scope(self):
+        self.scopes.append({})
+
+    def pop_scope(self):
+        self.scopes.pop()
+
+
 class AllocVisitor:
     def __init__(self):
-        self.scope = {}
+        self.scope = ScopedMap()
         self.builder = Builder()
         self.removed = set()
 
-    def visitAll(self, ops:Region):
+    def visitAll(self, main:FuncOp):
         worklist = []
-        for op in ops: # iterator is invalidated if an op is removed
+        self.global_block = main.getBody().getBlock(0)
+
+        def processWork(op:Operation):
             worklist.append(op)
+            for region in op.getRegions():
+                for block in region:
+                    for op in block:
+                        processWork(op)
+
+        processWork(main)
         for op in worklist:
             if op not in self.removed:
                 self.visit(op)
@@ -299,22 +352,38 @@ class AllocVisitor:
     def visit(self, op:Operation):
         if isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
+        elif isa(op, lua.alloc_local):
+            self.visitAllocLocal(lua.alloc_local(op))
         elif isa(op, lua.assign):
             self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
             self.visitCall(lua.call(op))
 
+        if op.getNumRegions() != 0:
+            self.scope.push_scope()
+        elif isa(op, lua.end):
+            self.scope.pop_scope()
+
     def visitGetOrAlloc(self, op:lua.get_or_alloc):
-        if op.var() not in self.scope:
-            self.builder.insertBefore(op)
+        if not self.scope.contains(op.var()):
+            self.builder.insertAtStart(self.global_block)
             alloc = self.builder.create(lua.alloc, var=op.var(), loc=op.loc)
-            self.scope[op.var()] = alloc.res()
-        self.builder.replace(op, [self.scope[op.var()]])
+            self.scope.set_global(op.var(), alloc.res())
+        self.builder.replace(op, [self.scope.lookup(op.var())])
+        self.removed.add(op)
+
+    def visitAllocLocal(self, op:lua.alloc_local):
+        # overwrite previous value
+        self.builder.insertBefore(op)
+        alloc = self.builder.create(lua.alloc, var=op.var(), loc=op.loc)
+        self.scope.set_local(op.var(), alloc.res())
+        self.builder.replace(op, [alloc.res()])
         self.removed.add(op)
 
     def visitAssign(self, op:lua.assign):
-        assert op.var() in self.scope
-        self.scope[op.var()] = op.res()
+        assert self.scope.contains(op.var())
+        # TODO set this at the highest dominating scope
+        self.scope.set_local(op.var(), op.res())
 
     def visitCall(self, op:lua.call):
         if op.rets().useEmpty():
@@ -348,24 +417,65 @@ def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     rewriter.replace(op, [builtin.val()])
     return True
 
+def scopeUseDominates(tgtOp, valOp):
+    if valOp == None:
+        return False
+    while tgtOp and not isa(tgtOp, FuncOp):
+        if tgtOp.parentOp == valOp.parentOp:
+            return True
+        tgtOp = tgtOp.parentOp
+    return False
+
 def elideAssign(op:lua.assign, rewriter:Builder):
-    # Since scopes not implemented, all assignments are trivial
-    rewriter.replace(op, [op.val()])
+    if scopeUseDominates(op.tgt().definingOp, op.val().definingOp):
+        rewriter.replace(op, [op.val()])
+        return True
+    return False
+
+def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
+    def toIndex(val):
+        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
+        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
+                            loc=op.loc)
+        return i.result()
+
+    upper = toIndex(op.upper())
+    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
+    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
+                           ty=IndexType(), loc=op.loc)
+    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
+                           upperBound=incr.result(), step=toIndex(op.step()),
+                           loc=op.loc)
+    loop.region().getBlock(0).erase()
+    loopBlk = loop.region().addEntryBlock([IndexType()])
+    forBlk = op.region().getBlock(0)
+
+    rewriter.insertAtStart(loopBlk)
+    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
+                        type=luac.integer(), loc=op.loc)
+    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
+    bvm = BlockAndValueMapping()
+    bvm[forBlk.getArgument(0)] = val.res()
+    for oldOp in forBlk:
+        if not isa(oldOp, lua.end):
+            newOp = oldOp.clone(bvm)
+            loopBlk.append(newOp)
+    rewriter.insertAtEnd(loopBlk)
+    rewriter.create(YieldOp, loc=op.loc)
+    rewriter.erase(op)
     return True
 
 def varAllocPass(main:FuncOp):
-    # Main function has one Sized<1> region
-    region = main.getBody()
-    ops = region.getBlock(0)
-
     # Non-trivial passes
-    AllocVisitor().visitAll(ops)
+    AllocVisitor().visitAll(main)
 
     # Trivial passes as patterns
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
         Pattern(lua.assign, elideAssign),
+
+        Pattern(lua.numeric_for, lowerNumericFor),
     ])
 
 def getWrapperFor(numberTy, opCls):
@@ -456,31 +566,13 @@ def lowerAlloc(op:lua.alloc, rewriter:Builder):
     rewriter.replace(op, [nil.res()])
     return True
 
-
-class ConstantElVisitor:
-    def __init__(self):
-        self.consts = {}
-        self.removed = set()
-        self.builder = Builder()
-
-    def visitAll(self, ops:Region):
-        worklist = []
-        for op in ops: # iterator is invalidated if an op is removed
-            worklist.append(op)
-        for op in worklist:
-            if op not in self.removed:
-                self.visit(op)
-
-    def visit(self, op:Operation):
-        if isa(op, ConstantOp):
-            self.visitConstantOp(ConstantOp(op))
-
-    def visitConstantOp(self, op:ConstantOp):
-        if op.value() in self.consts:
-            self.builder.insertBefore(op)
-            self.builder.replace(op, [self.consts[op.value()]])
-        else:
-            self.consts[op.value()] = op.result()
+def expandAssign(op:lua.assign, rewriter:Builder):
+    getType = rewriter.create(luac.get_type, tgt=op.val(), loc=op.loc)
+    getU = rewriter.create(luac.get_value_union, tgt=op.val(), loc=op.loc)
+    rewriter.create(luac.set_type, tgt=op.tgt(), ty=getType.ty(), loc=op.loc)
+    rewriter.create(luac.set_value_union, tgt=op.tgt(), u=getU.u(), loc=op.loc)
+    rewriter.replace(op, [op.tgt()])
+    return True
 
 def convertToLibCall(module:ModuleOp, funcName:str):
     def convertFcn(op:Operation, rewriter:Builder):
@@ -502,6 +594,7 @@ def lowerToLuac(module:ModuleOp):
 
     target.addLegalDialect(luac)
     target.addLegalDialect("std")
+    target.addLegalDialect("loop")
     target.addLegalOp(FuncOp)
 
     target.addIllegalOp(luac.wrap_int)
@@ -534,6 +627,8 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
                                            luac.delete_pack]),
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp]),
+        Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
+                                           luac.get_type, luac.get_value_union]),
     ]
 
     for func in module.getOps(FuncOp):
@@ -622,40 +717,41 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
-    print(main)
-    #varAllocPass(main)
+    varAllocPass(main)
 
-    #lib = parseSourceFile("lib.mlir")
-    #for func in lib.getOps(FuncOp):
-    #    module.append(func.clone())
+    lib = parseSourceFile("lib.mlir")
+    for func in lib.getOps(FuncOp):
+        module.append(func.clone())
 
-    #lowerSCFToStandard(module)
-    #lowerToLuac(module)
-    #ConstantElVisitor().visitAll(main.getBody().getBlock(0))
+    lowerSCFToStandard(module)
+    lowerToLuac(module)
 
-    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
-    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-    #libc = parseSourceFile("libc.mlir")
-    #for glob in libc.getOps(LLVMGlobalOp):
-    #    module.append(glob.clone())
-    #for func in libc.getOps(LLVMFuncOp):
-    #    module.append(func.clone())
+    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    libc = parseSourceFile("libc.mlir")
+    for glob in libc.getOps(LLVMGlobalOp):
+        module.append(glob.clone())
+    for func in libc.getOps(LLVMFuncOp):
+        module.append(func.clone())
 
-    #runAllOpts(module)
+    runAllOpts(module)
 
-    #luaToLLVM(module)
-    #verify(module)
+    luaToLLVM(module)
+    verify(module)
 
-    #with open("main.mlir", "w") as f:
-    #    stdout = sys.stdout
-    #    sys.stdout = f
-    #    print(module)
-    #    sys.stdout = stdout
+    with open("main.mlir", "w") as f:
+        stdout = sys.stdout
+        sys.stdout = f
+        print(module)
+        sys.stdout = stdout
 
-    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
-    #os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    #os.system("clang -c main.ll -o main.o -O2")
-    #os.system("ld main.o builtins.o -lc -lc++ -o main")
+    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
+    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+    os.system("clang -c main.ll -o main.o -O2")
+    os.system("ld main.o builtins.o -lc -lc++ -o main")
+
+    #print(main)
+    #verify(main)
 
 if __name__ == '__main__':
     main()

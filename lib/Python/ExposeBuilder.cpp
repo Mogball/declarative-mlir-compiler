@@ -42,6 +42,10 @@ auto builderCreateOp(PatternRewriter &builder, object type, pybind11::args args,
 }
 
 bool operationIsa(Operation *op, object cls) {
+  // TODO rare segfaults occur due to a pointer not to Operation is passed
+  // into this function
+  if (!op)
+    return false;
   return op->getName().getStringRef() ==
       cls.attr("getName")().cast<std::string>();
 }
@@ -179,6 +183,18 @@ bool lowerToLLVM(ModuleOp module, ConversionTarget &target,
   return succeeded(mgr.run(module));
 }
 
+bool applyLICM(ModuleOp module) {
+  PassManager mgr{getMLIRContext()};
+  mgr.addPass(mlir::createLoopInvariantCodeMotionPass());
+  return succeeded(mgr.run(module));
+}
+
+bool applyCSE(ModuleOp module) {
+  PassManager mgr{getMLIRContext()};
+  mgr.addPass(mlir::createCSEPass());
+  return succeeded(mgr.run(module));
+}
+
 bool runAllOpts(ModuleOp module) {
   PassManager mgr{getMLIRContext()};
   mgr.addPass(mlir::createSymbolDCEPass());
@@ -303,6 +319,8 @@ void exposeBuilder(module &m) {
   m.def("LLVMConversionTarget", []() -> ConversionTarget * {
     return new LLVMConversionTarget{*getMLIRContext()};
   });
+  m.def("applyLICM", &applyLICM);
+  m.def("applyCSE", &applyCSE);
   m.def("runAllOpts", &runAllOpts);
 }
 

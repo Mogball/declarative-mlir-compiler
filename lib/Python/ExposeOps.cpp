@@ -4,6 +4,7 @@
 #include "Utility.h"
 
 #include <mlir/IR/Value.h>
+#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/Block.h>
 #include <mlir/IR/Dialect.h>
@@ -114,6 +115,8 @@ void defOpMethods(class_<T, ExtraTs...> &cls) {
       .def("isAncestor", wrap<T>(&Operation::isAncestor))
       .def("replaceUsesOfWith", wrap<T>(&Operation::replaceUsesOfWith))
       .def("clone", wrap<T>(overload<Operation *(Operation::*)()>(&Operation::clone)),
+           return_value_policy::reference)
+      .def("clone", wrap<T>(overload<Operation *(Operation::*)(BlockAndValueMapping &)>(&Operation::clone)),
            return_value_policy::reference)
       .def("destroy", wrap<T>(&Operation::destroy))
       .def("dropAllReferences", wrap<T>(&Operation::dropAllReferences))
@@ -305,9 +308,23 @@ void exposeOps(module &m) {
       .def("addArg", [](Block &block, Type ty) {
         block.addArguments(ty);
       })
+      .def("append", &Block::push_back)
+      .def("erase", &Block::erase)
       .def("__iter__", [](Block &block) {
         return make_iterator(block.begin(), block.end());
       }, keep_alive<0, 1>());
+
+  class_<BlockAndValueMapping>(m, "BlockAndValueMapping")
+      .def(init<>())
+      .def("__setitem__", [](BlockAndValueMapping &m, Value from, Value to) {
+        m.map(from, to);
+      })
+      .def("__delitem__", [](BlockAndValueMapping &m, Value from) {
+        m.erase(from);
+      })
+      .def("__contains__", [](BlockAndValueMapping &m, Value from) {
+        return m.contains(from);
+      });
 
   exposeModule(m, opCls);
 

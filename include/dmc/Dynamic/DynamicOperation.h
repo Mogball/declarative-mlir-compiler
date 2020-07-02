@@ -119,7 +119,8 @@ public:
 
 /// Define base properies of all dynamic ops.
 class BaseOp : public mlir::Op<BaseOp, DynamicOpTrait,
-               mlir::MemoryEffectOpInterface::Trait> {
+               mlir::MemoryEffectOpInterface::Trait,
+               mlir::OpTrait::HasRecursiveSideEffects> {
 public:
   using Op::Op;
 

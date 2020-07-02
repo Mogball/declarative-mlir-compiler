@@ -178,13 +178,6 @@ void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
 }
 
 void *BaseOp::getRawInterface(TypeID id) {
-  /// Special logic: ignore query for MemoryEffectOpInterface if `NoSideEffects`
-  /// is specified.
-  if (id == MemoryEffectOpInterface::Trait<BaseOp>::getInterfaceID()) {
-    // Can't access member functions...
-    //if (getTrait<NoSideEffects>())
-    //  return nullptr;
-  }
   return Op::getRawInterface(id);
 }
 

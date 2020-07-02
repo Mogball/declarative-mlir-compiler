@@ -8,6 +8,7 @@
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/SCF/SCF.h>
 
 #include <pybind11/pybind11.h>
 
@@ -129,6 +130,13 @@ void exposeModule(module &m, OpClass &cls) {
       .def("rhs", &AddIOp::rhs)
       .def("result", &AddIOp::getResult);
 
+  class_<IndexCastOp>(m, "IndexCastOp", cls)
+      .def(init([](Value source, Type type, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<IndexCastOp>(loc, source, type);
+      }), "source"_a, "type"_a, "loc"_a = getUnknownLoc())
+      .def("result", &IndexCastOp::getResult);
+
   class_<LLVM::CallOp>(m, "LLVMCallOp", cls)
       .def(init([](LLVM::LLVMFuncOp func, ValueListRef operands, Location loc) {
         OpBuilder b{getMLIRContext()};
@@ -145,6 +153,21 @@ void exposeModule(module &m, OpClass &cls) {
       .def(init([](Operation *op) { return cast<LLVM::GlobalOp>(op); }))
       .def_static("getName",
                   []() { return LLVM::GlobalOp::getOperationName().str(); });
+
+  class_<scf::ForOp>(m, "ForOp", cls)
+      .def(init([](Value lowerBound, Value upperBound, Value step,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<scf::ForOp>(loc, lowerBound, upperBound, step);
+      }), "lowerBound"_a, "upperBound"_a, "step"_a, "loc"_a = getUnknownLoc())
+      .def("getInductionVar", &scf::ForOp::getInductionVar)
+      .def("region", &scf::ForOp::region, return_value_policy::reference);
+
+  class_<scf::YieldOp>(m, "YieldOp", cls)
+      .def(init([](Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<scf::YieldOp>(loc);
+      }), "loc"_a = getUnknownLoc());
 }
 
 } // end namespace py

@@ -21,12 +21,12 @@ Dialect @lua {
     config { fmt = "$pack `:` functional-type($pack, $vals) attr-dict" }
 
   // Variable handling
+  Op @alloc_local() -> (res: !lua.value) { var = #dmc.String }
+    traits [@Alloc<"res">] config { fmt = "$var attr-dict" }
   Op @get_or_alloc() -> (res: !lua.value) { var = #dmc.String }
-    traits [@Alloc<"res">]
-    config { fmt = "$var attr-dict" }
+    traits [@Alloc<"res">] config { fmt = "$var attr-dict" }
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
-    traits [@Alloc<"res">]
-    config { fmt = "$var attr-dict" }
+    traits [@Alloc<"res">] config { fmt = "$var attr-dict" }
   Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
     { var = #dmc.String }
     traits [@WriteTo<"tgt">, @ReadFrom<"val">]
@@ -46,6 +46,7 @@ Dialect @lua {
   // Value getters
   Op @nil() -> (res: !lua.value) config { fmt = "attr-dict" }
   Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.AnyI<64>, #dmc.F<64>> }
+    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
 
   // Value operations
@@ -86,8 +87,10 @@ Dialect @luac {
   // userdata, thread unimplemented
 
   Op @wrap_int(num: !luac.integer) -> (res: !lua.value)
+    traits [@Alloc<"res">]
     config { fmt = "$num attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
+    traits [@Alloc<"res">]
     config { fmt = "$num attr-dict" }
 
   Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
