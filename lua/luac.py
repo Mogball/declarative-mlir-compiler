@@ -38,6 +38,18 @@ class Generator:
         endTok = self.stream.get(b)
         return FileLineColLoc(self.filename, endTok.line, endTok.column)
 
+    def handleAssignList(self, varList, expList, loc):
+        concat = self.builder.create(lua.concat, vals=expList, loc=loc)
+        unpack = self.builder.create(lua.unpack, pack=concat.pack(), loc=loc,
+                                     vals=[lua.ref()] * len(varList))
+        vals = unpack.vals()
+        assert len(vals) == len(varList)
+        for i in range(0, len(varList)):
+            var = varList[i].definingOp.getAttr("var")
+            self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
+                                var=var, loc=loc)
+
+
     ############################################################################
     # AST Walker
     ############################################################################
@@ -98,27 +110,25 @@ class Generator:
         elif ctx.localnamedfunctiondef():
             raise NotImplementedError("localnamedfunctiondef not implemented")
         elif ctx.localvarlist():
-            raise NotImplementedError("localvarlist not implemented")
+            self.localvarlist(ctx.localvarlist())
         else:
             raise ValueError("Unknown StatContext case")
 
     def assignlist(self, ctx:LuaParser.AssignlistContext):
-        varList = self.varlist(ctx.varlist())
-        expList = self.explist(ctx.explist())
+        self.handleAssignList(self.varlist(ctx.varlist()),
+                              self.explist(ctx.explist()),
+                              self.getStartLoc(ctx))
 
-        # Assign via concat and unpack
-        concat = self.builder.create(lua.concat, vals=expList,
-                                     loc=self.getStartLoc(ctx))
-        unpack = self.builder.create(lua.unpack, pack=concat.pack(),
-                                     vals=[lua.ref()] * len(varList),
-                                     loc=self.getStartLoc(ctx))
+    def localvarlist(self, ctx:LuaParser.LocalvarlistContext):
+        varList = []
+        loc = self.getStartLoc(ctx)
+        for varName in ctx.namelist().NAME():
+            lalloc = self.builder.create(lua.alloc_local, loc=loc,
+                                         var=StringAttr(varName.getText()))
+            varList.append(lalloc.res())
 
-        vals = unpack.vals()
-        assert len(vals) == len(varList)
-        for i in range(0, len(varList)):
-            var = varList[i].definingOp.getAttr("var")
-            self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
-                                var=var, loc=self.getStartLoc(ctx))
+        if ctx.explist():
+            self.handleAssignList(varList, self.explist(ctx.explist()), loc)
 
     def varlist(self, ctx:LuaParser.VarlistContext):
         varList = []
