@@ -1,13 +1,22 @@
-a = 0
-b = 0
-for i=5,10000,2 do
-  a = (a + 5) * 1
+a = 5
+for i=1,1 do
+  print(a)
+  local a
+  print(a)
+  a = 10
+  print(a)
 
-  for j=1,10000,3 do
-    b = b + i + j
+  for j=1,1 do
+    a = 11
+    print(a)
+    local a = 99
+    print(a)
   end
+
+
+  print(a)
+
 
 end
 
 print(a)
-print(b)
