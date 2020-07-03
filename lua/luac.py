@@ -996,9 +996,10 @@ def main():
 
     os.system("clang++ -c builtins.cpp -o builtins.o -g -O2 -std=c++17")
     os.system("clang++ -c impl.cpp -o impl.o -g -O2 -std=c++17")
+    os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O2")
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -g -O2")
-    os.system("ld main.o builtins.o impl.o -lc -lc++ -o main")
+    os.system("ld main.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     #verify(module)
     #print(module)

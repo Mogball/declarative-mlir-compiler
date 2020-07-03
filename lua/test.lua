@@ -1,10 +1,4 @@
-a = "hello world"
-print(a)
-
-a = {}
-a[5] = 1
-b = a[5]
-print(b)
-a[5] = 2
-print(b)
-print(a[5])
+for i=1,8 do
+  a, b = string.find("ll ll ll", "ll", i)
+  print("index:", i, "start:", a, "end:", b)
+end

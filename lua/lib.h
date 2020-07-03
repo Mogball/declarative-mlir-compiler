@@ -83,6 +83,8 @@ TObject *lua_pack_pull_one(TPack *pack);
 void lua_pack_push_all(TPack *pack, TPack *vals);
 int64_t lua_pack_get_size(TPack *pack);
 void lua_pack_rewind(TPack *pack);
+void lua_init_table(TObject *tbl);
+void lua_table_set(TObject *tbl, TObject *key, TObject *val);
 TObject *lua_table_get(TObject *tbl, TObject *key);
 TObject *lua_load_string(const char *data, uint64_t len);
 

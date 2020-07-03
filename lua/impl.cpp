@@ -102,6 +102,28 @@ struct LuaTable {
       return nil;
     }
   }
+
+  void list_insert_or_assign(int64_t iv, TObject *val) {
+    --iv;
+    if (iv < PREALLOC) {
+      prealloc[iv] = val;
+      return;
+    }
+    iv -= PREALLOC;
+    if (trailing.size() <= iv) {
+      trailing.resize(iv * 2);
+    }
+    trailing[iv] = val;
+  }
+
+  void insert_or_assign(TObject *key, TObject *val) {
+    if (lua_get_type(key) == NUM && lua_is_int(key)) {
+      if (auto iv = lua_get_int64_val(key); iv > 0) {
+        return list_insert_or_assign(iv, val);
+      }
+    }
+    table.insert_or_assign(key, val);
+  }
 };
 
 } // end anonymous namespace
@@ -113,6 +135,14 @@ std::string &as_std_string(TObject *val) {
 } // end namespace lua
 
 extern "C" {
+
+void lua_init_table_impl(TObject *tbl) {
+  tbl->gc->ptable = new lua::LuaTable;
+}
+
+void lua_table_set_impl(TObject *tbl, TObject *key, TObject *val) {
+  ((lua::LuaTable *) tbl->gc->ptable)->insert_or_assign(key, val);
+}
 
 TObject *lua_table_get_impl(TObject *tbl, TObject *key) {
   return ((lua::LuaTable *) tbl->gc->ptable)->get_or_alloc(key);

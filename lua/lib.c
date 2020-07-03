@@ -106,6 +106,16 @@ void lua_pack_rewind(TPack *pack) {
   pack->idx = 0;
 }
 
+extern void lua_init_table_impl(TObject *tbl);
+void lua_init_table(TObject *tbl) {
+  lua_init_table_impl(tbl);
+}
+
+extern void lua_table_set_impl(TObject *tbl, TObject *key, TObject *val);
+void lua_table_set(TObject *tbl, TObject *key, TObject *val) {
+  lua_table_set_impl(tbl, key, val);
+}
+
 extern TObject *lua_table_get_impl(TObject *tbl, TObject *key);
 TObject *lua_table_get(TObject *tbl, TObject *key) {
   return lua_table_get_impl(tbl, key);
