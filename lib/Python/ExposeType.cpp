@@ -6,6 +6,7 @@
 
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/StandardTypes.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
@@ -108,6 +109,18 @@ void exposeType(module &m, TypeClass &type) {
       .def("getParam", [](DynamicType ty, std::string name) {
         return ty.getParam(name);
       });
+
+  auto *llvmDialect = getMLIRContext()->getRegisteredDialect<LLVM::LLVMDialect>();
+  class_<LLVM::LLVMType>(m, "LLVMType", type)
+      .def_static("Int8", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt8Ty(llvmDialect); })
+      .def_static("ArrayOf", &LLVM::LLVMType::getArrayTy)
+      .def_static("Int8Ptr", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt8PtrTy(llvmDialect); })
+      .def_static("Int64", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt64Ty(llvmDialect); })
+      .def_static("Int32", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt32Ty(llvmDialect); });
 
   implicitly_convertible_from_all<Type,
       FunctionType, OpaqueType,

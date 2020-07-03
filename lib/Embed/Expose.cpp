@@ -120,6 +120,8 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
       b.add(name, *data->getBuilder(), "mlir.Attribute");
     } else if (attr.isa<DefaultAttr>()) {
       throw std::runtime_error{"default attributes expose not implemented"};
+    } else if (attr.isa<OptionalAttr>()) {
+      throw std::runtime_error{"optional attributes expose not implemented"};
     } else {
       b.add(name, "mlir.Attribute");
     }

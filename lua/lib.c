@@ -21,6 +21,14 @@ void lua_set_type(TObject *val, int16_t ty) {
   val->type = ty;
 }
 
+bool lua_get_bool_val(TObject *val) {
+  return val->b;
+}
+
+void lua_set_bool_val(TObject *val, bool b) {
+  val->b = b;
+}
+
 int64_t lua_get_int64_val(TObject *val) {
   return val->iv;
 }
@@ -98,12 +106,26 @@ void lua_pack_rewind(TPack *pack) {
   pack->idx = 0;
 }
 
+extern TObject *lua_table_get_impl(TObject *tbl, TObject *key);
+TObject *lua_table_get(TObject *tbl, TObject *key) {
+  return lua_table_get_impl(tbl, key);
+}
+
+extern TObject *lua_load_string_impl(const char *data, uint64_t len);
+TObject *lua_load_string(const char *data, uint64_t len) {
+  return lua_load_string_impl(data, len);
+}
+
 /*******************************************************************************
  * Builtins
  ******************************************************************************/
 
 extern TObject *builtin_print;
+extern TObject *builtin_string;
 
 TObject *lua_builtin_print() {
   return builtin_print;
+}
+TObject *lua_builtin_string() {
+  return builtin_string;
 }

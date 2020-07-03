@@ -50,7 +50,7 @@ class Generator:
         for i in range(0, len(varList)):
             var = varList[i].definingOp.getAttr("var")
             self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
-                                var=var, loc=loc)
+                                var=var if var else UnitAttr(), loc=loc)
 
     def handleBinaryOp(self, expCtx, opCtx):
         lhsVal = self.exp(expCtx.exp(0))
@@ -59,6 +59,26 @@ class Generator:
                                      op=StringAttr(opCtx.getText()),
                                      loc=self.getStartLoc(opCtx))
         return binary.res()
+
+    def handleFunctionLike(self, val, ctx, unpackLast=False):
+        allArgs = ctx.nameAndArgs()
+
+        if len(allArgs) == 0:
+            return val
+        loc = self.getStartLoc(ctx)
+        for i in range(0, len(allArgs)):
+            args = self.nameAndArgs(allArgs[i])
+            concat = self.builder.create(lua.concat, vals=args, loc=loc)
+            call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
+                                       loc=loc)
+            if not unpackLast and i == len(allArgs) - 1:
+                return call.rets()
+            unpack = self.builder.create(lua.unpack, pack=call.rets(),
+                                         vals=[lua.ref()], loc=loc)
+            val = unpack.vals()[0]
+        assert unpackLast
+        return val
+
 
     #### AST Walker
     ###############
@@ -77,6 +97,7 @@ class Generator:
         # Process the block
         self.builder.insertAtStart(self.curBlock)
         self.block(ctx.block())
+        assert ctx.block().retstat() == None, "unexpected return statement"
         self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
 
         # Return the module
@@ -87,9 +108,6 @@ class Generator:
         # Process the statements
         for stat in ctx.stat():
             self.stat(stat)
-
-        # Process the return statement
-        assert ctx.retstat() == None, "return statements not implemented"
 
     def stat(self, ctx:LuaParser.StatContext):
         if ctx.assignlist():
@@ -175,13 +193,24 @@ class Generator:
             raise ValueError("Unknown VarOrExpContext case")
 
     def var(self, ctx:LuaParser.VarContext):
-        assert ctx.exp() == None and len(ctx.varSuffix()) == 0, \
-            "only identifier variables are supported"
+        assert ctx.exprVar() == None, "expression variables unsupported"
+        val = self.builder.create(lua.get_or_alloc,
+                                  var=StringAttr(ctx.NAME().getText()),
+                                  loc=self.getStartLoc(ctx)).res()
+        for suffix in ctx.varSuffix():
+            val = self.varSuffix(val, suffix)
+        return val
 
-        alloc = self.builder.create(lua.get_or_alloc,
-                                    var=StringAttr(ctx.NAME().getText()),
-                                    loc=self.getStartLoc(ctx))
-        return alloc.res()
+    def varSuffix(self, var, ctx:LuaParser.VarSuffixContext):
+        val = self.handleFunctionLike(var, ctx, unpackLast=True)
+        loc = self.getStartLoc(ctx)
+        if ctx.exp():
+            key = self.exp(ctx.exp())
+        else:
+            key = self.builder.create(lua.get_string,
+                                      value=StringAttr(ctx.NAME().getText()),
+                                      loc=loc).res()
+        return self.builder.create(lua.table_get, tbl=val, key=key, loc=loc).val()
 
     def exp(self, ctx:LuaParser.ExpContext):
         if ctx.nilvalue():
@@ -193,7 +222,7 @@ class Generator:
         elif ctx.number():
             return self.number(ctx.number())
         elif ctx.string():
-            raise NotImplementedError("string not implemented")
+            return self.string(ctx.string())
         elif ctx.elipsis():
             raise NotImplementedError("elipsis not implemented")
         elif ctx.functiondef():
@@ -242,25 +271,24 @@ class Generator:
                                      loc=self.getStartLoc(ctx))
         return number.res()
 
+    def string(self, ctx:LuaParser.StringContext):
+        # TODO escapes and special characters unhandled
+        if ctx.NORMALSTRING():
+            text = ctx.NORMALSTRING().getText()
+        elif ctx.CHARSTRING():
+            text = ctx.CHARSTRING().getText()
+        elif ctx.LONGSTRING():
+            raise NotImplementedError("long strings not implemented")
+        else:
+            raise ValueError("Unknown StringContext case")
+        text = text[1:len(text)-1]
+        return self.builder.create(lua.get_string, value=StringAttr(text),
+                                   loc=self.getStartLoc(ctx)).res()
+
     def prefixexp(self, ctx:LuaParser.PrefixexpContext):
         # A variable or expression, with optional trailing function calls
         # `myFcn (a, b, c) {a: b} "abc" {} "" (c, b, d)` is valid syntax
-        val = self.varOrExp(ctx.varOrExp())
-        allArgs = ctx.nameAndArgs()
-
-        if len(allArgs) == 0:
-            return val
-        assert len(allArgs) == 1, "trailing function calls unimplemented"
-
-        args = self.nameAndArgs(allArgs[0])
-        concat = self.builder.create(lua.concat, vals=args,
-                                     loc=self.getStartLoc(ctx))
-        call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
-                                   loc=self.getStartLoc(ctx))
-        # Return a value pack. This means that self.exp could return either a
-        # value or value pack. Module verifier should catch accidental uses of
-        # value pack as value.
-        return call.rets()
+        return self.handleFunctionLike(self.varOrExp(ctx.varOrExp()), ctx)
 
     def functioncall(self, ctx:LuaParser.FunctioncallContext):
         # Identical to prefixexp, except len(allArgs) >= 1, and statement does
@@ -290,6 +318,7 @@ class Generator:
         self.builder.insertAtStart(self.curBlock)
         # Process the block and restore builder
         self.block(ctx.block())
+        assert ctx.block().retstat() == None, "unsupported return statement"
         self.builder.create(lua.end, loc=loc)
         self.curBlock = prevBlock
         self.builder.insertAtEnd(self.curBlock)
@@ -319,7 +348,11 @@ class Generator:
         self.builder.insertAtStart(self.curBlock)
 
         self.block(ctx.funcbody().block())
-        self.builder.create(lua.ret, vals=[], loc=loc)
+        retstat = ctx.funcbody().block().retstat()
+        retVals = []
+        if retstat and retstat.explist():
+            retVals = self.explist(retstat.explist())
+        self.builder.create(lua.ret, vals=retVals, loc=loc)
         self.curBlock = prevBlock
         self.builder.insertAtEnd(self.curBlock)
 
@@ -383,7 +416,7 @@ class AllocVisitor:
         if op.getNumRegions() != 0:
             self.scope.push_scope()
 
-        if isa(op, lua.end):
+        if isa(op, lua.end) or isa(op, lua.ret):
             self.scope.pop_scope()
         elif isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
@@ -418,6 +451,8 @@ class AllocVisitor:
         self.scope.set_local(op.ivar(), op.region().getBlock(0).getArgument(0))
 
     def visitAssign(self, op:lua.assign):
+        if op.var() == UnitAttr():
+            return
         assert self.scope.contains(op.var())
         # TODO set this at the highest enclosing scope
         self.scope.set_local(op.var(), op.res())
@@ -464,7 +499,7 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     rewriter.replace(op, newVals)
     return True
 
-lua_builtins = set(["print"])
+lua_builtins = set(["print", "string"])
 def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     if op.var().getValue() not in lua_builtins:
         return False
@@ -482,6 +517,8 @@ def scopeUseDominates(tgtOp, valOp):
     return False
 
 def elideAssign(op:lua.assign, rewriter:Builder):
+    if op.var() == UnitAttr():
+        return
     for user in op.tgt().getOpUses():
         if isa(user, lua.function_def_capture):
             return False
@@ -568,7 +605,7 @@ def lowerFunctionDef(module:ModuleOp):
         fcnBlk = op.region().getBlock(0)
         copyInto(block, fcnBlk, lua.ret, bvm)
 
-        ret = lua.ret(fcnBlk.getTerminator())
+        ret = lua.ret(fcnBlk.getTerminator()).clone(bvm)
         rewriter.insertAtEnd(block)
         concat = rewriter.create(lua.concat, vals=ret.getOperands(), loc=op.loc)
         rewriter.create(ReturnOp, operands=[concat.pack()], loc=op.loc)
@@ -716,20 +753,19 @@ def expandAssign(op:lua.assign, rewriter:Builder):
     rewriter.replace(op, [op.tgt()])
     return True
 
-def convertToLibCall(module:ModuleOp, funcName:str):
-    def convertFcn(op:Operation, rewriter:Builder):
-        rawOp = module.lookup(funcName)
-        assert rawOp, "cannot find lib.mlir function '" + funcName + "'"
-        call = rewriter.create(CallOp, callee=rawOp,
-                               operands=op.getOperands(), loc=op.loc)
-        results = call.getResults()
-        if len(results) == 0:
-            rewriter.erase(op)
-        else:
-            rewriter.replace(op, results)
+anon_string_counter = 0
+def lowerGetString(module:ModuleOp):
+    def lowerFcn(op:lua.get_string, rewriter:Builder):
+        global anon_string_counter
+        strName = StringAttr("lua_anon_string_" + str(anon_string_counter))
+        anon_string_counter += 1
+        module.append(luac.global_string(loc=op.loc, sym=strName, value=op.value()))
+        loadStr = rewriter.create(luac.load_string, global_sym=strName, loc=op.loc)
+        rewriter.replace(op, [loadStr.res()])
         return True
 
-    return convertFcn
+    return lowerFcn
+
 
 def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
@@ -743,6 +779,7 @@ def lowerToLuac(module:ModuleOp):
     target.addIllegalOp(luac.wrap_real)
 
     target.addLegalOp(lua.builtin)
+    target.addLegalOp(lua.table_get)
     target.addLegalOp(ModuleOp)
 
     patterns = [
@@ -775,10 +812,12 @@ def lowerToLuac(module:ModuleOp):
                                        luac.get_capture_pack]),
         Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
                                            luac.get_type, luac.get_value_union]),
+        Pattern(lua.get_string, lowerGetString(module), [luac.global_string,
+                                                         luac.load_string])
     ]
 
-    for func in module.getOps(FuncOp):
-        applyFullConversion(func, patterns, target)
+    target.addLegalOp("module_terminator")
+    applyFullConversion(module, patterns, target)
 
 ################################################################################
 # IR: Dialect Conversion to LLVM IR
@@ -793,6 +832,21 @@ def packConverter(ty:Type):
     if ty != lua.pack():
         return None
     return luallvm.pack()
+
+def convertToLibCall(module:ModuleOp, funcName:str):
+    def convertFcn(op:Operation, rewriter:Builder):
+        rawOp = module.lookup(funcName)
+        assert rawOp, "cannot find lib.mlir function '" + funcName + "'"
+        call = rewriter.create(CallOp, callee=rawOp,
+                               operands=op.getOperands(), loc=op.loc)
+        results = call.getResults()
+        if len(results) == 0:
+            rewriter.erase(op)
+        else:
+            rewriter.replace(op, results)
+        return True
+
+    return convertFcn
 
 def convertToFunc(module:ModuleOp, funcName:str):
     def convertFcn(op:Operation, rewriter:Builder):
@@ -809,6 +863,36 @@ def convertToFunc(module:ModuleOp, funcName:str):
 
     return convertFcn
 
+def convertGlobalString(op:luac.global_string, rewriter:Builder):
+    i8Ty = LLVMType.Int8()
+    i8ArrTy = LLVMType.ArrayOf(i8Ty, len(op.value().getValue()))
+    rewriter.create(LLVMGlobalOp, ty=i8ArrTy, isConstant=False,
+                    linkage=LLVMLinkage.Internal(), name=op.sym().getValue(),
+                    value=op.value(), loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+def convertLoadString(module:ModuleOp):
+    def convertFcn(op:luac.load_string, rewriter:Builder):
+        rawOp = module.lookup(op.global_sym().getValue())
+        assert rawOp, "cannot find global string " + str(op.global_sym())
+        globalOp = LLVMGlobalOp(rawOp)
+        base = rewriter.create(LLVMAddressOfOp, value=globalOp, loc=op.loc).res()
+        i64Ty = LLVMType.Int64()
+        const0 = rewriter.create(LLVMConstantOp, res=i64Ty, value=I64Attr(0),
+                                 loc=op.loc).res()
+        ptr = rewriter.create(LLVMGEPOp, res=LLVMType.Int8Ptr(), base=base,
+                              indices=[const0, const0], loc=op.loc).res()
+        constSz = rewriter.create(LLVMConstantOp, res=i64Ty,
+                                  value=I64Attr(len(globalOp.value().getValue())),
+                                  loc=op.loc).res()
+        loadStr = rewriter.create(luallvm.load_string, data=ptr, length=constSz,
+                                  val=luallvm.ref(), loc=op.loc)
+        rewriter.replace(op, [loadStr.val()])
+        return True
+
+    return convertFcn
+
 def luaToLLVM(module):
     def convert(opCls, funcName:str):
         return Pattern(opCls, convertToLibCall(module, funcName), [CallOp])
@@ -817,10 +901,16 @@ def luaToLLVM(module):
         return Pattern(opCls, convertToFunc(module, funcName), [LLVMCallOp])
 
     def builtin(varName:str):
-        return Pattern(lua.builtin,
-                       convertToFunc(module, "lua_builtin_" + varName),
-                       [LLVMCallOp])
+        def builtinReplace(op:lua.builtin, rewriter:Builder):
+            if op.var().getValue() != varName:
+                return False
+            return convertToFunc(module, "lua_builtin_" + varName)(op, rewriter)
+        return Pattern(lua.builtin, builtinReplace, [LLVMCallOp])
 
+    applyOptPatterns(module,
+        [Pattern(luac.global_string, convertGlobalString)])
+    applyOptPatterns(module,
+        [Pattern(luac.load_string, convertLoadString(module))])
 
     llvmPats = [
         convert(luac.add, "lua_add"),
@@ -849,9 +939,13 @@ def luaToLLVM(module):
         convertLibc(luac.pack_push_all, "lua_pack_push_all"),
         convertLibc(luac.pack_get_size, "lua_pack_get_size"),
         convertLibc(luac.pack_rewind, "lua_pack_rewind"),
+        convertLibc(lua.table_get, "lua_table_get"),
+        convertLibc(luallvm.load_string, "lua_load_string"),
 
         builtin("print"),
+        builtin("string"),
     ]
+    target = LLVMConversionTarget()
     lowerToLLVM(module, LLVMConversionTarget(), llvmPats,
                 [valueConverter, packConverter])
 
@@ -900,10 +994,11 @@ def main():
         print(module)
         sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
+    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2 -std=c++17")
+    os.system("clang++ -c impl.cpp -o impl.o -g -O2 -std=c++17")
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -g -O2")
-    os.system("ld main.o builtins.o -lc -lc++ -o main")
+    os.system("ld main.o builtins.o impl.o -lc -lc++ -o main")
 
     #verify(module)
     #print(module)

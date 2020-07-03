@@ -1,16 +1,10 @@
---
--- lua.function_def @something [] () {
---   ....
---   lua.ret
--- }
---
---
---
-function do_print(a)
-  print(a)
-end
+a = "hello world"
+print(a)
 
-do_print(5)
-do_print()
-do_print(4, 6)
-do_print(print)
+a = {}
+a[5] = 1
+b = a[5]
+print(b)
+a[5] = 2
+print(b)
+print(a[5])

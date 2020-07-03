@@ -34,12 +34,16 @@ typedef struct Pack {
 } TPack;
 
 typedef TPack *(*lua_fcn_t)(TPack *, TPack *);
+typedef void *lua_opaque_table_t;
+typedef void *lua_opaque_string_t;
 
 typedef union Complex {
   struct {
     lua_fcn_t fcn_addr;
     TPack *cap_pack;
   };
+  lua_opaque_table_t ptable;
+  lua_opaque_string_t pstring;
 } TComplex;
 
 typedef struct Object {
@@ -59,6 +63,8 @@ TObject *lua_alloc();
 void lua_alloc_gc(TObject *val);
 int16_t lua_get_type(TObject *val);
 void lua_set_type(TObject *val, int16_t ty);
+bool lua_get_bool_val(TObject *val);
+void lua_set_bool_val(TObject *val, bool b);
 int64_t lua_get_int64_val(TObject *val);
 void lua_set_int64_val(TObject *val, int64_t iv);
 double lua_get_double_val(TObject *val);
@@ -77,6 +83,8 @@ TObject *lua_pack_pull_one(TPack *pack);
 void lua_pack_push_all(TPack *pack, TPack *vals);
 int64_t lua_pack_get_size(TPack *pack);
 void lua_pack_rewind(TPack *pack);
+TObject *lua_table_get(TObject *tbl, TObject *key);
+TObject *lua_load_string(const char *data, uint64_t len);
 
 #ifdef __cplusplus
 }

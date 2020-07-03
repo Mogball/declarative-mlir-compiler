@@ -31,7 +31,7 @@ Dialect @lua {
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
     traits [@Alloc<"res">] config { fmt = "$var attr-dict" }
   Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
-    { var = #dmc.String }
+    { var = #dmc.AnyOf<#dmc.String, #dmc.Unit> }
     traits [@WriteTo<"tgt">, @ReadFrom<"val">]
     config { fmt = "$var $tgt `=` $val attr-dict" }
 
@@ -41,16 +41,22 @@ Dialect @lua {
     config { fmt = "$fcn `(` $args `)` attr-dict" }
 
   Alias @Builtin -> #dmc.AnyOf<
-      "print">
+      "print", "string">
 
   Op @builtin() -> (val: !lua.value) { var = #lua.Builtin }
     config { fmt = "$var attr-dict" }
 
   // Value getters
-  Op @nil() -> (res: !lua.value) config { fmt = "attr-dict" }
+  Op @nil() -> (res: !lua.value)
+    traits [@Alloc<"res">] config { fmt = "attr-dict" }
   Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.AnyI<64>, #dmc.F<64>> }
     traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
+  Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
+    traits [@WriteTo<"tbl">, @ReadFrom<"key">, @Alloc<"val">]
+    config { fmt = "$tbl `[` $key `]` attr-dict" }
+  Op @get_string() -> (res: !lua.value) { value = #dmc.String }
+    traits [@Alloc<"res">] config { fmt = "$value attr-dict" }
 
   // Value operations
   Alias @BinaryOp -> #dmc.AnyOf<
@@ -186,9 +192,18 @@ Dialect @luac {
     traits [@ReadFrom<"pack">] config { fmt = "$pack attr-dict" }
   Op @pack_rewind(pack: !lua.value_pack) -> ()
     traits [@WriteTo<"pack">] config { fmt = "$pack attr-dict" }
+
+  Op @global_string() -> () { sym = #dmc.String, value = #dmc.String }
+    traits [@MemoryWrite] config { fmt = "symbol($sym) `=` $value attr-dict" }
+  Op @load_string() -> (res: !lua.value) { global_sym = #dmc.String }
+    traits [@Alloc<"res">] config { fmt = "symbol($global_sym) attr-dict" }
 }
 
 Dialect @luallvm {
   Alias @ref -> !llvm<"{ i16, i16, { i64 } }*">
   Alias @pack -> !llvm<"{ i64, i64, { i16, i16, { i64 } }** }*">
+
+  Op @load_string(data: !llvm<"i8*">, length: !llvm.i64) -> (val: !luallvm.ref)
+    traits [@Alloc<"val">]
+    config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
 }

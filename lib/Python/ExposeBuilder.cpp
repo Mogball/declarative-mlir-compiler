@@ -285,6 +285,11 @@ void exposeBuilder(module &m) {
 
   class_<ConversionTarget>(m, "ConversionTarget")
       .def(init([]() { return new ConversionTarget{*getMLIRContext()}; }))
+      .def("addLegalOp", [](ConversionTarget &target, std::string name) {
+        OperationName opName{name, getMLIRContext()};
+        target.setOpAction(opName,
+                           ConversionTarget::LegalizationAction::Legal);
+      })
       .def("addLegalOp", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("getName")().cast<std::string>();
         OperationName opName{name, getMLIRContext()};

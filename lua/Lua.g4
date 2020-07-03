@@ -152,8 +152,10 @@ varOrExp
     ;
 
 var
-    : (NAME | '(' exp ')' varSuffix) varSuffix*
+    : (NAME | exprVar) varSuffix*
     ;
+
+exprVar: '(' exp ')' varSuffix;
 
 varSuffix
     : nameAndArgs* ('[' exp ']' | '.' NAME)
@@ -237,12 +239,18 @@ NAME
     ;
 
 NORMALSTRING
-    : '"' ( EscapeSequence | ~('\\'|'"') )* '"'
+    : '"' NORMALSTRING_SPELLING '"'
     ;
 
+fragment
+NORMALSTRING_SPELLING: ( EscapeSequence | ~('\\'|'"') )* ;
+
 CHARSTRING
-    : '\'' ( EscapeSequence | ~('\''|'\\') )* '\''
+    : '\'' CHARSTRING_SPELLING '\''
     ;
+
+fragment
+CHARSTRING_SPELLING: ( EscapeSequence | ~('\''|'\\') )* ;
 
 LONGSTRING
     : '[' NESTED_STR ']'

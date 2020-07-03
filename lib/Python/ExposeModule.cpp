@@ -45,6 +45,15 @@ AddIOp addICtor(Value lhs, Value rhs, Type ty, Location loc) {
   return b.create<AddIOp>(loc, ty, lhs, rhs);
 }
 
+LLVM::GlobalOp globalOpCtor(LLVM::LLVMType ty, bool isConstant,
+                            LLVM::Linkage linkage, std::string name,
+                            Attribute value, Location loc) {
+  OpBuilder b{getMLIRContext()};
+  return b.create<LLVM::GlobalOp>(loc, ty, isConstant,
+                                  static_cast<LLVM::Linkage>(linkage), name,
+                                  value);
+}
+
 void exposeModule(module &m, OpClass &cls) {
   class_<ModuleOp>(m, "ModuleOp", cls)
       .def(init([](Location loc) { return ModuleOp::create(loc); }),
@@ -153,8 +162,43 @@ void exposeModule(module &m, OpClass &cls) {
 
   class_<LLVM::GlobalOp>(m, "LLVMGlobalOp", cls)
       .def(init([](Operation *op) { return cast<LLVM::GlobalOp>(op); }))
+      .def(init(&globalOpCtor), "ty"_a, "isConstant"_a, "linkage"_a, "name"_a,
+           "value"_a, "loc"_a = getUnknownLoc())
+      .def("value", [](LLVM::GlobalOp op) { return op.valueAttr(); })
       .def_static("getName",
                   []() { return LLVM::GlobalOp::getOperationName().str(); });
+
+  class_<LLVM::GEPOp>(m, "LLVMGEPOp", cls)
+      .def(init([](LLVM::LLVMType res, Value base, ValueListRef indices,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::GEPOp>(loc, res, base, indices);
+      }), "res"_a, "base"_a, "indices"_a, "loc"_a)
+      .def("res", &LLVM::GEPOp::res)
+      .def_static("getName",
+                  []() { return LLVM::GEPOp::getOperationName().str(); });
+
+  class_<LLVM::AddressOfOp>(m, "LLVMAddressOfOp", cls)
+      .def(init([](LLVM::GlobalOp global, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::AddressOfOp>(loc, global);
+      }), "value"_a, "loc"_a)
+      .def("res", &LLVM::AddressOfOp::res)
+      .def_static("getName",
+                  []() { return LLVM::AddressOfOp::getOperationName().str(); });
+
+  class_<LLVM::ConstantOp>(m, "LLVMConstantOp", cls)
+      .def(init([](LLVM::LLVMType res, Attribute value, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::ConstantOp>(loc, res, value);
+      }), "res"_a, "value"_a, "loc"_a)
+      .def("res", &LLVM::ConstantOp::res)
+      .def_static("getName",
+                  []() { return LLVM::ConstantOp::getOperationName().str(); });
+
+  class_<LLVM::Linkage>(m, "LLVMLinkage")
+      .def_static("External", []() { return LLVM::Linkage::External; })
+      .def_static("Internal", []() { return LLVM::Linkage::Internal; });
 
   class_<scf::ForOp>(m, "ForOp", cls)
       .def(init([](Value lowerBound, Value upperBound, Value step,
