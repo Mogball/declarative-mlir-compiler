@@ -292,7 +292,8 @@ void exposeOps(module &m) {
       }, "loc"_a = getUnknownLoc())
       .def("__iter__", [](Region &region) {
         return make_iterator(region.begin(), region.end());
-      }, keep_alive<0, 1>());
+      }, keep_alive<0, 1>())
+      .def("takeBody", &Region::takeBody);
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak

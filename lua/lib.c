@@ -10,6 +10,10 @@ TObject *lua_alloc() {
   return malloc(sizeof(TObject));
 }
 
+void lua_alloc_gc(TObject *val) {
+  val->gc = malloc(sizeof(TComplex));
+}
+
 int16_t lua_get_type(TObject *val) {
   return val->type;
 }
@@ -89,6 +93,9 @@ void lua_pack_push_all(TPack *pack, TPack *vals) {
 }
 int64_t lua_pack_get_size(TPack *pack) {
   return pack->size;
+}
+void lua_pack_rewind(TPack *pack) {
+  pack->idx = 0;
 }
 
 /*******************************************************************************

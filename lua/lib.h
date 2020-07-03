@@ -56,6 +56,7 @@ typedef struct Object {
 } TObject;
 
 TObject *lua_alloc();
+void lua_alloc_gc(TObject *val);
 int16_t lua_get_type(TObject *val);
 void lua_set_type(TObject *val, int16_t ty);
 int64_t lua_get_int64_val(TObject *val);
@@ -75,6 +76,7 @@ void lua_pack_push(TPack *pack, TObject *val);
 TObject *lua_pack_pull_one(TPack *pack);
 void lua_pack_push_all(TPack *pack, TPack *vals);
 int64_t lua_pack_get_size(TPack *pack);
+void lua_pack_rewind(TPack *pack);
 
 #ifdef __cplusplus
 }

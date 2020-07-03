@@ -6,15 +6,11 @@
 --
 --
 --
-a = 5
-function something()
-  print(42, a)
+function do_print(a)
+  print(a)
 end
 
-something()
-
-function something()
-  print(5, a)
-end
-
-something()
+do_print(5)
+do_print()
+do_print(4, 6)
+do_print(print)

@@ -100,7 +100,14 @@ void exposeValue(module &m) {
       .def("getUsers", nullcheck([](Value val) {
         return make_iterator(val.user_begin(), val.user_end());
       }), keep_alive<0, 1>())
-      .def_property_readonly("kind", nullcheck(&Value::getKind));
+      .def_property_readonly("kind", nullcheck(&Value::getKind))
+      .def("getOpUses", [](Value val) {
+        std::vector<Operation *> ret;
+        for (auto it = val.use_begin(), e = val.use_end(); it != e; ++it) {
+          ret.push_back(it.getUser());
+        }
+        return ret;
+      });
 
   class_<BlockArgument>(m, "BlockArgument", value)
       .def_property_readonly("owner", nullcheck(&BlockArgument::getOwner))

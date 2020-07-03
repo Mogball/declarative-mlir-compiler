@@ -380,7 +380,12 @@ class AllocVisitor:
                 self.visit(op)
 
     def visit(self, op:Operation):
-        if isa(op, lua.get_or_alloc):
+        if op.getNumRegions() != 0:
+            self.scope.push_scope()
+
+        if isa(op, lua.end):
+            self.scope.pop_scope()
+        elif isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
         elif isa(op, lua.alloc_local):
             self.visitAllocLocal(lua.alloc_local(op))
@@ -390,12 +395,8 @@ class AllocVisitor:
             self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
             self.visitCall(lua.call(op))
-        # TODO var alloc pass function_def
-
-        if op.getNumRegions() != 0:
-            self.scope.push_scope()
-        elif isa(op, lua.end):
-            self.scope.pop_scope()
+        elif isa(op, lua.function_def):
+            self.visitFunctionDef(lua.function_def(op))
 
     def visitGetOrAlloc(self, op:lua.get_or_alloc):
         if not self.scope.contains(op.var()):
@@ -418,7 +419,7 @@ class AllocVisitor:
 
     def visitAssign(self, op:lua.assign):
         assert self.scope.contains(op.var())
-        # TODO set this at the highest dominating scope
+        # TODO set this at the highest enclosing scope
         self.scope.set_local(op.var(), op.res())
 
     def visitCall(self, op:lua.call):
@@ -427,6 +428,24 @@ class AllocVisitor:
             # unused return values
             self.builder.create(luac.delete_pack, pack=op.rets(), loc=op.loc)
 
+    def visitFunctionDef(self, op:lua.function_def):
+        for i in range(0, len(op.params())):
+            self.scope.set_local(op.params()[i],
+                                 op.region().getBlock(0).getArgument(0))
+
+def explicitCapture(op:lua.function_def, rewriter:Builder):
+    captures = set()
+    def collectCaptures(o):
+        for val in o.getOperands():
+            if val.definingOp and not op.isProperAncestor(val.definingOp):
+                captures.add(val)
+    walkInOrder(op, collectCaptures)
+    captures = list(captures)
+    fcnDef = rewriter.create(lua.function_def_capture, captures=captures,
+                             params=op.params(), loc=op.loc)
+    fcnDef.region().takeBody(op.region())
+    rewriter.replace(op, [fcnDef.fcn()])
+    return True
 
 def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     parent = op.pack().definingOp
@@ -463,6 +482,9 @@ def scopeUseDominates(tgtOp, valOp):
     return False
 
 def elideAssign(op:lua.assign, rewriter:Builder):
+    for user in op.tgt().getOpUses():
+        if isa(user, lua.function_def_capture):
+            return False
     if scopeUseDominates(op.tgt().definingOp, op.val().definingOp):
         rewriter.replace(op, [op.val()])
         return True
@@ -471,6 +493,8 @@ def elideAssign(op:lua.assign, rewriter:Builder):
 def varAllocPass(main:FuncOp):
     # Non-trivial passes
     AllocVisitor().visitAll(main)
+
+    applyOptPatterns(main, [Pattern(lua.function_def, explicitCapture)])
 
     # Trivial passes as patterns
     applyOptPatterns(main, [
@@ -520,14 +544,8 @@ def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
 
 anon_name_counter = 0
 def lowerFunctionDef(module:ModuleOp):
-    def lowerFcn(op:lua.function_def, rewriter:Builder):
-        captures = set()
-        def collectCaptures(o):
-            for val in o.getOperands():
-                if not op.isProperAncestor(val.definingOp):
-                    captures.add(val)
-        walkInOrder(op, collectCaptures)
-        captures = list(captures)
+    def lowerFcn(op:lua.function_def_capture, rewriter:Builder):
+        captures = list(op.captures())
         concatCaps = rewriter.create(lua.concat, vals=captures, loc=op.loc)
 
         global anon_name_counter
@@ -537,12 +555,16 @@ def lowerFunctionDef(module:ModuleOp):
         module.append(func)
         block = func.getBody().addEntryBlock([lua.pack(), lua.pack()])
         rewriter.insertAtStart(block)
-        unpack = rewriter.create(lua.unpack, pack=block.getArgument(0),
+        capPack = rewriter.create(lua.unpack_rewind, pack=block.getArgument(0),
                                  vals=[lua.ref()] * len(captures), loc=op.loc)
+        argPack = rewriter.create(lua.unpack, pack=block.getArgument(1),
+                                  vals=[lua.ref()] * len(op.params()), loc=op.loc)
 
         bvm = BlockAndValueMapping()
         for i in range(0, len(captures)):
-            bvm[captures[i]] = unpack.vals()[i]
+            bvm[captures[i]] = capPack.vals()[i]
+        for i in range(0, len(op.params())):
+            bvm[op.region().getBlock(0).getArgument(i)] = argPack.vals()[i]
         fcnBlk = op.region().getBlock(0)
         copyInto(block, fcnBlk, lua.ret, bvm)
 
@@ -558,6 +580,7 @@ def lowerFunctionDef(module:ModuleOp):
         const = rewriter.create(ConstantOp, value=luac.type_fcn(), loc=op.loc)
         rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
                         loc=op.loc)
+        rewriter.create(luac.alloc_gc, tgt=alloc.res(), loc=op.loc)
         rewriter.create(luac.set_fcn_addr, fcn=alloc.res(),
                         fcn_addr=fcnAddr.result(), loc=op.loc)
         rewriter.create(luac.set_capture_pack, fcn=alloc.res(),
@@ -570,7 +593,7 @@ def lowerFunctionDef(module:ModuleOp):
 def cfExpand(module:ModuleOp, main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.numeric_for, lowerNumericFor),
-        Pattern(lua.function_def, lowerFunctionDef(module)),
+        Pattern(lua.function_def_capture, lowerFunctionDef(module)),
     ])
 
 ################################################################################
@@ -650,18 +673,26 @@ def expandEmptyConcat(op:lua.concat, rewriter:Builder):
     const = rewriter.create(ConstantOp, value=I64Attr(1), loc=op.loc)
     newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
     nil = rewriter.create(lua.nil, loc=op.loc)
-    rewriter.create(luac.pack_push, pack=newPack.pack(), val=nil.res(), op=op.loc)
+    rewriter.create(luac.pack_push, pack=newPack.pack(), val=nil.res(), loc=op.loc)
     rewriter.replace(op, [newPack.pack()])
     return True
 
 def expandUnpack(op:lua.unpack, rewriter:Builder):
-    assert op.pack().hasOneUse(), "value pack can only be used once"
     newVals = []
     for val in op.vals():
         pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
         newVals.append(pull.val())
     rewriter.replace(op, newVals)
     rewriter.create(luac.delete_pack, pack=op.pack(), loc=op.loc)
+    return True
+
+def expandUnpackRewind(op:lua.unpack_rewind, rewriter:Builder):
+    newVals = []
+    for val in op.vals():
+        pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
+        newVals.append(pull.val())
+    rewriter.replace(op, newVals)
+    rewriter.create(luac.pack_rewind, pack=op.pack(), loc=op.loc)
     return True
 
 def expandCall(op:lua.call, rewriter:Builder):
@@ -738,6 +769,8 @@ def lowerToLuac(module:ModuleOp):
                                                 lua.nil]),
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
                                            luac.delete_pack]),
+        Pattern(lua.unpack_rewind, expandUnpackRewind, [luac.pack_pull_one,
+                                                        luac.pack_rewind]),
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp,
                                        luac.get_capture_pack]),
         Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
@@ -795,6 +828,7 @@ def luaToLLVM(module):
         convert(luac.mul, "lua_mul"),
 
         convertLibc(luac.alloc, "lua_alloc"),
+        convertLibc(luac.alloc_gc, "lua_alloc_gc"),
         convertLibc(luac.get_type, "lua_get_type"),
         convertLibc(luac.set_type, "lua_set_type"),
         convertLibc(luac.get_int64_val, "lua_get_int64_val"),
@@ -814,6 +848,7 @@ def luaToLLVM(module):
         convertLibc(luac.pack_pull_one, "lua_pack_pull_one"),
         convertLibc(luac.pack_push_all, "lua_pack_push_all"),
         convertLibc(luac.pack_get_size, "lua_pack_get_size"),
+        convertLibc(luac.pack_rewind, "lua_pack_rewind"),
 
         builtin("print"),
     ]
@@ -839,39 +874,39 @@ def main():
     varAllocPass(main)
     cfExpand(module, main)
 
-    #lib = parseSourceFile("lib.mlir")
-    #for func in lib.getOps(FuncOp):
-    #    module.append(func.clone())
+    lib = parseSourceFile("lib.mlir")
+    for func in lib.getOps(FuncOp):
+        module.append(func.clone())
 
-    #lowerSCFToStandard(module)
-    #lowerToLuac(module)
+    lowerSCFToStandard(module)
+    lowerToLuac(module)
 
-    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
-    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-    #libc = parseSourceFile("libc.mlir")
-    #for glob in libc.getOps(LLVMGlobalOp):
-    #    module.append(glob.clone())
-    #for func in libc.getOps(LLVMFuncOp):
-    #    module.append(func.clone())
+    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    libc = parseSourceFile("libc.mlir")
+    for glob in libc.getOps(LLVMGlobalOp):
+        module.append(glob.clone())
+    for func in libc.getOps(LLVMFuncOp):
+        module.append(func.clone())
 
-    #runAllOpts(module)
+    runAllOpts(module)
 
-    #luaToLLVM(module)
-    #verify(module)
-
-    #with open("main.mlir", "w") as f:
-    #    stdout = sys.stdout
-    #    sys.stdout = f
-    #    print(module)
-    #    sys.stdout = stdout
-
-    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
-    #os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    #os.system("clang -c main.ll -o main.o -g -O2")
-    #os.system("clang main.o builtins.o -o main -g -O2")
-
-    print(module)
+    luaToLLVM(module)
     verify(module)
+
+    with open("main.mlir", "w") as f:
+        stdout = sys.stdout
+        sys.stdout = f
+        print(module)
+        sys.stdout = stdout
+
+    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2")
+    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+    os.system("clang -c main.ll -o main.o -g -O2")
+    os.system("ld main.o builtins.o -lc -lc++ -o main")
+
+    #verify(module)
+    #print(module)
 
 if __name__ == '__main__':
     main()

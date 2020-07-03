@@ -17,7 +17,10 @@ Dialect @lua {
     traits [@SameVariadicOperandSizes, @ReadFrom<"vals">]
     config { fmt = "`(` $vals `)` `:` functional-type($vals, $pack) attr-dict" }
   Op @unpack(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
-    traits [@SameVariadicResultSizes]
+    traits [@SameVariadicResultSizes, @ReadFrom<"pack">, @WriteTo<"pack">]
+    config { fmt = "$pack `:` functional-type($pack, $vals) attr-dict" }
+  Op @unpack_rewind(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
+    traits [@SameVariadicResultSizes, @ReadFrom<"pack">, @WriteTo<"pack">]
     config { fmt = "$pack `:` functional-type($pack, $vals) attr-dict" }
 
   // Variable handling
@@ -71,6 +74,10 @@ Dialect @lua {
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
     traits [@MemoryWrite]
     config { fmt = "$params $region attr-dict" }
+  Op @function_def_capture(captures: !dmc.Variadic<!lua.value>) -> (fcn: !lua.value)
+    { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
+    traits [@MemoryWrite, @SameVariadicOperandSizes]
+    config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
     traits [@IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
@@ -112,6 +119,8 @@ Dialect @luac {
 
   Op @alloc() -> (res: !lua.value)
     traits [@Alloc<"res">] config { fmt = "attr-dict" }
+  Op @alloc_gc(tgt: !lua.value) -> ()
+    traits [@MemoryAlloc, @WriteTo<"tgt">] config { fmt = "$tgt attr-dict" }
 
   Op @set_type(tgt: !lua.value, ty: !luac.type_enum) -> ()
     traits [@WriteTo<"tgt">]
@@ -174,8 +183,9 @@ Dialect @luac {
     traits [@WriteTo<"pack">, @ReadFrom<"pack">]
     config { fmt = "$pack attr-dict" }
   Op @pack_get_size(pack: !lua.value_pack) -> (sz: i64)
-    traits [@ReadFrom<"pack">]
-    config { fmt = "$pack attr-dict" }
+    traits [@ReadFrom<"pack">] config { fmt = "$pack attr-dict" }
+  Op @pack_rewind(pack: !lua.value_pack) -> ()
+    traits [@WriteTo<"pack">] config { fmt = "$pack attr-dict" }
 }
 
 Dialect @luallvm {
