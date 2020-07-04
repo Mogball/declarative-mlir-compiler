@@ -92,6 +92,14 @@ class Generator:
         assert self.curBlock != None, "too many block pops"
         self.builder.insertAtEnd(self.curBlock)
 
+    def handleCondRetstat(self, ctx, retstat):
+        if retstat:
+            retVals = []
+            if retstat.explist():
+                retVals = self.explist(retstat.explist())
+            self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
+        else:
+            self.builder.create(lua.end, loc=self.getEndLoc(ctx))
 
     #### AST Walker
     ###############
@@ -238,7 +246,7 @@ class Generator:
         elif ctx.elipsis():
             raise NotImplementedError("elipsis not implemented")
         elif ctx.functiondef():
-            raise NotImplementedError("functiondef not implemented")
+            return self.functiondef(ctx.functiondef())
         elif ctx.prefixexp():
             return self.prefixexp(ctx.prefixexp())
         elif ctx.tableconstructor():
@@ -343,14 +351,10 @@ class Generator:
     def funcbody(self, ctx:LuaParser.FuncbodyContext):
         return self.parlist(ctx.parlist()) if ctx.parlist() else ArrayAttr([])
 
-    def namedfunctiondef(self, ctx:LuaParser.NamedfunctiondefContext):
-        name = self.funcname(ctx.funcname())
+    def functiondef(self, ctx:LuaParser.FunctiondefContext):
         params = self.funcbody(ctx.funcbody())
         loc = self.getStartLoc(ctx)
         fcnDef = self.builder.create(lua.function_def, params=params, loc=loc)
-        alloc = self.builder.create(lua.get_or_alloc, var=name, loc=loc)
-        self.builder.create(lua.assign, tgt=alloc.res(), val=fcnDef.fcn(),
-                            var=name, loc=loc)
 
         self.pushBlock(fcnDef.region().addEntryBlock([lua.ref()] * len(params)))
         self.block(ctx.funcbody().block())
@@ -360,16 +364,16 @@ class Generator:
             retVals = self.explist(retstat.explist())
         self.builder.create(lua.ret, vals=retVals, loc=loc)
         self.popBlock()
+        return fcnDef.fcn()
 
-    def handleCondRetstat(self, ctx, retstat):
-        if retstat:
-            retVals = []
-            if retstat.explist():
-                retVals = self.explist(retstat.explist())
-            self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
-        else:
-            self.builder.create(lua.end, loc=self.getEndLoc(ctx))
-
+    def namedfunctiondef(self, ctx:LuaParser.NamedfunctiondefContext):
+        # same as functiondef except with assignment to named variable
+        fcn = self.functiondef(ctx)
+        name = self.funcname(ctx.funcname())
+        alloc = self.builder.create(lua.get_or_alloc, var=name,
+                                    loc=self.getStartLoc(ctx))
+        self.builder.create(lua.assign, tgt=alloc.res(), val=fcn, var=name,
+                            loc=self.getStartLoc(ctx))
 
     def ifblock(self, ctx):
         cond = self.exp(ctx.exp())
@@ -530,7 +534,7 @@ class AllocVisitor:
     def visitFunctionDef(self, op:lua.function_def):
         for i in range(0, len(op.params())):
             self.scope.set_local(op.params()[i],
-                                 op.region().getBlock(0).getArgument(0))
+                                 op.region().getBlock(0).getArgument(i))
 
 def explicitCapture(op:lua.function_def, rewriter:Builder):
     captures = set()
@@ -563,7 +567,7 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     rewriter.replace(op, newVals)
     return True
 
-lua_builtins = set(["print", "string"])
+lua_builtins = set(["print", "string", "io", "table"])
 def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     if op.var().getValue() not in lua_builtins:
         return False
@@ -1070,8 +1074,7 @@ def luaToLLVM(module):
         convertLibc(lua.table_get, "lua_table_get"),
         convertLibc(luallvm.load_string, "lua_load_string"),
 
-        builtin("print"),
-        builtin("string"),
+        builtin("print"), builtin("string"), builtin("io"), builtin("table"),
     ]
     target = LLVMConversionTarget()
     lowerToLLVM(module, LLVMConversionTarget(), llvmPats,

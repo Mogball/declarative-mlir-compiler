@@ -1,12 +1,6 @@
-for a=0,15,5 do
-  print(a)
-
-  if a == 10 then
-    print("no")
-  elseif a == 5 then
-    print("maybe")
-  else
-    print("yes")
-  end
-
+hello = function(a, b)
+  print(a + b)
+  return b, a
 end
+
+print(hello(5, 6))
