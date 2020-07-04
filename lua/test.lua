@@ -1,8 +1,8 @@
-a, b = string.find("hello", "ll")
-if a == 3 and b == 4 then
-  print("hi")
-else
-  print("bye")
+a = 1
+
+while a < 15 do
+  print(a)
+  a = a + 5
 end
 
-print("xd")
+print(a)

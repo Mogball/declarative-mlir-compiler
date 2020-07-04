@@ -86,10 +86,14 @@ Dialect @lua {
     config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
   Op @cond_if(cond: !lua.value) -> () (first: Sized<1>, second: Sized<1>)
     traits [@ReadFrom<"cond">] config { fmt = "$cond `then` $first `else` $second attr-dict" }
+  Op @loop_while() -> () (eval: Sized<1>, region: Sized<1>)
+    config { fmt = "$eval `do` $region attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
     traits [@IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
     config { fmt = "($vals^ `:` type($vals))? attr-dict" }
+  Op @cond(cond: !lua.value) -> () traits [@ReadFrom<"cond">, @IsTerminator]
+    config { fmt = "$cond attr-dict" }
 }
 
 Dialect @luac {
@@ -127,6 +131,7 @@ Dialect @luac {
   Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }

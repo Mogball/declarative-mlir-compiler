@@ -134,7 +134,7 @@ class Generator:
         elif ctx.enclosedblock():
             raise NotImplementedError("enclosedblock not implemented")
         elif ctx.whileloop():
-            raise NotImplementedError("whileloop not implemented")
+            self.whileloop(ctx.whileloop())
         elif ctx.repeatloop():
             raise NotImplementedError("repeatloop not implemented")
         elif ctx.conditionalchain():
@@ -397,6 +397,18 @@ class Generator:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx.elseblock()))
         for i in range(0, depth):
             self.popBlock()
+
+    def whileloop(self, ctx:LuaParser.WhileloopContext):
+        loop = self.builder.create(lua.loop_while, loc=self.getStartLoc(ctx))
+        self.pushBlock(loop.eval().addEntryBlock([]))
+        cond = self.exp(ctx.exp())
+        self.builder.create(lua.cond, cond=cond, loc=self.getStartLoc(ctx.exp()))
+        self.popBlock()
+        self.pushBlock(loop.region().addEntryBlock([]))
+        self.block(ctx.block())
+        assert ctx.block().retstat() == None, "unexpected terminator in while"
+        self.builder.create(lua.end, loc=self.getEndLoc(ctx.block()))
+        self.popBlock()
 
 ################################################################################
 # Front-End: Variable Allocation and SSA
@@ -703,11 +715,40 @@ def lowerCondIf(op:lua.cond_if, rewriter:Builder):
     rewriter.erase(op)
     return True
 
+def lowerLoopWhile(op:lua.loop_while, rewriter:Builder):
+    before = op.block
+    after = before.split(op)
+    cond = Block()
+    body = Block()
+    body.insertBefore(after)
+    cond.insertBefore(body)
+    # br to eval
+    rewriter.insertAtEnd(before)
+    rewriter.create(BranchOp, dest=cond, loc=op.loc)
+    # cond
+    copyInto(cond, op.eval().getBlock(0))
+    condTerm = lua.cond(cond.getTerminator())
+    rewriter.insertBefore(condTerm)
+    condBool = rewriter.create(luac.get_bool_val, tgt=condTerm.cond(),
+                               loc=condTerm.loc).b()
+    rewriter.create(CondBranchOp, cond=condBool, trueDest=body, falseDest=after,
+                    loc=op.loc)
+    rewriter.erase(condTerm)
+    # body
+    copyInto(body, op.region().getBlock(0))
+    bodyTerm = lua.end(body.getTerminator())
+    rewriter.insertBefore(bodyTerm)
+    rewriter.create(BranchOp, dest=cond, loc=bodyTerm.loc)
+    rewriter.erase(bodyTerm)
+    rewriter.erase(op)
+    return True
+
 def cfExpand(module:ModuleOp, main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.numeric_for, lowerNumericFor),
         Pattern(lua.function_def_capture, lowerFunctionDef(module)),
         Pattern(lua.cond_if, lowerCondIf),
+        Pattern(lua.loop_while, lowerLoopWhile),
     ])
 
 ################################################################################
@@ -870,6 +911,7 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
+        Pattern(lua.binary, getExpanderFor("<", luac.lt), [luac.lt]),
         Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
         Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
 
@@ -995,6 +1037,7 @@ def luaToLLVM(module):
         convert(luac.add, "lua_add"),
         convert(luac.sub, "lua_sub"),
         convert(luac.mul, "lua_mul"),
+        convert(luac.lt, "lua_lt"),
         convert(luac.eq, "lua_eq"),
         convert(luac.bool_and, "lua_bool_and"),
 
@@ -1083,6 +1126,9 @@ def main():
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -g -O2")
     os.system("ld main.o builtins.o impl.o str.o -lc -lc++ -o main")
+
+    #verify(module)
+    #print(module)
 
 if __name__ == '__main__':
     main()

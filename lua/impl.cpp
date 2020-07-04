@@ -30,10 +30,7 @@ struct LuaHash {
 };
 
 struct LuaEq {
-  bool operator()(TObject *lhs, TObject *rhs) const {
-    if (lua_get_type(lhs) != lua_get_type(rhs)) {
-      return false;
-    }
+  static bool compare(TObject *lhs, TObject *rhs) {
     switch (lua_get_type(lhs)) {
     case NIL:
       return true;
@@ -52,6 +49,13 @@ struct LuaEq {
     default:
       return lhs->u == rhs->u;
     }
+  }
+
+  bool operator()(TObject *lhs, TObject *rhs) const {
+    if (lua_get_type(lhs) != lua_get_type(rhs)) {
+      return false;
+    }
+    return compare(lhs, rhs);
   }
 };
 
@@ -158,7 +162,7 @@ TObject *lua_load_string_impl(const char *data, uint64_t len) {
 
 bool lua_eq_impl(TObject *lhs, TObject *rhs) {
   // already verified as same type
-  return lua::LuaEq{}(lhs, rhs);
+  return lua::LuaEq::compare(lhs, rhs);
 }
 
 }
