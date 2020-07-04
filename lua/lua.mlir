@@ -132,6 +132,11 @@ Dialect @luac {
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
+  Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }

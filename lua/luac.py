@@ -388,16 +388,16 @@ class Generator:
 
     def conditionalchain(self, ctx:LuaParser.ConditionalchainContext):
         self.ifblock(ctx.ifblock())
-        depth = 1
         for elseif in ctx.elseifblock():
-            depth += 1
             self.ifblock(elseif)
         if ctx.elseblock():
             self.elseblock(ctx.elseblock())
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx.ifblock()))
-        for i in range(0, depth):
+        for elseif in ctx.elseifblock():
             self.popBlock()
+            self.builder.create(lua.end, loc=self.getEndLoc(elseif))
+        self.popBlock()
 
     def whileloop(self, ctx:LuaParser.WhileloopContext):
         loop = self.builder.create(lua.loop_while, loc=self.getStartLoc(ctx))
@@ -614,32 +614,23 @@ def copyInto(newBlk, oldBlk, termCls=None, bvm=BlockAndValueMapping()):
             newBlk.append(oldOp.clone(bvm))
 
 def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
-    def toIndex(val):
-        iv = rewriter.create(luac.get_int64_val, tgt=val, loc=op.loc)
-        i = rewriter.create(IndexCastOp, source=iv.num(), type=IndexType(),
-                            loc=op.loc)
-        return i.result()
-    # this is a little messy
-    upper = toIndex(op.upper())
-    const = rewriter.create(ConstantOp, value=IndexAttr(1), loc=op.loc)
-    incr = rewriter.create(AddIOp, lhs=upper, rhs=const.result(),
-                           ty=IndexType(), loc=op.loc)
-    loop = rewriter.create(ForOp, lowerBound=toIndex(op.lower()),
-                           upperBound=incr.result(), step=toIndex(op.step()),
-                           loc=op.loc)
-    loop.region().getBlock(0).erase()
-    loopBlk = loop.region().addEntryBlock([IndexType()])
-    forBlk = op.region().getBlock(0)
+    step = rewriter.create(luac.get_int64_val, tgt=op.step(), loc=op.loc).num()
+    lower = rewriter.create(luac.get_int64_val, tgt=op.lower(), loc=op.loc)
+    i = rewriter.create(luac.wrap_int, num=lower.num(), loc=op.loc).res()
+    loopWhile = rewriter.create(lua.loop_while, loc=op.loc)
+    rewriter.insertAtStart(loopWhile.eval().addEntryBlock([]))
+    le = rewriter.create(luac.le, lhs=i, rhs=op.upper(), loc=op.loc)
+    rewriter.create(lua.cond, cond=le.res(), loc=op.loc)
 
-    rewriter.insertAtStart(loopBlk)
-    i = rewriter.create(IndexCastOp, source=loop.getInductionVar(),
-                        type=luac.integer(), loc=op.loc)
-    val = rewriter.create(luac.wrap_int, num=i.result(), loc=op.loc)
     bvm = BlockAndValueMapping()
-    bvm[forBlk.getArgument(0)] = val.res()
-    copyInto(loopBlk, forBlk, lua.end, bvm)
-    rewriter.insertAtEnd(loopBlk)
-    rewriter.create(YieldOp, loc=op.loc)
+    bvm[op.region().getBlock(0).getArgument(0)] = i
+    copyInto(loopWhile.region().addEntryBlock([]), op.region().getBlock(0),
+             None, bvm)
+
+    rewriter.insertBefore(loopWhile.region().getBlock(0).getTerminator())
+    iv = rewriter.create(luac.get_int64_val, tgt=i, loc=op.loc).num()
+    newI = rewriter.create(AddIOp, lhs=iv, rhs=step, ty=I64Type(), loc=op.loc).result()
+    rewriter.create(luac.set_int64_val, tgt=i, num=newI, loc=op.loc)
     rewriter.erase(op)
     return True
 
@@ -1048,6 +1039,7 @@ def luaToLLVM(module):
         convert(luac.sub, "lua_sub"),
         convert(luac.mul, "lua_mul"),
         convert(luac.lt, "lua_lt"),
+        convert(luac.le, "lua_le"),
         convert(luac.eq, "lua_eq"),
         convert(luac.bool_and, "lua_bool_and"),
 
