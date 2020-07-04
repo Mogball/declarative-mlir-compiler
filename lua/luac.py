@@ -30,6 +30,9 @@ class Generator:
     def __init__(self, filename:str, stream:CommonTokenStream):
         self.filename = filename
         self.stream = stream
+        self.builder = Builder()
+        self.blockStack = []
+        self.curBlock = None
 
     def getStartLoc(self, ctx:ParserRuleContext):
         a, b = ctx.getSourceInterval()
@@ -79,6 +82,16 @@ class Generator:
         assert unpackLast
         return val
 
+    def pushBlock(self, block):
+        self.blockStack.append(self.curBlock)
+        self.curBlock = block
+        self.builder.insertAtStart(self.curBlock)
+
+    def popBlock(self):
+        self.curBlock = self.blockStack.pop()
+        assert self.curBlock != None, "too many block pops"
+        self.builder.insertAtEnd(self.curBlock)
+
 
     #### AST Walker
     ###############
@@ -91,11 +104,9 @@ class Generator:
 
         # Set the current region
         self.region = main.getBody()
-        self.curBlock = self.region.addEntryBlock([])
-        self.builder = Builder()
+        self.pushBlock(self.region.addEntryBlock([]))
 
         # Process the block
-        self.builder.insertAtStart(self.curBlock)
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unexpected return statement"
         self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
@@ -127,7 +138,7 @@ class Generator:
         elif ctx.repeatloop():
             raise NotImplementedError("repeatloop not implemented")
         elif ctx.conditionalchain():
-            raise NotImplementedError("conditionalchain not implemented")
+            self.conditionalchain(ctx.conditionalchain())
         elif ctx.numericfor():
             self.numericfor(ctx.numericfor())
         elif ctx.genericfor():
@@ -313,15 +324,12 @@ class Generator:
                                    step=step, loc=loc, ivar=varName)
 
         # Save previous block and add entry block
-        prevBlock = self.curBlock
-        self.curBlock = loop.region().addEntryBlock([lua.ref()])
-        self.builder.insertAtStart(self.curBlock)
+        self.pushBlock(loop.region().addEntryBlock([lua.ref()]))
         # Process the block and restore builder
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unsupported return statement"
         self.builder.create(lua.end, loc=loc)
-        self.curBlock = prevBlock
-        self.builder.insertAtEnd(self.curBlock)
+        self.popBlock()
 
     def funcname(self, ctx:LuaParser.FuncnameContext):
         assert len(ctx.NAME()) == 1, "only simple function names supported"
@@ -343,18 +351,52 @@ class Generator:
         self.builder.create(lua.assign, tgt=alloc.res(), val=fcnDef.fcn(),
                             var=name, loc=loc)
 
-        prevBlock = self.curBlock
-        self.curBlock = fcnDef.region().addEntryBlock([lua.ref()] * len(params))
-        self.builder.insertAtStart(self.curBlock)
-
+        self.pushBlock(fcnDef.region().addEntryBlock([lua.ref()] * len(params)))
         self.block(ctx.funcbody().block())
         retstat = ctx.funcbody().block().retstat()
         retVals = []
         if retstat and retstat.explist():
             retVals = self.explist(retstat.explist())
         self.builder.create(lua.ret, vals=retVals, loc=loc)
-        self.curBlock = prevBlock
-        self.builder.insertAtEnd(self.curBlock)
+        self.popBlock()
+
+    def handleCondRetstat(self, ctx, retstat):
+        if retstat:
+            retVals = []
+            if retstat.explist():
+                retVals = self.explist(retstat.explist())
+            self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
+        else:
+            self.builder.create(lua.end, loc=self.getEndLoc(ctx))
+
+
+    def ifblock(self, ctx):
+        cond = self.exp(ctx.exp())
+        cond_if = self.builder.create(lua.cond_if, cond=cond,
+                                      loc=self.getStartLoc(ctx))
+        self.pushBlock(cond_if.first().addEntryBlock([]))
+        self.block(ctx.block())
+        self.handleCondRetstat(ctx, ctx.block().retstat())
+        self.popBlock()
+
+        self.pushBlock(cond_if.second().addEntryBlock([]))
+
+    def elseblock(self, ctx):
+        self.block(ctx.block())
+        self.handleCondRetstat(ctx, ctx.block().retstat())
+
+    def conditionalchain(self, ctx:LuaParser.ConditionalchainContext):
+        self.ifblock(ctx.ifblock())
+        depth = 1
+        for elseif in ctx.elseifblock():
+            depth += 1
+            self.ifblock(elseif)
+        if ctx.elseblock():
+            self.elseblock(ctx.elseblock())
+        else:
+            self.builder.create(lua.end, loc=self.getEndLoc(ctx.elseblock()))
+        for i in range(0, depth):
+            self.popBlock()
 
 ################################################################################
 # Front-End: Variable Allocation and SSA
@@ -544,9 +586,9 @@ def varAllocPass(main:FuncOp):
 # IR: Dialect Conversion to SCF
 ################################################################################
 
-def copyInto(newBlk, oldBlk, termCls, bvm=BlockAndValueMapping()):
+def copyInto(newBlk, oldBlk, termCls=None, bvm=BlockAndValueMapping()):
     for oldOp in oldBlk:
-        if not isa(oldOp, termCls):
+        if not termCls or not isa(oldOp, termCls):
             newBlk.append(oldOp.clone(bvm))
 
 def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
@@ -627,10 +669,45 @@ def lowerFunctionDef(module:ModuleOp):
 
     return lowerFcn
 
+def handleCondTerm(term:Operation, after:Block, rewriter:Builder):
+    rewriter.insertBefore(term)
+    if isa(term, lua.end):
+        rewriter.create(BranchOp, dest=after, loc=term.loc)
+    elif isa(term, lua.ret):
+        retVals = lua.ret(term).vals()
+        concat = rewriter.create(lua.concat, vals=retVals, loc=term.loc)
+        rewriter.create(ReturnOp, operands=[concat.pack()], loc=term.loc)
+    else:
+        raise ValueError("expected lua.ret or lua.end as terminator")
+    rewriter.erase(term)
+
+def lowerCondIf(op:lua.cond_if, rewriter:Builder):
+    boolVal = rewriter.create(luac.get_bool_val, tgt=op.cond(), loc=op.loc).b()
+    # Add the conditional blocks [before, first, second, after]
+    before = op.block
+    after = before.split(op)
+    first = Block()
+    second = Block()
+    second.insertBefore(after)
+    first.insertBefore(second)
+    # cond_br
+    rewriter.insertAtEnd(before)
+    rewriter.create(CondBranchOp, loc=op.loc, cond=boolVal, trueDest=first,
+                    falseDest=second)
+    # trueDest
+    copyInto(first, op.first().getBlock(0))
+    handleCondTerm(first.getTerminator(), after, rewriter)
+    # falseDest
+    copyInto(second, op.second().getBlock(0))
+    handleCondTerm(second.getTerminator(), after, rewriter)
+    rewriter.erase(op)
+    return True
+
 def cfExpand(module:ModuleOp, main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.numeric_for, lowerNumericFor),
         Pattern(lua.function_def_capture, lowerFunctionDef(module)),
+        Pattern(lua.cond_if, lowerCondIf),
     ])
 
 ################################################################################
@@ -793,6 +870,8 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
+        Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
+        Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
 
         Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
                 [luac.alloc, luac.set_int64_val, luac.set_type, ConstantOp]),
@@ -916,11 +995,15 @@ def luaToLLVM(module):
         convert(luac.add, "lua_add"),
         convert(luac.sub, "lua_sub"),
         convert(luac.mul, "lua_mul"),
+        convert(luac.eq, "lua_eq"),
+        convert(luac.bool_and, "lua_bool_and"),
 
         convertLibc(luac.alloc, "lua_alloc"),
         convertLibc(luac.alloc_gc, "lua_alloc_gc"),
         convertLibc(luac.get_type, "lua_get_type"),
         convertLibc(luac.set_type, "lua_set_type"),
+        convertLibc(luac.get_bool_val, "lua_get_bool_val"),
+        convertLibc(luac.set_bool_val, "lua_set_bool_val"),
         convertLibc(luac.get_int64_val, "lua_get_int64_val"),
         convertLibc(luac.set_int64_val, "lua_set_int64_val"),
         convertLibc(luac.get_double_val, "lua_get_double_val"),
@@ -1000,9 +1083,6 @@ def main():
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -g -O2")
     os.system("ld main.o builtins.o impl.o str.o -lc -lc++ -o main")
-
-    #verify(module)
-    #print(module)
 
 if __name__ == '__main__':
     main()

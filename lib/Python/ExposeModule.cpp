@@ -148,6 +148,26 @@ void exposeModule(module &m, OpClass &cls) {
       }), "source"_a, "type"_a, "loc"_a = getUnknownLoc())
       .def("result", &IndexCastOp::getResult);
 
+  class_<BranchOp>(m, "BranchOp", cls)
+      .def(init([](Block *dest, ValueListRef destOperands, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<BranchOp>(loc, dest, destOperands);
+      }), "dest"_a, "destOperands"_a = ValueList{}, "loc"_a = getUnknownLoc())
+      .def("dest", &BranchOp::dest);
+
+  class_<CondBranchOp>(m, "CondBranchOp", cls)
+      .def(init([](Value cond, Block *trueDest, Block *falseDest,
+                   ValueListRef trueOperands, ValueListRef falseOperands,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<CondBranchOp>(loc, cond, trueDest, trueOperands,
+                                      falseDest, falseOperands);
+      }), "cond"_a, "trueDest"_a, "falseDest"_a,
+           "trueOperands"_a = ValueList{}, "falseOperands"_a = ValueList{},
+           "loc"_a = getUnknownLoc())
+      .def("trueDest", &CondBranchOp::trueDest)
+      .def("falseDest", &CondBranchOp::falseDest);
+
   class_<LLVM::CallOp>(m, "LLVMCallOp", cls)
       .def(init([](LLVM::LLVMFuncOp func, ValueListRef operands, Location loc) {
         OpBuilder b{getMLIRContext()};

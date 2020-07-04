@@ -273,6 +273,18 @@ void exposeOps(module &m) {
   implicitly_convertible<BaseOp, Operation>();
   implicitly_convertible<Operation, BaseOp>();
 
+  class_<BlockAndValueMapping>(m, "BlockAndValueMapping")
+      .def(init<>())
+      .def("__setitem__", [](BlockAndValueMapping &m, Value from, Value to) {
+        m.map(from, to);
+      })
+      .def("__delitem__", [](BlockAndValueMapping &m, Value from) {
+        m.erase(from);
+      })
+      .def("__contains__", [](BlockAndValueMapping &m, Value from) {
+        return m.contains(from);
+      });
+
   class_<Region, std::unique_ptr<Region, nodelete>>(m, "Region")
       .def("empty", &Region::empty)
       .def("getBlock", [](Region &region, unsigned idx) {
@@ -293,7 +305,12 @@ void exposeOps(module &m) {
       .def("__iter__", [](Region &region) {
         return make_iterator(region.begin(), region.end());
       }, keep_alive<0, 1>())
-      .def("takeBody", &Region::takeBody);
+      .def("takeBody", &Region::takeBody)
+      .def("cloneInto", overload<void(Region::*)(Region *, BlockAndValueMapping &)>(&Region::cloneInto),
+           "dest"_a, "bvm"_a = BlockAndValueMapping{})
+      .def("cloneInto", [](Region &region, Region *dest, Block *it, BlockAndValueMapping &bvm) {
+        region.cloneInto(dest, Region::iterator{it}, bvm);
+      }, "dest"_a, "it"_a, "bvm"_a = BlockAndValueMapping{});
 
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak
@@ -315,23 +332,13 @@ void exposeOps(module &m) {
       .def("addArg", [](Block &block, Type ty) {
         block.addArguments(ty);
       })
+      .def("split", overload<Block *(Block::*)(Operation *)>(&Block::splitBlock))
       .def("append", &Block::push_back)
       .def("erase", &Block::erase)
+      .def("insertBefore", &Block::insertBefore)
       .def("__iter__", [](Block &block) {
         return make_iterator(block.begin(), block.end());
       }, keep_alive<0, 1>());
-
-  class_<BlockAndValueMapping>(m, "BlockAndValueMapping")
-      .def(init<>())
-      .def("__setitem__", [](BlockAndValueMapping &m, Value from, Value to) {
-        m.map(from, to);
-      })
-      .def("__delitem__", [](BlockAndValueMapping &m, Value from) {
-        m.erase(from);
-      })
-      .def("__contains__", [](BlockAndValueMapping &m, Value from) {
-        return m.contains(from);
-      });
 
   exposeModule(m, opCls);
 

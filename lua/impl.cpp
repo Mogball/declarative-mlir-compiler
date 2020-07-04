@@ -156,4 +156,9 @@ TObject *lua_load_string_impl(const char *data, uint64_t len) {
   return ret;
 }
 
+bool lua_eq_impl(TObject *lhs, TObject *rhs) {
+  // already verified as same type
+  return lua::LuaEq{}(lhs, rhs);
+}
+
 }

@@ -84,6 +84,8 @@ Dialect @lua {
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
     traits [@MemoryWrite, @SameVariadicOperandSizes]
     config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
+  Op @cond_if(cond: !lua.value) -> () (first: Sized<1>, second: Sized<1>)
+    traits [@ReadFrom<"cond">] config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
     traits [@IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
@@ -122,6 +124,12 @@ Dialect @luac {
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
+  Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+   traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
 
   Op @alloc() -> (res: !lua.value)
     traits [@Alloc<"res">] config { fmt = "attr-dict" }
@@ -134,6 +142,13 @@ Dialect @luac {
   Op @get_type(tgt: !lua.value) -> (ty: !luac.type_enum)
     traits [@ReadFrom<"tgt">]
     config { fmt = "`type` `(` $tgt `)` attr-dict" }
+
+  Op @set_bool_val(tgt: !lua.value, b: !luac.bool) -> ()
+    traits [@WriteTo<"tgt">]
+    config { fmt = "$tgt `=` $b attr-dict" }
+  Op @get_bool_val(tgt: !lua.value) -> (b: !luac.bool)
+    traits [@ReadFrom<"tgt">]
+    config { fmt = "$tgt attr-dict" }
 
   Op @set_int64_val(tgt: !lua.value, num: !luac.integer) -> ()
     traits [@WriteTo<"tgt">]

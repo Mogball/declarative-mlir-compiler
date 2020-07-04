@@ -1,6 +1,6 @@
 module {
   func @luac_check_number_type(%lhs: !lua.ref, %rhs: !lua.ref) -> (!luac.bool, !luac.type_enum) {
-    %num_type = constant 2 : !luac.type_enum
+    %num_type = constant #luac.type_num
     %lhs_type = luac.get_type type(%lhs)
     %rhs_type = luac.get_type type(%rhs)
 
@@ -104,6 +104,46 @@ module {
       }
     }
 
+    return %ret : !lua.ref
+  }
+
+  func @lua_bool_and(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %lhs_type = luac.get_type type(%lhs)
+    %rhs_type = luac.get_type type(%rhs)
+    %same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
+    %bool_type = constant #luac.type_bool
+    %is_bool = cmpi "eq", %lhs_type, %bool_type : !luac.type_enum
+    %types_ok = and %same_type, %is_bool : !luac.bool
+
+    %ret = lua.nil
+    loop.if %types_ok {
+      luac.set_type type(%ret) = %bool_type
+      %lhs_b = luac.get_bool_val %lhs
+      %rhs_b = luac.get_bool_val %rhs
+      %ret_b = and %lhs_b, %rhs_b : !luac.bool
+      luac.set_bool_val %ret = %ret_b
+    }
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_eq_impl(%lhs: !lua.ref, %rhs: !lua.ref) -> !luac.bool
+  func @lua_eq(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %lhs_type = luac.get_type type(%lhs)
+    %rhs_type = luac.get_type type(%rhs)
+    %same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
+
+    %ret_bool = loop.if %same_type -> !luac.bool {
+      %result = call @lua_eq_impl(%lhs, %rhs) : (!lua.ref, !lua.ref) -> !luac.bool
+      loop.yield %result : !luac.bool
+    } else {
+      %false = constant 0 : !luac.bool
+      loop.yield %false : !luac.bool
+    }
+    %ret = luac.alloc
+    %bool_type = constant #luac.type_bool
+    luac.set_type type(%ret) = %bool_type
+    luac.set_bool_val %ret = %ret_bool
     return %ret : !lua.ref
   }
 }

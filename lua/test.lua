@@ -1,4 +1,8 @@
-for i=1,8 do
-  a, b = string.find("ll ll ll", "ll", i)
-  print("index:", i, "start:", a, "end:", b)
+a, b = string.find("hello", "ll")
+if a == 3 and b == 4 then
+  print("hi")
+else
+  print("bye")
 end
+
+print("xd")
