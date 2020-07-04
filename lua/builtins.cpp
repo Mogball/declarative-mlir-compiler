@@ -107,7 +107,7 @@ TPack *fcn_builtin_string_find(TPack *, TPack *pack) {
   return ret;
 }
 
-TObject *construct_builtin_print() {
+TObject *construct_builtin_print(void) {
   TObject *print = lua_alloc();
   lua_set_type(print, FCN);
   lua_alloc_gc(print);
@@ -116,7 +116,7 @@ TObject *construct_builtin_print() {
   return print;
 }
 
-TObject *construct_builtin_string() {
+TObject *construct_builtin_string(void) {
   TObject *string = lua_alloc();
   lua_set_type(string, TBL);
   lua_alloc_gc(string);

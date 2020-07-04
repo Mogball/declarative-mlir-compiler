@@ -99,7 +99,7 @@ class Generator:
     def chunk(self, ctx:LuaParser.ChunkContext):
         # Create the Lua module
         module = ModuleOp()
-        main = FuncOp("main", FunctionType(), self.getStartLoc(ctx))
+        main = FuncOp("lua_main", FunctionType([], [lua.pack()]), self.getStartLoc(ctx))
         module.append(main)
 
         # Set the current region
@@ -109,7 +109,8 @@ class Generator:
         # Process the block
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unexpected return statement"
-        self.builder.create(ReturnOp, loc=self.getEndLoc(ctx))
+        empty = self.builder.create(lua.concat, vals=[], loc=self.getEndLoc(ctx))
+        self.builder.create(ReturnOp, operands=[empty.pack()], loc=self.getEndLoc(ctx))
 
         # Return the module
         assert verify(module), "module failed to verify"
@@ -394,7 +395,7 @@ class Generator:
         if ctx.elseblock():
             self.elseblock(ctx.elseblock())
         else:
-            self.builder.create(lua.end, loc=self.getEndLoc(ctx.elseblock()))
+            self.builder.create(lua.end, loc=self.getEndLoc(ctx.ifblock()))
         for i in range(0, depth):
             self.popBlock()
 
@@ -461,16 +462,25 @@ class AllocVisitor:
     def visitAll(self, main:FuncOp):
         worklist = []
         self.global_block = main.getBody().getBlock(0)
-        walkInOrder(main, lambda op : worklist.append(op))
+
+        def visitOp(op):
+            worklist.append(op)
+            for region in op.getRegions():
+                worklist.append("push_scope") # sentinel
+                for op in region.getBlock(0):
+                    visitOp(op)
+
+        visitOp(main)
         for op in worklist:
             if op not in self.removed:
                 self.visit(op)
 
     def visit(self, op:Operation):
-        if op.getNumRegions() != 0:
+        if op == "push_scope":
             self.scope.push_scope()
+            return
 
-        if isa(op, lua.end) or isa(op, lua.ret):
+        if op.isKnownTerminator():
             self.scope.pop_scope()
         elif isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
@@ -591,7 +601,7 @@ def varAllocPass(main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
-        Pattern(lua.assign, elideAssign),
+        #Pattern(lua.assign, elideAssign),
     ])
 
 ################################################################################
@@ -686,7 +696,7 @@ def handleCondTerm(term:Operation, after:Block, rewriter:Builder):
     if isa(term, lua.end):
         rewriter.create(BranchOp, dest=after, loc=term.loc)
     elif isa(term, lua.ret):
-        retVals = lua.ret(term).vals()
+        retVals = list(lua.ret(term).vals())
         concat = rewriter.create(lua.concat, vals=retVals, loc=term.loc)
         rewriter.create(ReturnOp, operands=[concat.pack()], loc=term.loc)
     else:
@@ -1120,12 +1130,14 @@ def main():
         print(module)
         sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g -O2 -std=c++17")
-    os.system("clang++ -c impl.cpp -o impl.o -g -O2 -std=c++17")
-    os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O2")
+    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2 -std=c++17")
+    #os.system("clang++ -c impl.cpp -o impl.o -g -O2 -std=c++17")
+    #os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O2")
+    #os.system("clang -c main.c -o main_impl.o -g -O2")
+
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
     os.system("clang -c main.ll -o main.o -g -O2")
-    os.system("ld main.o builtins.o impl.o str.o -lc -lc++ -o main")
+    os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     #verify(module)
     #print(module)

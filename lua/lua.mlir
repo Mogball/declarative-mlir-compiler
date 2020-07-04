@@ -90,7 +90,7 @@ Dialect @lua {
     config { fmt = "$eval `do` $region attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
-    traits [@IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
+    traits [@MemoryWrite, @IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]
     config { fmt = "($vals^ `:` type($vals))? attr-dict" }
   Op @cond(cond: !lua.value) -> () traits [@ReadFrom<"cond">, @IsTerminator]
     config { fmt = "$cond attr-dict" }

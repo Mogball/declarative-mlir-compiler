@@ -6,7 +6,7 @@
  * Library Functions
  ******************************************************************************/
 
-TObject *lua_alloc() {
+TObject *lua_alloc(void) {
   return malloc(sizeof(TObject));
 }
 
@@ -133,9 +133,9 @@ TObject *lua_load_string(const char *data, uint64_t len) {
 extern TObject *builtin_print;
 extern TObject *builtin_string;
 
-TObject *lua_builtin_print() {
+TObject *lua_builtin_print(void) {
   return builtin_print;
 }
-TObject *lua_builtin_string() {
+TObject *lua_builtin_string(void) {
   return builtin_string;
 }
