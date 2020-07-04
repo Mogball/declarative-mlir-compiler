@@ -55,6 +55,9 @@ Dialect @lua {
   Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
     traits [@WriteTo<"tbl">, @ReadFrom<"key">, @Alloc<"val">]
     config { fmt = "$tbl `[` $key `]` attr-dict" }
+  Op @table_set(tbl: !lua.value, key: !lua.value, val: !lua.value) -> ()
+    traits [@WriteTo<"tbl">, @ReadFrom<["key", "val"]>]
+    config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
     traits [@Alloc<"res">] config { fmt = "$value attr-dict" }
 

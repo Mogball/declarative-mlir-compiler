@@ -1,6 +1,7 @@
-hello = function(a, b)
-  print(a + b)
-  return b, a
+for i=1,10 do
+  string[i] = i * 2
+end
+for i=1,10 do
+  print(string[i])
 end
 
-print(hello(5, 6))

@@ -86,6 +86,7 @@ void lua_pack_rewind(TPack *pack);
 void lua_init_table(TObject *tbl);
 void lua_table_set(TObject *tbl, TObject *key, TObject *val);
 TObject *lua_table_get(TObject *tbl, TObject *key);
+void lua_table_set(TObject *tbl, TObject *key, TObject *val);
 TObject *lua_load_string(const char *data, uint64_t len);
 
 #ifdef __cplusplus

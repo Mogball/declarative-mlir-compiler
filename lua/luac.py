@@ -595,6 +595,18 @@ def elideAssign(op:lua.assign, rewriter:Builder):
         return True
     return False
 
+def assignTableSet(op:lua.assign, rewriter:Builder):
+    if op.var() != UnitAttr():
+        return False
+    assert isa(op.tgt().definingOp, lua.table_get)
+    tableGet = lua.table_get(op.tgt().definingOp)
+    assert tableGet.val().hasOneUse()
+    rewriter.create(lua.table_set, tbl=tableGet.tbl(), key=tableGet.key(),
+                    val=op.val(), loc=tableGet.loc)
+    rewriter.erase(op)
+    rewriter.erase(tableGet)
+    return False
+
 def varAllocPass(main:FuncOp):
     # Non-trivial passes
     AllocVisitor().visitAll(main)
@@ -605,7 +617,8 @@ def varAllocPass(main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
-        #Pattern(lua.assign, elideAssign),
+        Pattern(lua.assign, elideAssign),
+        Pattern(lua.assign, assignTableSet),
     ])
 
 ################################################################################
@@ -903,6 +916,7 @@ def lowerToLuac(module:ModuleOp):
 
     target.addLegalOp(lua.builtin)
     target.addLegalOp(lua.table_get)
+    target.addLegalOp(lua.table_set)
     target.addLegalOp(ModuleOp)
 
     patterns = [
@@ -1072,6 +1086,7 @@ def luaToLLVM(module):
         convertLibc(luac.pack_get_size, "lua_pack_get_size"),
         convertLibc(luac.pack_rewind, "lua_pack_rewind"),
         convertLibc(lua.table_get, "lua_table_get"),
+        convertLibc(lua.table_set, "lua_table_set"),
         convertLibc(luallvm.load_string, "lua_load_string"),
 
         builtin("print"), builtin("string"), builtin("io"), builtin("table"),
