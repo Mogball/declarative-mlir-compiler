@@ -99,6 +99,9 @@ Dialect @lua {
     traits [@ReadFrom<"cond">] config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @loop_while() -> () (eval: Sized<1>, region: Sized<1>)
     config { fmt = "$eval `do` $region attr-dict" }
+  Op @repeat() -> () (region: Sized<1>) config { fmt = "$region attr-dict" }
+  Op @until() -> () (eval: Sized<1>) traits [@IsTerminator]
+    config { fmt = "$eval attr-dict" }
   Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>) -> ()
     traits [@MemoryWrite, @IsTerminator, @SameVariadicOperandSizes, @ReadFrom<"vals">]

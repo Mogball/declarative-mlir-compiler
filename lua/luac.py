@@ -145,7 +145,7 @@ class Generator:
         elif ctx.whileloop():
             self.whileloop(ctx.whileloop())
         elif ctx.repeatloop():
-            raise NotImplementedError("repeatloop not implemented")
+            self.repeatloop(ctx.repeatloop())
         elif ctx.conditionalchain():
             self.conditionalchain(ctx.conditionalchain())
         elif ctx.numericfor():
@@ -319,6 +319,8 @@ class Generator:
         self.builder.create(lua.init_table, tbl=tbl, loc=loc)
 
         idx = 1
+        if not ctx.fieldlist():
+            return tbl
         for field in ctx.fieldlist().field():
             floc = self.getStartLoc(field)
             if len(field.exp()) == 2:
@@ -445,6 +447,18 @@ class Generator:
         self.builder.create(lua.end, loc=self.getEndLoc(ctx.block()))
         self.popBlock()
 
+    def repeatloop(self, ctx:LuaParser.RepeatloopContext):
+        loop = self.builder.create(lua.repeat, loc=self.getStartLoc(ctx))
+        self.pushBlock(loop.region().addEntryBlock([]))
+        self.block(ctx.block())
+        assert ctx.block().retstat() == None, "unexpected terminator in repeat"
+        until = self.builder.create(lua.until, loc=self.getStartLoc(ctx.exp()))
+        self.pushBlock(until.eval().addEntryBlock([]))
+        cond = self.exp(ctx.exp())
+        self.builder.create(lua.cond, cond=cond, loc=self.getStartLoc(ctx.exp()))
+        self.popBlock()
+        self.popBlock()
+
 ################################################################################
 # Front-End: Variable Allocation and SSA
 ################################################################################
@@ -501,8 +515,10 @@ class AllocVisitor:
             worklist.append(op)
             for region in op.getRegions():
                 worklist.append("push_scope") # sentinel
-                for op in region.getBlock(0):
-                    visitOp(op)
+                for o in region.getBlock(0):
+                    visitOp(o)
+            if op.isKnownTerminator():
+                worklist.append("pop_scope")
 
         visitOp(main)
         for op in worklist:
@@ -513,9 +529,10 @@ class AllocVisitor:
         if op == "push_scope":
             self.scope.push_scope()
             return
-
-        if op.isKnownTerminator():
+        if op == "pop_scope":
             self.scope.pop_scope()
+            return
+
         elif isa(op, lua.get_or_alloc):
             self.visitGetOrAlloc(lua.get_or_alloc(op))
         elif isa(op, lua.alloc_local):
@@ -791,12 +808,37 @@ def lowerLoopWhile(op:lua.loop_while, rewriter:Builder):
     rewriter.erase(op)
     return True
 
+def lowerRepeatUntil(op:lua.until, rewriter:Builder):
+    assert isa(op.parentOp, lua.repeat), "expected lua.repeat as parent"
+    repeat = lua.repeat(op.parentOp)
+    before = repeat.block
+    after = before.split(repeat)
+    body = Block()
+    body.insertBefore(after)
+    # br to body
+    rewriter.insertAtEnd(before)
+    rewriter.create(BranchOp, dest=body, loc=repeat.loc)
+    # body
+    copyInto(body, repeat.region().getBlock(0), lua.until)
+    # cond
+    copyInto(body, op.eval().getBlock(0))
+    condTerm = lua.cond(body.getTerminator())
+    rewriter.insertBefore(condTerm)
+    condBool = rewriter.create(luac.get_bool_val, tgt=condTerm.cond(),
+                               loc=condTerm.loc).b()
+    rewriter.create(CondBranchOp, cond=condBool, trueDest=after, falseDest=body,
+                    loc=op.loc)
+    rewriter.erase(condTerm)
+    rewriter.erase(repeat)
+    return True
+
 def cfExpand(module:ModuleOp, main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.numeric_for, lowerNumericFor),
         Pattern(lua.function_def_capture, lowerFunctionDef(module)),
         Pattern(lua.cond_if, lowerCondIf),
         Pattern(lua.loop_while, lowerLoopWhile),
+        Pattern(lua.until, lowerRepeatUntil),
     ])
 
 ################################################################################
