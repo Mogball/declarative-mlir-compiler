@@ -250,9 +250,9 @@ class Generator:
         elif ctx.prefixexp():
             return self.prefixexp(ctx.prefixexp())
         elif ctx.tableconstructor():
-            raise NotImplementedError("tableconstructor not implemented")
+            return self.tableconstructor(ctx.tableconstructor())
         elif ctx.operatorUnary():
-            raise NotImplementedError("operatorUnary not implemented")
+            return self.operatorUnary(ctx)
         elif ctx.operatorPower():
             return self.handleBinaryOp(ctx, ctx.operatorPower())
         elif ctx.operatorMulDivMod():
@@ -271,6 +271,11 @@ class Generator:
             return self.handleBinaryOp(ctx, ctx.operatorBitwise())
         else:
             raise ValueError("Unknown ExpContext case")
+
+    def operatorUnary(self, ctx:LuaParser.OperatorUnaryContext):
+        unary = self.builder.create(lua.unary, op=StringAttr(ctx.getText()),
+                                    val=self.exp(ctx.exp(0)), loc=self.getStartLoc(ctx))
+        return unary.res()
 
     def nilvalue(self, ctx:LuaParser.NilvalueContext):
         nil = self.builder.create(lua.nil, loc=self.getStartLoc(ctx))
@@ -304,6 +309,31 @@ class Generator:
         text = text[1:len(text)-1]
         return self.builder.create(lua.get_string, value=StringAttr(text),
                                    loc=self.getStartLoc(ctx)).res()
+
+    def tableconstructor(self, ctx:LuaParser.TableconstructorContext):
+        loc = self.getStartLoc(ctx)
+        tbl = self.builder.create(luac.alloc, loc=loc).res()
+        tblTy = self.builder.create(ConstantOp, value=luac.type_tbl(), loc=loc)
+        self.builder.create(luac.set_type, tgt=tbl, ty=tblTy.result(), loc=loc)
+        self.builder.create(luac.alloc_gc, tgt=tbl, loc=loc)
+        self.builder.create(lua.init_table, tbl=tbl, loc=loc)
+
+        idx = 1
+        for field in ctx.fieldlist().field():
+            floc = self.getStartLoc(field)
+            if len(field.exp()) == 2:
+                key = self.exp(field.exp(0))
+                val = self.exp(field.exp(1))
+            elif field.NAME() != None:
+                keyStr = StringAttr(field.NAME().getText())
+                key = self.builder.create(lua.get_string, value=keyStr, loc=floc).res()
+                val = self.exp(field.exp(0))
+            else:
+                key = self.builder.create(lua.number, value=I64Attr(idx), loc=floc).res()
+                val = self.exp(field.exp(0))
+                idx += 1
+            self.builder.create(lua.table_set, tbl=tbl, key=key, val=val, loc=floc)
+        return tbl
 
     def prefixexp(self, ctx:LuaParser.PrefixexpContext):
         # A variable or expression, with optional trailing function calls
@@ -917,6 +947,7 @@ def lowerToLuac(module:ModuleOp):
     target.addLegalOp(lua.builtin)
     target.addLegalOp(lua.table_get)
     target.addLegalOp(lua.table_set)
+    target.addLegalOp(lua.init_table)
     target.addLegalOp(ModuleOp)
 
     patterns = [
@@ -1087,6 +1118,7 @@ def luaToLLVM(module):
         convertLibc(luac.pack_rewind, "lua_pack_rewind"),
         convertLibc(lua.table_get, "lua_table_get"),
         convertLibc(lua.table_set, "lua_table_set"),
+        convertLibc(lua.init_table, "lua_init_table"),
         convertLibc(luallvm.load_string, "lua_load_string"),
 
         builtin("print"), builtin("string"), builtin("io"), builtin("table"),

@@ -52,6 +52,8 @@ Dialect @lua {
   Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.AnyI<64>, #dmc.F<64>> }
     traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
+  Op @init_table(tbl: !lua.value) -> ()
+    traits [@WriteTo<"tbl">] config { fmt = "$tbl attr-dict" }
   Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
     traits [@WriteTo<"tbl">, @ReadFrom<"key">, @Alloc<"val">]
     config { fmt = "$tbl `[` $key `]` attr-dict" }
@@ -69,11 +71,17 @@ Dialect @lua {
       "+", "-", "*", "/", "%", "//",
       "&", "|", "~", "<<", ">>",
       "^">
-
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
-    traits [@ReadFrom<["lhs", "rhs"]>]
+    traits [@ReadFrom<["lhs", "rhs"]>, @Alloc<"res">]
     config { fmt = "$lhs $op $rhs attr-dict" }
+
+  Alias @UnaryOp -> #dmc.AnyOf<
+      "not", "#", "-", "~">
+  Op @unary(val: !lua.value) -> (res: !lua.value)
+    { op = #lua.UnaryOp }
+    traits [@ReadFrom<"val">, @Alloc<"res">]
+    config { fmt = "$op $val attr-dict" }
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
     { ivar = #dmc.String } (region: Sized<1>)

@@ -1,7 +1,5 @@
-for i=1,10 do
-  string[i] = i * 2
-end
-for i=1,10 do
-  print(string[i])
-end
-
+a = {1, 2, b=4, 3}
+print(a[1])
+print(a[2])
+print(a[3])
+print(a["b"])
