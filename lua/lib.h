@@ -89,6 +89,9 @@ TObject *lua_table_get(TObject *tbl, TObject *key);
 void lua_table_set(TObject *tbl, TObject *key, TObject *val);
 TObject *lua_load_string(const char *data, uint64_t len);
 
+TObject *lua_list_size(TObject *tbl);
+TObject *lua_add(TObject *lhs, TObject *rhs);
+
 #ifdef __cplusplus
 }
 #endif

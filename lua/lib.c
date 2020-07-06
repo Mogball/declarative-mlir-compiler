@@ -132,10 +132,22 @@ TObject *lua_load_string(const char *data, uint64_t len) {
 
 extern TObject *builtin_print;
 extern TObject *builtin_string;
+extern TObject *builtin_table;
+extern TObject *builtin_io;
+extern TObject *builtin_math;
 
 TObject *lua_builtin_print(void) {
   return builtin_print;
 }
 TObject *lua_builtin_string(void) {
   return builtin_string;
+}
+TObject *lua_builtin_table(void) {
+  return builtin_table;
+}
+TObject *lua_builtin_io(void) {
+  return builtin_io;
+}
+TObject *lua_builtin_math(void) {
+  return builtin_math;
 }

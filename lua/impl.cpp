@@ -4,6 +4,9 @@
 #include <vector>
 #include <unordered_map>
 #include <array>
+#include <iostream>
+
+extern "C" void print_one(TObject *val);
 
 namespace lua {
 namespace {
@@ -121,12 +124,33 @@ struct LuaTable {
   }
 
   void insert_or_assign(TObject *key, TObject *val) {
+    auto *nval = lua_alloc();
+    *nval = *val;
     if (lua_get_type(key) == NUM && lua_is_int(key)) {
       if (auto iv = lua_get_int64_val(key); iv > 0) {
-        return list_insert_or_assign(iv, val);
+        return list_insert_or_assign(iv, nval);
       }
     }
-    table.insert_or_assign(key, val);
+    table.insert_or_assign(key, nval);
+  }
+
+  int64_t get_list_size() {
+    int64_t size = 0;
+    for (size_t i = 0; i < PREALLOC; ++i) {
+      if (prealloc[i] && lua_get_type(prealloc[i]) != NIL) {
+        ++size;
+      } else {
+        return size;
+      }
+    }
+    for (size_t i = 0; i < trailing.size(); ++i) {
+      if (trailing[i] && lua_get_type(trailing[i]) != NIL) {
+        ++size;
+      } else {
+        return size;
+      }
+    }
+    return size;
   }
 };
 
@@ -163,6 +187,15 @@ TObject *lua_load_string_impl(const char *data, uint64_t len) {
 bool lua_eq_impl(TObject *lhs, TObject *rhs) {
   // already verified as same type
   return lua::LuaEq::compare(lhs, rhs);
+}
+
+int64_t lua_list_size_impl(TObject *tbl) {
+  return ((lua::LuaTable *) tbl->gc->ptable)->get_list_size();
+}
+
+void lua_strcat_impl(TObject *dest, TObject *lhs, TObject *rhs) {
+  dest->gc->pstring = new std::string{lua::as_std_string(lhs) +
+                                      lua::as_std_string(rhs)};
 }
 
 }

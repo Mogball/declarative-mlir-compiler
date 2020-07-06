@@ -1,4 +1,7 @@
 module {
+  // debugging
+  func @print_one(%val: !lua.ref) -> ()
+
   func @luac_check_number_type(%lhs: !lua.ref, %rhs: !lua.ref) -> (!luac.bool, !luac.type_enum) {
     %num_type = constant #luac.type_num
     %lhs_type = luac.get_type type(%lhs)
@@ -168,20 +171,64 @@ module {
   }
 
   func @lua_bool_and(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %lhs_b = call @lua_convert_bool_like(%lhs) : (!lua.ref) -> !luac.bool
+    %rhs_b = call @lua_convert_bool_like(%rhs) : (!lua.ref) -> !luac.bool
+
+    %ret = luac.alloc
+    %bool_type = constant #luac.type_bool
+    luac.set_type type(%ret) = %bool_type
+    %ret_b = and %lhs_b, %rhs_b : !luac.bool
+    luac.set_bool_val %ret = %ret_b
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_bool_not(%val: !lua.ref) -> !lua.ref {
+    %b = call @lua_convert_bool_like(%val) : (!lua.ref) -> !luac.bool
+    %const1 = constant 1 : !luac.bool
+    %not_b = xor %b, %const1 : !luac.bool
+
+    %ret = luac.alloc
+    %bool_type = constant #luac.type_bool
+    luac.set_type type(%ret) = %bool_type
+    luac.set_bool_val %ret = %not_b
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_list_size_impl(%val: !lua.ref) -> !luac.integer
+  func @lua_list_size(%val: !lua.ref) -> !lua.ref {
+    %ret = lua.nil
+
+    %table_type = constant #luac.type_tbl
+    %type = luac.get_type type(%val)
+    %type_ok = cmpi "eq", %type, %table_type : !luac.type_enum
+
+    loop.if %type_ok {
+      %sz = call @lua_list_size_impl(%val) : (!lua.ref) -> !luac.integer
+      %num_type = constant #luac.type_num
+      luac.set_type type(%ret) = %num_type
+      luac.set_int64_val %ret = %sz
+    }
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_strcat_impl(%dest: !lua.ref, %lhs: !lua.ref, %rhs: !lua.ref) -> ()
+  func @lua_strcat(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %ret = lua.nil
+
     %lhs_type = luac.get_type type(%lhs)
     %rhs_type = luac.get_type type(%rhs)
-    %same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
-    %bool_type = constant #luac.type_bool
-    %is_bool = cmpi "eq", %lhs_type, %bool_type : !luac.type_enum
-    %types_ok = and %same_type, %is_bool : !luac.bool
+    %str_type = constant #luac.type_str
+    %lhs_ok = cmpi "eq", %lhs_type, %str_type : !luac.type_enum
+    %rhs_ok = cmpi "eq", %rhs_type, %str_type : !luac.type_enum
+    %types_ok = and %lhs_ok, %rhs_ok : !luac.bool
 
-    %ret = lua.nil
     loop.if %types_ok {
-      luac.set_type type(%ret) = %bool_type
-      %lhs_b = luac.get_bool_val %lhs
-      %rhs_b = luac.get_bool_val %rhs
-      %ret_b = and %lhs_b, %rhs_b : !luac.bool
-      luac.set_bool_val %ret = %ret_b
+      luac.set_type type(%ret) = %str_type
+      luac.alloc_gc %ret
+      call @lua_strcat_impl(%ret, %lhs, %rhs) : (!lua.ref, !lua.ref, !lua.ref) -> ()
     }
 
     return %ret : !lua.ref

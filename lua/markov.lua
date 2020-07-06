@@ -50,7 +50,10 @@ for i=1,MAXGEN do
   -- choose a random item from list
   local r = math.random(#list)
   local nextword = list[r]
-  if nextword == NOWORD then return end
+  if nextword == NOWORD then
+    print()
+    return
+  end
   io.write(nextword, " ")
   w1 = w2; w2 = nextword
 end

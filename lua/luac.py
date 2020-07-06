@@ -70,7 +70,7 @@ class Generator:
             return val
         loc = self.getStartLoc(ctx)
         for i in range(0, len(allArgs)):
-            args = self.unpackExplistPacks(loc, self.nameAndArgs(allArgs[i]))
+            args = self.nameAndArgs(allArgs[i])
             concat = self.builder.create(lua.concat, vals=args, loc=loc)
             call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
                                        loc=loc)
@@ -110,7 +110,8 @@ class Generator:
                                vals=[lua.ref()], loc=loc).vals()[0])
             else:
                 newVals.append(vals[i])
-        newVals.append(vals[len(vals) - 1])
+        if len(vals) != 0:
+            newVals.append(vals[len(vals) - 1])
         return newVals
 
     #### AST Walker
@@ -170,6 +171,8 @@ class Generator:
             raise NotImplementedError("localnamedfunctiondef not implemented")
         elif ctx.localvarlist():
             self.localvarlist(ctx.localvarlist())
+        elif ctx.getText() == ";":
+            pass
         else:
             raise ValueError("Unknown StatContext case")
 
@@ -199,7 +202,7 @@ class Generator:
         expList = []
         for exp in ctx.exp():
             expList.append(self.exp(exp))
-        return expList
+        return self.unpackExplistPacks(self.getStartLoc(ctx), expList)
 
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
         assert ctx.NAME() == None, "colon operator unimplemented"
@@ -242,6 +245,9 @@ class Generator:
             key = self.builder.create(lua.get_string,
                                       value=StringAttr(ctx.NAME().getText()),
                                       loc=loc).res()
+        if key.type == lua.pack():
+            key = self.builder.create(lua.unpack, pack=key, vals=[lua.ref()],
+                                      loc=loc).vals()[0]
         return self.builder.create(lua.table_get, tbl=val, key=key, loc=loc).val()
 
     def exp(self, ctx:LuaParser.ExpContext):
@@ -264,7 +270,7 @@ class Generator:
         elif ctx.tableconstructor():
             return self.tableconstructor(ctx.tableconstructor())
         elif ctx.operatorUnary():
-            return self.operatorUnary(ctx)
+            return self.operatorUnary(ctx.exp(0), ctx.operatorUnary())
         elif ctx.operatorPower():
             return self.handleBinaryOp(ctx, ctx.operatorPower())
         elif ctx.operatorMulDivMod():
@@ -284,9 +290,9 @@ class Generator:
         else:
             raise ValueError("Unknown ExpContext case")
 
-    def operatorUnary(self, ctx:LuaParser.OperatorUnaryContext):
+    def operatorUnary(self, exp, ctx:LuaParser.OperatorUnaryContext):
         unary = self.builder.create(lua.unary, op=StringAttr(ctx.getText()),
-                                    val=self.exp(ctx.exp(0)), loc=self.getStartLoc(ctx))
+                                    val=self.exp(exp), loc=self.getStartLoc(ctx))
         return unary.res()
 
     def nilvalue(self, ctx:LuaParser.NilvalueContext):
@@ -324,11 +330,7 @@ class Generator:
 
     def tableconstructor(self, ctx:LuaParser.TableconstructorContext):
         loc = self.getStartLoc(ctx)
-        tbl = self.builder.create(luac.alloc, loc=loc).res()
-        tblTy = self.builder.create(ConstantOp, value=luac.type_tbl(), loc=loc)
-        self.builder.create(luac.set_type, tgt=tbl, ty=tblTy.result(), loc=loc)
-        self.builder.create(luac.alloc_gc, tgt=tbl, loc=loc)
-        self.builder.create(lua.init_table, tbl=tbl, loc=loc)
+        tbl = self.builder.create(lua.table, loc=loc).res()
 
         idx = 1
         if not ctx.fieldlist():
@@ -474,7 +476,7 @@ class Generator:
     def genericfor(self, ctx:LuaParser.GenericforContext):
         loc = self.getStartLoc(ctx)
         params = ArrayAttr([StringAttr(t.getText()) for t in ctx.namelist().NAME()])
-        exps = self.unpackExplistPacks(loc, self.explist(ctx.explist()))
+        exps = self.explist(ctx.explist())
         forPack = self.builder.create(lua.concat, vals=exps, loc=loc).pack()
         itVars = self.builder.create(lua.unpack, pack=forPack,
                                      vals=[lua.ref()] * 3, loc=loc).vals()
@@ -534,22 +536,36 @@ class AllocVisitor:
         self.scope = ScopedMap()
         self.builder = Builder()
         self.removed = set()
+        self.worklist = []
+
+    def addWork(self, op):
+        self.worklist.append(op)
+    def addRegion(self, region):
+        for o in region.getBlock(0):
+            self.checkWork(o)
+    def pushScope(self):
+        self.addWork("push_scope")
+    def popScope(self):
+        self.addWork("pop_scope")
+    def checkWork(self, op):
+        if isa(op, FuncOp):
+            self.addRegion(op.getRegion(0))
+        elif isa(op, lua.numeric_for) or isa(op, lua.generic_for) or isa(op, lua.function_def):
+            self.pushScope()
+            self.addWork(op)
+            self.addRegion(op.getRegion(0))
+            self.popScope()
+        else:
+            self.addWork(op)
+            for r in op.getRegions():
+                self.pushScope()
+                self.addRegion(r)
+                self.popScope()
 
     def visitAll(self, main:FuncOp):
-        worklist = []
         self.global_block = main.getBody().getBlock(0)
-
-        def visitOp(op):
-            worklist.append(op)
-            for region in op.getRegions():
-                worklist.append("push_scope") # sentinel
-                for o in region.getBlock(0):
-                    visitOp(o)
-            if op.isKnownTerminator():
-                worklist.append("pop_scope")
-
-        visitOp(main)
-        for op in worklist:
+        self.checkWork(main)
+        for op in self.worklist:
             if op not in self.removed:
                 self.visit(op)
 
@@ -605,7 +621,7 @@ class AllocVisitor:
             return
         assert self.scope.contains(op.var())
         # TODO set this at the highest enclosing scope
-        self.scope.set_local(op.var(), op.res())
+        #self.scope.set_local(op.var(), op.res())
 
     def visitCall(self, op:lua.call):
         if op.rets().useEmpty():
@@ -649,7 +665,7 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     rewriter.replace(op, newVals)
     return True
 
-lua_builtins = set(["print", "string", "io", "table"])
+lua_builtins = set(["print", "string", "io", "table", "math"])
 def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     if op.var().getValue() not in lua_builtins:
         return False
@@ -668,7 +684,7 @@ def scopeUseDominates(tgtOp, valOp):
 
 def elideAssign(op:lua.assign, rewriter:Builder):
     if op.var() == UnitAttr():
-        return
+        return False
     for user in op.tgt().getOpUses():
         if isa(user, lua.function_def_capture):
             return False
@@ -700,7 +716,7 @@ def varAllocPass(main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
-        Pattern(lua.assign, elideAssign),
+        #Pattern(lua.assign, elideAssign),
         Pattern(lua.assign, assignTableSet),
     ])
 
@@ -708,7 +724,9 @@ def varAllocPass(main:FuncOp):
 # IR: Dialect Conversion to SCF
 ################################################################################
 
-def copyInto(newBlk, oldBlk, termCls=None, bvm=BlockAndValueMapping()):
+def copyInto(newBlk, oldBlk, termCls=None, bvm=None):
+    if not bvm:
+        bvm = BlockAndValueMapping()
     for oldOp in oldBlk:
         if not termCls or not isa(oldOp, termCls):
             newBlk.append(oldOp.clone(bvm))
@@ -862,7 +880,7 @@ def lowerLoopWhile(op:lua.loop_while, rewriter:Builder):
     copyInto(cond, op.eval().getBlock(0))
     condTerm = lua.cond(cond.getTerminator())
     rewriter.insertBefore(condTerm)
-    condBool = rewriter.create(luac.get_bool_val, tgt=condTerm.cond(),
+    condBool = rewriter.create(luac.convert_bool_like, val=condTerm.cond(),
                                loc=condTerm.loc).b()
     rewriter.create(CondBranchOp, cond=condBool, trueDest=body, falseDest=after,
                     loc=op.loc)
@@ -892,7 +910,7 @@ def lowerRepeatUntil(op:lua.until, rewriter:Builder):
     copyInto(body, op.eval().getBlock(0))
     condTerm = lua.cond(body.getTerminator())
     rewriter.insertBefore(condTerm)
-    condBool = rewriter.create(luac.get_bool_val, tgt=condTerm.cond(),
+    condBool = rewriter.create(luac.convert_bool_like, val=condTerm.cond(),
                                loc=condTerm.loc).b()
     rewriter.create(CondBranchOp, cond=condBool, trueDest=after, falseDest=body,
                     loc=op.loc)
@@ -932,6 +950,16 @@ def getExpanderFor(opStr, binOpCls):
         binOp = rewriter.create(binOpCls, lhs=op.lhs(), rhs=op.rhs(),
                                 loc=op.loc)
         rewriter.replace(op, [binOp.res()])
+        return True
+
+    return expandFcn
+
+def getUnaryExpander(opStr, unOpCls):
+    def expandFcn(op:lua.unary, rewriter:Builder):
+        if op.op().getValue() != opStr:
+            return False
+        unOp = rewriter.create(unOpCls, val=op.val(), loc=op.loc)
+        rewriter.replace(op, [unOp.res()])
         return True
 
     return expandFcn
@@ -979,6 +1007,15 @@ def expandConcat(op:lua.concat, rewriter:Builder):
                             loc=op.loc)
             rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
     rewriter.replace(op, [newPack.pack()])
+    return True
+
+def expandTable(op:lua.table, rewriter:Builder):
+    tbl = rewriter.create(luac.alloc, loc=op.loc).res()
+    tblTy = rewriter.create(ConstantOp, value=luac.type_tbl(), loc=op.loc)
+    rewriter.create(luac.set_type, tgt=tbl, ty=tblTy.result(), loc=op.loc)
+    rewriter.create(luac.alloc_gc, tgt=tbl, loc=op.loc)
+    rewriter.create(lua.init_table, tbl=tbl, loc=op.loc)
+    rewriter.replace(op, [tbl])
     return True
 
 def expandEmptyConcat(op:lua.concat, rewriter:Builder):
@@ -1068,14 +1105,19 @@ def lowerToLuac(module:ModuleOp):
                 [ConstantOp, luac.wrap_int]),
         Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
                 [ConstantOp, luac.wrap_real]),
+        Pattern(lua.table, expandTable),
 
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
+        Pattern(lua.binary, getExpanderFor("..", luac.strcat), [luac.strcat]),
         Pattern(lua.binary, getExpanderFor("<", luac.lt), [luac.lt]),
         Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
         Pattern(lua.binary, getExpanderFor("~=", luac.ne), [luac.ne]),
         Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
+
+        Pattern(lua.unary, getUnaryExpander("not", luac.bool_not), [luac.bool_not]),
+        Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
 
         Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
                 [luac.alloc, luac.set_int64_val, luac.set_type, ConstantOp]),
@@ -1204,6 +1246,9 @@ def luaToLLVM(module):
         convert(luac.eq, "lua_eq"),
         convert(luac.ne, "lua_ne"),
         convert(luac.bool_and, "lua_bool_and"),
+        convert(luac.bool_not, "lua_bool_not"),
+        convert(luac.list_size, "lua_list_size"),
+        convert(luac.strcat, "lua_strcat"),
         convert(luac.convert_bool_like, "lua_convert_bool_like"),
 
         convertLibc(luac.alloc, "lua_alloc"),
@@ -1236,6 +1281,7 @@ def luaToLLVM(module):
         convertLibc(luallvm.load_string, "lua_load_string"),
 
         builtin("print"), builtin("string"), builtin("io"), builtin("table"),
+        builtin("math"),
     ]
     target = LLVMConversionTarget()
     lowerToLLVM(module, LLVMConversionTarget(), llvmPats,
@@ -1257,17 +1303,22 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
+    verify(module)
     varAllocPass(main)
+    verify(module)
     cfExpand(module, main)
+    verify(module)
 
     lib = parseSourceFile("lib.mlir")
     for func in lib.getOps(FuncOp):
         module.append(func.clone())
 
     lowerSCFToStandard(module)
+    verify(module)
     lowerToLuac(module)
+    verify(module)
 
-    os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    os.system("clang -S -emit-llvm lib.c -o lib.ll -O0")
     os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
     libc = parseSourceFile("libc.mlir")
     for glob in libc.getOps(LLVMGlobalOp):
@@ -1286,13 +1337,13 @@ def main():
         print(module)
         sys.stdout = stdout
 
-    #os.system("clang++ -c builtins.cpp -o builtins.o -g -O2 -std=c++17")
-    #os.system("clang++ -c impl.cpp -o impl.o -g -O2 -std=c++17")
-    #os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O2")
-    #os.system("clang -c main.c -o main_impl.o -g -O2")
+    os.system("clang++ -c builtins.cpp -o builtins.o -g -O0 -std=c++17")
+    os.system("clang++ -c impl.cpp -o impl.o -g -O0 -std=c++17")
+    os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O0")
+    os.system("clang -c main.c -o main_impl.o -g -O0")
 
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -g -O2")
+    os.system("clang -c main.ll -o main.o -g -O0")
     os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     #verify(module)
