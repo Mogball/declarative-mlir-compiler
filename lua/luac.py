@@ -56,11 +56,11 @@ class Generator:
                                 var=var if var else UnitAttr(), loc=loc)
 
     def handleBinaryOp(self, expCtx, opCtx):
-        lhsVal = self.exp(expCtx.exp(0))
-        rhsVal = self.exp(expCtx.exp(1))
+        loc = self.getStartLoc(opCtx)
+        lhsVal = self.unpackIfPack(loc, self.exp(expCtx.exp(0)))
+        rhsVal = self.unpackIfPack(loc, self.exp(expCtx.exp(1)))
         binary = self.builder.create(lua.binary, lhs=lhsVal, rhs=rhsVal,
-                                     op=StringAttr(opCtx.getText()),
-                                     loc=self.getStartLoc(opCtx))
+                                     op=StringAttr(opCtx.getText()), loc=loc)
         return binary.res()
 
     def handleFunctionLike(self, val, ctx, unpackLast=False):
@@ -101,15 +101,17 @@ class Generator:
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx))
 
+    def unpackIfPack(self, loc, val):
+        if val.type == lua.pack():
+            return self.builder.create(lua.unpack, pack=val, vals=[lua.ref()],
+                                       loc=loc).vals()[0]
+        return val
+
     def unpackExplistPacks(self, loc, vals):
         # unpack first value of any pack except if it is the last value
         newVals = []
         for i in range(0, len(vals) - 1):
-            if vals[i].type == lua.pack():
-                newVals.append(self.builder.create(lua.unpack, pack=vals[i],
-                               vals=[lua.ref()], loc=loc).vals()[0])
-            else:
-                newVals.append(vals[i])
+            newVals.append(self.unpackIfPack(loc, vals[i]))
         if len(vals) != 0:
             newVals.append(vals[len(vals) - 1])
         return newVals
@@ -240,14 +242,11 @@ class Generator:
         val = self.handleFunctionLike(var, ctx, unpackLast=True)
         loc = self.getStartLoc(ctx)
         if ctx.exp():
-            key = self.exp(ctx.exp())
+            key = self.unpackIfPack(loc, self.exp(ctx.exp()))
         else:
             key = self.builder.create(lua.get_string,
                                       value=StringAttr(ctx.NAME().getText()),
                                       loc=loc).res()
-        if key.type == lua.pack():
-            key = self.builder.create(lua.unpack, pack=key, vals=[lua.ref()],
-                                      loc=loc).vals()[0]
         return self.builder.create(lua.table_get, tbl=val, key=key, loc=loc).val()
 
     def exp(self, ctx:LuaParser.ExpContext):
@@ -621,7 +620,7 @@ class AllocVisitor:
             return
         assert self.scope.contains(op.var())
         # TODO set this at the highest enclosing scope
-        #self.scope.set_local(op.var(), op.res())
+        self.scope.set_local(op.var(), op.res())
 
     def visitCall(self, op:lua.call):
         if op.rets().useEmpty():
@@ -716,7 +715,7 @@ def varAllocPass(main:FuncOp):
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
-        #Pattern(lua.assign, elideAssign),
+        Pattern(lua.assign, elideAssign),
         Pattern(lua.assign, assignTableSet),
     ])
 
@@ -1343,7 +1342,7 @@ def main():
     #os.system("clang -c main.c -o main_impl.o -O2")
 
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -O1")
+    os.system("clang -c main.ll -o main.o -O2")
     os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     #verify(module)
