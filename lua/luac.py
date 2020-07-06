@@ -1318,8 +1318,8 @@ def main():
     lowerToLuac(module)
     verify(module)
 
-    os.system("clang -S -emit-llvm lib.c -o lib.ll -O0")
-    os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
     libc = parseSourceFile("libc.mlir")
     for glob in libc.getOps(LLVMGlobalOp):
         module.append(glob.clone())
@@ -1337,13 +1337,13 @@ def main():
         print(module)
         sys.stdout = stdout
 
-    os.system("clang++ -c builtins.cpp -o builtins.o -g -O0 -std=c++17")
-    os.system("clang++ -c impl.cpp -o impl.o -g -O0 -std=c++17")
-    os.system("clang -c rx-cpp/src/lua-str.c -o str.o -g -O0")
-    os.system("clang -c main.c -o main_impl.o -g -O0")
+    #os.system("clang++ -c builtins.cpp -o builtins.o -O2 -std=c++17")
+    #os.system("clang++ -c impl.cpp -o impl.o -O2 -std=c++17")
+    #os.system("clang -c rx-cpp/src/lua-str.c -o str.o -O2")
+    #os.system("clang -c main.c -o main_impl.o -O2")
 
     os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -g -O0")
+    os.system("clang -c main.ll -o main.o -O1")
     os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     #verify(module)

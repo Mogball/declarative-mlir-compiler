@@ -4,3 +4,5 @@ main
 libc.mlir
 test.mlir
 main.mlir
+test-markov
+test-perf
