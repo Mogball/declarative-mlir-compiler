@@ -206,4 +206,42 @@ module {
     luac.set_bool_val %ret = %ret_bool
     return %ret : !lua.ref
   }
+
+  func @lua_ne(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %are_eq = call @lua_eq(%lhs, %rhs) : (!lua.ref, !lua.ref) -> !lua.ref
+    %are_eq_b = luac.get_bool_val %are_eq
+    %const1 = constant 1 : !luac.bool
+    %are_ne_b = xor %are_eq_b, %const1 : !luac.bool
+
+    %ret = luac.alloc
+    %bool_type = constant #luac.type_bool
+    luac.set_type type(%ret) = %bool_type
+    luac.set_bool_val %ret = %are_ne_b
+    return %ret : !lua.ref
+  }
+
+  func @lua_convert_bool_like(%val: !lua.ref) -> !luac.bool {
+    %nil_type = constant #luac.type_nil
+    %bool_type = constant #luac.type_bool
+
+    %type = luac.get_type type(%val)
+    %is_nil = cmpi "eq", %type, %nil_type : !luac.type_enum
+
+    %ret_b = loop.if %is_nil -> !luac.bool {
+      %false = constant 0 : !luac.bool
+      loop.yield %false : !luac.bool
+    } else {
+      %is_bool = cmpi "eq", %type, %bool_type : !luac.type_enum
+      %ret = loop.if %is_bool -> !luac.bool {
+        %b = luac.get_bool_val %val
+        loop.yield %b : !luac.bool
+      } else {
+        %true = constant 1 : !luac.bool
+        loop.yield %true : !luac.bool
+      }
+      loop.yield %ret : !luac.bool
+    }
+
+    return %ret_b : !luac.bool
+  }
 }

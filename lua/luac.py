@@ -70,7 +70,7 @@ class Generator:
             return val
         loc = self.getStartLoc(ctx)
         for i in range(0, len(allArgs)):
-            args = self.nameAndArgs(allArgs[i])
+            args = self.unpackExplistPacks(loc, self.nameAndArgs(allArgs[i]))
             concat = self.builder.create(lua.concat, vals=args, loc=loc)
             call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
                                        loc=loc)
@@ -100,6 +100,18 @@ class Generator:
             self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx))
+
+    def unpackExplistPacks(self, loc, vals):
+        # unpack first value of any pack except if it is the last value
+        newVals = []
+        for i in range(0, len(vals) - 1):
+            if vals[i].type == lua.pack():
+                newVals.append(self.builder.create(lua.unpack, pack=vals[i],
+                               vals=[lua.ref()], loc=loc).vals()[0])
+            else:
+                newVals.append(vals[i])
+        newVals.append(vals[len(vals) - 1])
+        return newVals
 
     #### AST Walker
     ###############
@@ -151,7 +163,7 @@ class Generator:
         elif ctx.numericfor():
             self.numericfor(ctx.numericfor())
         elif ctx.genericfor():
-            raise NotImplementedError("genericfor not implemented")
+            self.genericfor(ctx.genericfor())
         elif ctx.namedfunctiondef():
             self.namedfunctiondef(ctx.namedfunctiondef())
         elif ctx.localnamedfunctiondef():
@@ -459,6 +471,22 @@ class Generator:
         self.popBlock()
         self.popBlock()
 
+    def genericfor(self, ctx:LuaParser.GenericforContext):
+        loc = self.getStartLoc(ctx)
+        params = ArrayAttr([StringAttr(t.getText()) for t in ctx.namelist().NAME()])
+        exps = self.unpackExplistPacks(loc, self.explist(ctx.explist()))
+        forPack = self.builder.create(lua.concat, vals=exps, loc=loc).pack()
+        itVars = self.builder.create(lua.unpack, pack=forPack,
+                                     vals=[lua.ref()] * 3, loc=loc).vals()
+        loop = self.builder.create(lua.generic_for, f=itVars[0], s=itVars[1],
+                                   var=itVars[2], params=params, loc=loc)
+        self.pushBlock(loop.region().addEntryBlock([lua.ref()] * len(params)))
+        self.block(ctx.block())
+        assert ctx.block().retstat() == None, "unexpected terminator statement"
+        self.builder.create(lua.end, loc=self.getEndLoc(ctx))
+        self.popBlock()
+
+
 ################################################################################
 # Front-End: Variable Allocation and SSA
 ################################################################################
@@ -539,6 +567,8 @@ class AllocVisitor:
             self.visitAllocLocal(lua.alloc_local(op))
         elif isa(op, lua.numeric_for):
             self.visitNumericFor(lua.numeric_for(op))
+        elif isa(op, lua.generic_for):
+            self.visitGenericFor(lua.generic_for(op))
         elif isa(op, lua.assign):
             self.visitAssign(lua.assign(op))
         elif isa(op, lua.call):
@@ -564,6 +594,11 @@ class AllocVisitor:
 
     def visitNumericFor(self, op:lua.numeric_for):
         self.scope.set_local(op.ivar(), op.region().getBlock(0).getArgument(0))
+
+    def visitGenericFor(self, op:lua.generic_for):
+        for i in range(0, len(op.params())):
+            self.scope.set_local(op.params()[i],
+                                 op.region().getBlock(0).getArgument(i))
 
     def visitAssign(self, op:lua.assign):
         if op.var() == UnitAttr():
@@ -645,7 +680,8 @@ def elideAssign(op:lua.assign, rewriter:Builder):
 def assignTableSet(op:lua.assign, rewriter:Builder):
     if op.var() != UnitAttr():
         return False
-    assert isa(op.tgt().definingOp, lua.table_get)
+    if not isa(op.tgt().definingOp, lua.table_get):
+        return False
     tableGet = lua.table_get(op.tgt().definingOp)
     assert tableGet.val().hasOneUse()
     rewriter.create(lua.table_set, tbl=tableGet.tbl(), key=tableGet.key(),
@@ -695,6 +731,38 @@ def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
     iv = rewriter.create(luac.get_int64_val, tgt=i, loc=op.loc).num()
     newI = rewriter.create(AddIOp, lhs=iv, rhs=step, ty=I64Type(), loc=op.loc).result()
     rewriter.create(luac.set_int64_val, tgt=i, num=newI, loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+def lowerGenericFor(op:lua.generic_for, rewriter:Builder):
+    fcnPack = rewriter.create(lua.concat, vals=[op.s(), op.var()], loc=op.loc)
+    paramPack = rewriter.create(lua.call, fcn=op.f(), args=fcnPack.pack(),
+                                loc=op.loc).rets()
+    nil = rewriter.create(lua.nil, loc=op.loc).res()
+    params = rewriter.create(lua.unpack, pack=paramPack, loc=op.loc,
+                             vals=[lua.ref()] * len(op.params())).vals()
+    loopWhile = rewriter.create(lua.loop_while, loc=op.loc)
+    rewriter.insertAtStart(loopWhile.eval().addEntryBlock([]))
+    rewriter.create(lua.assign, tgt=op.var(), val=params[0], var=UnitAttr(),
+                    loc=op.loc)
+    ne = rewriter.create(luac.ne, lhs=op.var(), rhs=nil, loc=op.loc)
+    rewriter.create(lua.cond, cond=ne.res(), loc=op.loc)
+
+    bvm = BlockAndValueMapping()
+    for i in range(0, len(op.params())):
+        bvm[op.region().getBlock(0).getArgument(i)] = params[i]
+    copyInto(loopWhile.region().addEntryBlock([]), op.region().getBlock(0),
+             None, bvm)
+
+    rewriter.insertBefore(loopWhile.region().getBlock(0).getTerminator())
+    nextFcnPack = rewriter.create(lua.concat, vals=[op.s(), op.var()], loc=op.loc)
+    nextPack = rewriter.create(lua.call, fcn=op.f(), args=nextFcnPack.pack(),
+                               loc=op.loc).rets()
+    nextParams = rewriter.create(lua.unpack, pack=nextPack, loc=op.loc,
+                                 vals=[lua.ref()] * len(op.params())).vals()
+    for i in range(0, len(nextParams)):
+        rewriter.create(lua.assign, tgt=params[i], val=nextParams[i],
+                        var=op.params()[i], loc=op.loc)
     rewriter.erase(op)
     return True
 
@@ -759,7 +827,7 @@ def handleCondTerm(term:Operation, after:Block, rewriter:Builder):
     rewriter.erase(term)
 
 def lowerCondIf(op:lua.cond_if, rewriter:Builder):
-    boolVal = rewriter.create(luac.get_bool_val, tgt=op.cond(), loc=op.loc).b()
+    boolVal = rewriter.create(luac.convert_bool_like, val=op.cond(), loc=op.loc).b()
     # Add the conditional blocks [before, first, second, after]
     before = op.block
     after = before.split(op)
@@ -833,8 +901,9 @@ def lowerRepeatUntil(op:lua.until, rewriter:Builder):
     return True
 
 def cfExpand(module:ModuleOp, main:FuncOp):
-    applyOptPatterns(main, [
+    applyOptPatterns(module, [
         Pattern(lua.numeric_for, lowerNumericFor),
+        Pattern(lua.generic_for, lowerGenericFor),
         Pattern(lua.function_def_capture, lowerFunctionDef(module)),
         Pattern(lua.cond_if, lowerCondIf),
         Pattern(lua.loop_while, lowerLoopWhile),
@@ -1005,6 +1074,7 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
         Pattern(lua.binary, getExpanderFor("<", luac.lt), [luac.lt]),
         Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
+        Pattern(lua.binary, getExpanderFor("~=", luac.ne), [luac.ne]),
         Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
 
         Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
@@ -1132,7 +1202,9 @@ def luaToLLVM(module):
         convert(luac.lt, "lua_lt"),
         convert(luac.le, "lua_le"),
         convert(luac.eq, "lua_eq"),
+        convert(luac.ne, "lua_ne"),
         convert(luac.bool_and, "lua_bool_and"),
+        convert(luac.convert_bool_like, "lua_convert_bool_like"),
 
         convertLibc(luac.alloc, "lua_alloc"),
         convertLibc(luac.alloc_gc, "lua_alloc_gc"),

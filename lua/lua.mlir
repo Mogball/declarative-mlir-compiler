@@ -87,6 +87,10 @@ Dialect @lua {
     { ivar = #dmc.String } (region: Sized<1>)
     traits [@ReadFrom<["lower", "upper", "step"]>]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
+  Op @generic_for(f: !lua.value, s: !lua.value, var: !lua.value) -> ()
+    { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
+    traits [@ReadFrom<["f", "s", "var"]>]
+    config { fmt = "$params `in` $f `,` $s `,` $var `do` $region attr-dict" }
   Op @function_def() -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
     traits [@MemoryWrite]
@@ -145,6 +149,9 @@ Dialect @luac {
   Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @ne(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
   Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
@@ -173,6 +180,9 @@ Dialect @luac {
   Op @get_bool_val(tgt: !lua.value) -> (b: !luac.bool)
     traits [@ReadFrom<"tgt">]
     config { fmt = "$tgt attr-dict" }
+  Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
+    traits [@ReadFrom<"val">]
+    config { fmt = "$val attr-dict" }
 
   Op @set_int64_val(tgt: !lua.value, num: !luac.integer) -> ()
     traits [@WriteTo<"tgt">]
