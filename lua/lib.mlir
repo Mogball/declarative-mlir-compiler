@@ -110,6 +110,63 @@ module {
     return %ret : !lua.ref
   }
 
+  // double pow(double x, double y) from <math.h>
+  func @pow(%x: f64, %y: f64) -> f64
+  // int64_t ipow_impl(int64_t base, int64_t exp)
+  func @ipow_impl(%base: i64, %exp: i64) -> i64
+  func @lua_pow(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %ret = lua.nil
+
+    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
+
+    loop.if %types_ok {
+      luac.set_type type(%ret) = %num_type
+      %lhs_is_iv = luac.is_int %lhs
+      %rhs_is_iv = luac.is_int %rhs
+      %both_iv = and %lhs_is_iv, %rhs_is_iv : !luac.bool
+
+      loop.if %both_iv {
+        %lhs_iv = luac.get_int64_val %lhs
+        %rhs_iv = luac.get_int64_val %rhs
+        %ret_iv = call @ipow_impl(%lhs_iv, %rhs_iv) : (i64, i64) -> i64
+        luac.set_int64_val %ret = %ret_iv
+      } else {
+        %lhs_fp = call @luac_get_as_fp(%lhs, %lhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
+        %rhs_fp = call @luac_get_as_fp(%rhs, %rhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
+        %ret_fp = call @pow(%lhs_fp, %rhs_fp) : (f64, f64) -> f64
+        luac.set_double_val %ret = %ret_fp
+      }
+    }
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_neg(%val: !lua.ref) -> !lua.ref {
+    %ret = lua.nil
+
+    %num_type = constant #luac.type_num
+    %val_type = luac.get_type type(%val)
+    %type_ok = cmpi "eq", %num_type, %val_type : !luac.type_enum
+
+    loop.if %type_ok {
+      %is_iv = luac.is_int %val
+      loop.if %is_iv {
+        %inv = constant -1 : !luac.integer
+        %iv = luac.get_int64_val %val
+        %ret_iv = muli %inv, %iv : !luac.integer
+        luac.set_int64_val %ret = %ret_iv
+      } else {
+        %inv = constant -1.0 : !luac.real
+        %fp = luac.get_double_val %val
+        %ret_fp = mulf %inv, %fp : !luac.real
+        luac.set_double_val %ret = %ret_fp
+      }
+    }
+
+    return %ret : !lua.ref
+  }
+
   func @lua_lt(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
     %ret = lua.nil
 
@@ -132,6 +189,36 @@ module {
         %lhs_fp = call @luac_get_as_fp(%lhs, %lhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
         %rhs_fp = call @luac_get_as_fp(%rhs, %rhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
         %are_eq = cmpf "olt", %lhs_fp, %rhs_fp : !luac.real
+        loop.yield %are_eq : !luac.bool
+      }
+      luac.set_bool_val %ret = %ret_b
+    }
+
+    return %ret : !lua.ref
+  }
+
+  func @lua_gt(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+    %ret = lua.nil
+
+    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
+
+    loop.if %types_ok {
+      %bool_type = constant #luac.type_bool
+      luac.set_type type(%ret) = %bool_type
+      %lhs_is_iv = luac.is_int %lhs
+      %rhs_is_iv = luac.is_int %rhs
+      %both_iv = and %lhs_is_iv, %rhs_is_iv : !luac.bool
+
+      %ret_b = loop.if %both_iv -> !luac.bool {
+        %lhs_iv = luac.get_int64_val %lhs
+        %rhs_iv = luac.get_int64_val %rhs
+        %are_eq = cmpi "sgt", %lhs_iv, %rhs_iv : !luac.integer
+        loop.yield %are_eq : !luac.bool
+      } else {
+        %lhs_fp = call @luac_get_as_fp(%lhs, %lhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
+        %rhs_fp = call @luac_get_as_fp(%rhs, %rhs_is_iv) : (!lua.ref, !luac.bool) -> !luac.real
+        %are_eq = cmpf "ogt", %lhs_fp, %rhs_fp : !luac.real
         loop.yield %are_eq : !luac.bool
       }
       luac.set_bool_val %ret = %ret_b

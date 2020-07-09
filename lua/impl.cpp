@@ -63,35 +63,25 @@ struct LuaEq {
 };
 
 struct LuaTable {
-  static constexpr std::size_t PREALLOC = 256;
-  std::array<TObject *, PREALLOC> prealloc{};
-  std::vector<TObject *> trailing{};
+  static constexpr std::size_t PREALLOC = 4;
+  std::array<TObject, PREALLOC> prealloc{};
+  std::vector<TObject> trailing{};
   std::unordered_map<TObject *, TObject *, LuaHash, LuaEq> table;
+
+  auto *prealloc_get_or_alloc(int64_t iv) {
+    return &prealloc[iv];
+  }
 
   auto *list_get_or_alloc(int64_t iv) {
     --iv;
     if (iv < PREALLOC) {
-      auto *ret = prealloc[iv];
-      if (ret) {
-        return ret;
-      }
-      auto *nil = lua_alloc();
-      lua_set_type(nil, NIL);
-      prealloc[iv] = nil;
-      return nil;
+      return prealloc_get_or_alloc(iv);
     }
     iv -= PREALLOC;
     if (trailing.size() <= iv) {
       trailing.resize(iv * 2);
     }
-    auto ret = trailing[iv];
-    if (ret) {
-      return ret;
-    }
-    auto *nil = lua_alloc();
-    lua_set_type(nil, NIL);
-    trailing[iv] = nil;
-    return nil;
+    return &trailing[iv];
   }
 
   auto *get_or_alloc(TObject *key) {
@@ -110,41 +100,45 @@ struct LuaTable {
     }
   }
 
+  void prealloc_insert_or_assign(int64_t iv, TObject *val) {
+    prealloc[iv] = *val;
+  }
+
   void list_insert_or_assign(int64_t iv, TObject *val) {
     --iv;
     if (iv < PREALLOC) {
-      prealloc[iv] = val;
+      prealloc_insert_or_assign(iv, val);
       return;
     }
     iv -= PREALLOC;
     if (trailing.size() <= iv) {
       trailing.resize(iv * 2);
     }
-    trailing[iv] = val;
+    trailing[iv] = *val;
   }
 
   void insert_or_assign(TObject *key, TObject *val) {
-    auto *nval = lua_alloc();
-    *nval = *val;
     if (lua_get_type(key) == NUM && lua_is_int(key)) {
       if (auto iv = lua_get_int64_val(key); iv > 0) {
-        return list_insert_or_assign(iv, nval);
+        return list_insert_or_assign(iv, val);
       }
     }
+    auto *nval = lua_alloc();
+    *nval = *val;
     table.insert_or_assign(key, nval);
   }
 
   int64_t get_list_size() {
     int64_t size = 0;
     for (size_t i = 0; i < PREALLOC; ++i) {
-      if (prealloc[i] && lua_get_type(prealloc[i]) != NIL) {
+      if (prealloc[i].type != NIL) {
         ++size;
       } else {
         return size;
       }
     }
     for (size_t i = 0; i < trailing.size(); ++i) {
-      if (trailing[i] && lua_get_type(trailing[i]) != NIL) {
+      if (trailing[i].type != NIL) {
         ++size;
       } else {
         return size;
@@ -172,8 +166,16 @@ void lua_table_set_impl(TObject *tbl, TObject *key, TObject *val) {
   ((lua::LuaTable *) tbl->gc->ptable)->insert_or_assign(key, val);
 }
 
+void lua_table_set_prealloc_impl(TObject *tbl, int64_t iv, TObject *val) {
+  ((lua::LuaTable *) tbl->gc->ptable)->prealloc_insert_or_assign(iv, val);
+}
+
 TObject *lua_table_get_impl(TObject *tbl, TObject *key) {
   return ((lua::LuaTable *) tbl->gc->ptable)->get_or_alloc(key);
+}
+
+TObject *lua_table_get_prealloc_impl(TObject *tbl, int64_t iv) {
+  return ((lua::LuaTable *) tbl->gc->ptable)->prealloc_get_or_alloc(iv);
 }
 
 TObject *lua_load_string_impl(const char *data, uint64_t len) {
@@ -196,6 +198,21 @@ int64_t lua_list_size_impl(TObject *tbl) {
 void lua_strcat_impl(TObject *dest, TObject *lhs, TObject *rhs) {
   dest->gc->pstring = new std::string{lua::as_std_string(lhs) +
                                       lua::as_std_string(rhs)};
+}
+
+int64_t ipow_impl(int64_t base, int64_t exp) {
+  int64_t result = 1;
+  for (;;) {
+    if (exp & 1) {
+      result *= base;
+    }
+    exp >>= 1;
+    if (!exp) {
+      break;
+    }
+    base *= base;
+  }
+  return result;
 }
 
 }

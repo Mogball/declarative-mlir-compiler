@@ -16,6 +16,9 @@ Dialect @lua {
   Op @concat(vals: !dmc.Variadic<!lua.value_or_pack>) -> (pack: !lua.value_pack)
     traits [@SameVariadicOperandSizes, @ReadFrom<"vals">]
     config { fmt = "`(` $vals `)` `:` functional-type($vals, $pack) attr-dict" }
+  Op @concat_ref(vals: !dmc.Variadic<!lua.value>) -> (pack: !lua.value_pack)
+    traits [@SameVariadicOperandSizes, @ReadFrom<"vals">]
+    config { fmt = "`(` $vals `)` `:` functional-type($vals, $pack) attr-dict" }
   Op @unpack(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
     traits [@SameVariadicResultSizes, @ReadFrom<"pack">, @WriteTo<"pack">]
     config { fmt = "$pack `:` functional-type($pack, $vals) attr-dict" }
@@ -61,6 +64,7 @@ Dialect @lua {
   Op @table_set(tbl: !lua.value, key: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">, @ReadFrom<["key", "val"]>]
     config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
+
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
     traits [@Alloc<"res">] config { fmt = "$value attr-dict" }
 
@@ -115,6 +119,13 @@ Dialect @lua {
     config { fmt = "$cond attr-dict" }
 }
 
+Dialect @luaopt {
+  Alias @table_prealloc -> 4
+  Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
+  Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
+    traits [@WriteTo<"tbl">]
+}
+
 Dialect @luac {
   Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @integer -> i64 { builder = "IntegerType(64)" }
@@ -148,6 +159,9 @@ Dialect @luac {
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @pow(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
   Op @strcat(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
@@ -163,6 +177,9 @@ Dialect @luac {
   Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @gt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<["lhs", "rhs"]>]
+    config { fmt = "`(` operands `)` attr-dict" }
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
@@ -171,6 +188,8 @@ Dialect @luac {
   Op @bool_not(val: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
   Op @list_size(val: !lua.value) -> (res: !lua.value)
+    traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
+  Op @neg(val: !lua.value) -> (res: !lua.value)
     traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
 
   Op @alloc() -> (res: !lua.value)
@@ -240,6 +259,9 @@ Dialect @luac {
     traits [@Free<"pack">]
     config { fmt = "$pack attr-dict" }
   Op @pack_push(pack: !lua.value_pack, val: !lua.value) -> ()
+    traits [@WriteTo<"pack">, @ReadFrom<["pack", "val"]>]
+    config { fmt = "`(` $pack `,` `[` $val `]` `)` attr-dict" }
+  Op @pack_push_ref(pack: !lua.value_pack, val: !lua.value) -> ()
     traits [@WriteTo<"pack">, @ReadFrom<["pack", "val"]>]
     config { fmt = "`(` $pack `,` `[` $val `]` `)` attr-dict" }
   Op @pack_push_all(pack: !lua.value_pack, vals: !lua.value_pack) -> ()

@@ -10,6 +10,13 @@ TObject *lua_alloc(void) {
   return malloc(sizeof(TObject));
 }
 
+TObject *lua_copy(TObject *val) {
+  TObject *result = lua_alloc();
+  lua_set_type(result, lua_get_type(val));
+  lua_set_value_union(result, lua_get_value_union(val));
+  return result;
+}
+
 void lua_alloc_gc(TObject *val) {
   val->gc = malloc(sizeof(TComplex));
 }
@@ -83,8 +90,11 @@ void lua_delete_pack(TPack *pack) {
   free(pack->objs);
   free(pack);
 }
-void lua_pack_push(TPack *pack, TObject *val) {
+void lua_pack_push_ref(TPack *pack, TObject *val) {
   pack->objs[pack->size++] = val;
+}
+void lua_pack_push(TPack *pack, TObject *val) {
+  pack->objs[pack->size++] = lua_copy(val);
 }
 TObject *lua_pack_pull_one(TPack *pack) {
   if (pack->idx == pack->size) {
@@ -119,6 +129,16 @@ void lua_table_set(TObject *tbl, TObject *key, TObject *val) {
 extern TObject *lua_table_get_impl(TObject *tbl, TObject *key);
 TObject *lua_table_get(TObject *tbl, TObject *key) {
   return lua_table_get_impl(tbl, key);
+}
+
+extern void lua_table_set_prealloc_impl(TObject *tbl, int64_t iv, TObject *val);
+void lua_table_set_prealloc(TObject *tbl, int64_t iv, TObject *val) {
+  lua_table_set_prealloc_impl(tbl, iv, val);
+}
+
+extern TObject *lua_table_get_prealloc_impl(TObject *tbl, int64_t iv);
+TObject *lua_table_get_prealloc(TObject *tbl, int64_t iv) {
+  return lua_table_get_prealloc_impl(tbl, iv);
 }
 
 extern TObject *lua_load_string_impl(const char *data, uint64_t len);

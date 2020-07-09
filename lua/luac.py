@@ -15,9 +15,9 @@ def get_dialects(filename='lua.mlir'):
     m = parseSourceFile(filename)
     assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
-    return dialects[0], dialects[1], dialects[2]
+    return dialects[0], dialects[1], dialects[2], dialects[3]
 
-lua, luac, luallvm = get_dialects()
+lua, luaopt, luac, luallvm = get_dialects()
 
 ################################################################################
 # Front-End: Parser and AST Walker / MLIR Generator
@@ -787,7 +787,7 @@ anon_name_counter = 0
 def lowerFunctionDef(module:ModuleOp):
     def lowerFcn(op:lua.function_def_capture, rewriter:Builder):
         captures = list(op.captures())
-        concatCaps = rewriter.create(lua.concat, vals=captures, loc=op.loc)
+        concatCaps = rewriter.create(lua.concat_ref, vals=captures, loc=op.loc)
 
         global anon_name_counter
         name = "lua_anon_fcn_" + str(anon_name_counter)
@@ -928,6 +928,56 @@ def cfExpand(module:ModuleOp, main:FuncOp):
     ])
 
 ################################################################################
+# IR: Optimizations
+################################################################################
+
+def preallocValid(op, rewriter):
+    numOp = op.key().definingOp
+    if not isa(numOp, lua.number):
+        return None
+    ivVal = lua.number(numOp).value().getInt()
+    if not isinstance(ivVal, int) or ivVal <= 0 or ivVal > luaopt.table_prealloc().getInt():
+        return None
+    return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1), loc=op.loc).result()
+
+def tableGetPrealloc(op:lua.table_get, rewriter:Builder):
+    iv = preallocValid(op, rewriter)
+    if iv == None:
+        return False
+    val = rewriter.create(luaopt.table_get_prealloc, tbl=op.tbl(), iv=iv, loc=op.loc).val()
+    rewriter.replace(op, [val])
+    return True
+
+def tableSetPrealloc(op:lua.table_set, rewriter:Builder):
+    iv = preallocValid(op, rewriter)
+    if iv == None:
+        return False
+    rewriter.create(luaopt.table_set_prealloc, tbl=op.tbl(), iv=iv, val=op.val(), loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+def convertKnownBool(op:luac.convert_bool_like, rewriter:Builder):
+    defOp = op.val().definingOp
+    convertible = False
+    if isa(defOp, lua.binary):
+        if lua.binary(defOp).op().getValue() in ["<", ">", "<=", ">="]:
+            convertible = True
+    if not convertible:
+        return False
+    b = rewriter.create(luac.get_bool_val, tgt=op.val(), loc=op.loc).b()
+    rewriter.replace(op, [b])
+    return True
+
+_test = False
+
+def applyOpts(module):
+    applyOptPatterns(module, [
+        Pattern(lua.table_get, tableGetPrealloc),
+        Pattern(lua.table_set, tableSetPrealloc),
+        Pattern(luac.convert_bool_like, convertKnownBool),
+    ])
+
+################################################################################
 # IR: Dialect Conversion to StandardOps
 ################################################################################
 
@@ -983,10 +1033,17 @@ def setToNil(op:lua.nil, rewriter:Builder):
     rewriter.replace(op, [alloc.res()])
     return True
 
+def expandConcatRef(op:lua.concat_ref, rewriter:Builder):
+    fixedSz = len(op.vals())
+    const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
+    pack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc).pack()
+    for val in op.vals():
+        rewriter.create(luac.pack_push_ref, pack=pack, val=val, loc=op.loc)
+    rewriter.replace(op, [pack])
+    return True
+
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
-    if len(op.vals()) == 0:
-        return False
     fixedSz = sum(1 if val.type == lua.ref() else 0 for val in op.vals())
     const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
     szVar = const.result()
@@ -996,16 +1053,14 @@ def expandConcat(op:lua.concat, rewriter:Builder):
             addI = rewriter.create(AddIOp, lhs=szVar, rhs=getSz.sz(),
                                    ty=IntegerType(64), loc=op.loc)
             szVar = addI.result()
-    newPack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc)
+    pack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc).pack()
     for val in op.vals():
         if val.type == lua.ref():
-            rewriter.create(luac.pack_push, pack=newPack.pack(), val=val,
-                            loc=op.loc)
+            rewriter.create(luac.pack_push, pack=pack, val=val, loc=op.loc)
         else:
-            rewriter.create(luac.pack_push_all, pack=newPack.pack(), vals=val,
-                            loc=op.loc)
+            rewriter.create(luac.pack_push_all, pack=pack, vals=val, loc=op.loc)
             rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
-    rewriter.replace(op, [newPack.pack()])
+    rewriter.replace(op, [pack])
     return True
 
 def expandTable(op:lua.table, rewriter:Builder):
@@ -1015,16 +1070,6 @@ def expandTable(op:lua.table, rewriter:Builder):
     rewriter.create(luac.alloc_gc, tgt=tbl, loc=op.loc)
     rewriter.create(lua.init_table, tbl=tbl, loc=op.loc)
     rewriter.replace(op, [tbl])
-    return True
-
-def expandEmptyConcat(op:lua.concat, rewriter:Builder):
-    if len(op.vals()) != 0:
-        return False
-    const = rewriter.create(ConstantOp, value=I64Attr(1), loc=op.loc)
-    newPack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc)
-    nil = rewriter.create(lua.nil, loc=op.loc)
-    rewriter.create(luac.pack_push, pack=newPack.pack(), val=nil.res(), loc=op.loc)
-    rewriter.replace(op, [newPack.pack()])
     return True
 
 def expandUnpack(op:lua.unpack, rewriter:Builder):
@@ -1084,6 +1129,7 @@ def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
 
     target.addLegalDialect(luac)
+    target.addLegalDialect(luaopt)
     target.addLegalDialect("std")
     target.addLegalDialect("loop")
     target.addLegalOp(FuncOp)
@@ -1109,14 +1155,18 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
         Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
+        Pattern(lua.binary, getExpanderFor("^", luac.pow), [luac.pow]),
         Pattern(lua.binary, getExpanderFor("..", luac.strcat), [luac.strcat]),
         Pattern(lua.binary, getExpanderFor("<", luac.lt), [luac.lt]),
+        Pattern(lua.binary, getExpanderFor(">", luac.gt), [luac.gt]),
+        Pattern(lua.binary, getExpanderFor("<=", luac.le), [luac.le]),
         Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
         Pattern(lua.binary, getExpanderFor("~=", luac.ne), [luac.ne]),
         Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
 
         Pattern(lua.unary, getUnaryExpander("not", luac.bool_not), [luac.bool_not]),
         Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
+        Pattern(lua.unary, getUnaryExpander("-", luac.neg), [luac.neg]),
 
         Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
                 [luac.alloc, luac.set_int64_val, luac.set_type, ConstantOp]),
@@ -1124,10 +1174,9 @@ def lowerToLuac(module:ModuleOp):
                 [luac.alloc, luac.set_double_val, luac.set_type, ConstantOp]),
         Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
 
+        Pattern(lua.concat_ref, expandConcatRef, [luac.new_pack, luac.pack_push_ref]),
         Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
                                            luac.pack_push_all, luac.pack_get_size]),
-        Pattern(lua.concat, expandEmptyConcat, [luac.new_pack, luac.pack_push,
-                                                lua.nil]),
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
                                            luac.delete_pack]),
         Pattern(lua.unpack_rewind, expandUnpackRewind, [luac.pack_pull_one,
@@ -1240,13 +1289,16 @@ def luaToLLVM(module):
         convert(luac.add, "lua_add"),
         convert(luac.sub, "lua_sub"),
         convert(luac.mul, "lua_mul"),
+        convert(luac.pow, "lua_pow"),
         convert(luac.lt, "lua_lt"),
         convert(luac.le, "lua_le"),
+        convert(luac.gt, "lua_gt"),
         convert(luac.eq, "lua_eq"),
         convert(luac.ne, "lua_ne"),
         convert(luac.bool_and, "lua_bool_and"),
         convert(luac.bool_not, "lua_bool_not"),
         convert(luac.list_size, "lua_list_size"),
+        convert(luac.neg, "lua_neg"),
         convert(luac.strcat, "lua_strcat"),
         convert(luac.convert_bool_like, "lua_convert_bool_like"),
 
@@ -1270,6 +1322,7 @@ def luaToLLVM(module):
         convertLibc(luac.new_pack, "lua_new_pack"),
         convertLibc(luac.delete_pack, "lua_delete_pack"),
         convertLibc(luac.pack_push, "lua_pack_push"),
+        convertLibc(luac.pack_push_ref, "lua_pack_push_ref"),
         convertLibc(luac.pack_pull_one, "lua_pack_pull_one"),
         convertLibc(luac.pack_push_all, "lua_pack_push_all"),
         convertLibc(luac.pack_get_size, "lua_pack_get_size"),
@@ -1278,6 +1331,9 @@ def luaToLLVM(module):
         convertLibc(lua.table_set, "lua_table_set"),
         convertLibc(lua.init_table, "lua_init_table"),
         convertLibc(luallvm.load_string, "lua_load_string"),
+
+        convertLibc(luaopt.table_get_prealloc, "lua_table_get_prealloc"),
+        convertLibc(luaopt.table_set_prealloc, "lua_table_set_prealloc"),
 
         builtin("print"), builtin("string"), builtin("io"), builtin("table"),
         builtin("math"),
@@ -1305,48 +1361,63 @@ def main():
     verify(module)
     varAllocPass(main)
     verify(module)
+    applyCSE(module)
+    applyLICM(module)
     cfExpand(module, main)
+    applyCSE(module)
+    applyLICM(module)
     verify(module)
 
-    lib = parseSourceFile("lib.mlir")
-    for func in lib.getOps(FuncOp):
-        module.append(func.clone())
+    applyOpts(module)
 
-    lowerSCFToStandard(module)
-    verify(module)
-    lowerToLuac(module)
-    verify(module)
+    if not _test:
+        lib = parseSourceFile("lib.mlir")
+        for func in lib.getOps(FuncOp):
+            module.append(func.clone())
+        lowerSCFToStandard(module)
 
-    #os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
-    #os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-    libc = parseSourceFile("libc.mlir")
-    for glob in libc.getOps(LLVMGlobalOp):
-        module.append(glob.clone())
-    for func in libc.getOps(LLVMFuncOp):
-        module.append(func.clone())
+        applyCSE(module)
+        applyLICM(module)
+        verify(module)
+        lowerToLuac(module)
+        applyCSE(module)
+        applyLICM(module)
+        verify(module)
 
-    runAllOpts(module)
+        os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+        os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
+        libc = parseSourceFile("libc.mlir")
+        for glob in libc.getOps(LLVMGlobalOp):
+            module.append(glob.clone())
+        for func in libc.getOps(LLVMFuncOp):
+            module.append(func.clone())
 
-    luaToLLVM(module)
-    verify(module)
+        runAllOpts(module)
 
-    with open("main.mlir", "w") as f:
-        stdout = sys.stdout
-        sys.stdout = f
+        luaToLLVM(module)
+        applyCSE(module)
+        applyLICM(module)
+        runAllOpts(module)
+        verify(module)
+
+        with open("main.mlir", "w") as f:
+            stdout = sys.stdout
+            sys.stdout = f
+            print(module)
+            sys.stdout = stdout
+
+        os.system("clang++ -c builtins.cpp -o builtins.o -O2 -std=c++17")
+        os.system("clang++ -c impl.cpp -o impl.o -O2 -std=c++17")
+        os.system("clang -c rx-cpp/src/lua-str.c -o str.o -O2")
+        os.system("clang -c main.c -o main_impl.o -O2")
+
+        os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
+        os.system("clang -c main.ll -o main.o -O2")
+        os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
+
+    else:
+        verify(module)
         print(module)
-        sys.stdout = stdout
-
-    #os.system("clang++ -c builtins.cpp -o builtins.o -O2 -std=c++17")
-    #os.system("clang++ -c impl.cpp -o impl.o -O2 -std=c++17")
-    #os.system("clang -c rx-cpp/src/lua-str.c -o str.o -O2")
-    #os.system("clang -c main.c -o main_impl.o -O2")
-
-    os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-    os.system("clang -c main.ll -o main.o -O2")
-    os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
-
-    #verify(module)
-    #print(module)
 
 if __name__ == '__main__':
     main()
