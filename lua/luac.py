@@ -956,25 +956,12 @@ def tableSetPrealloc(op:lua.table_set, rewriter:Builder):
     rewriter.erase(op)
     return True
 
-def convertKnownBool(op:luac.convert_bool_like, rewriter:Builder):
-    defOp = op.val().definingOp
-    convertible = False
-    if isa(defOp, lua.binary):
-        if lua.binary(defOp).op().getValue() in ["<", ">", "<=", ">="]:
-            convertible = True
-    if not convertible:
-        return False
-    b = rewriter.create(luac.get_bool_val, tgt=op.val(), loc=op.loc).b()
-    rewriter.replace(op, [b])
-    return True
-
 _test = False
 
 def applyOpts(module):
     applyOptPatterns(module, [
         Pattern(lua.table_get, tableGetPrealloc),
         Pattern(lua.table_set, tableSetPrealloc),
-        Pattern(luac.convert_bool_like, convertKnownBool),
     ])
 
 ################################################################################
