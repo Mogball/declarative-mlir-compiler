@@ -158,6 +158,13 @@ std::string &as_std_string(TObject *val) {
 
 extern "C" {
 
+static TObject s_pool[16*1024*1024];
+static TObject *ptr = s_pool;
+
+TObject *lua_alloc(void) {
+  return ptr++;
+}
+
 void lua_init_table_impl(TObject *tbl) {
   tbl->gc->ptable = new lua::LuaTable;
 }

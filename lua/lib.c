@@ -6,10 +6,6 @@
  * Library Functions
  ******************************************************************************/
 
-TObject *lua_alloc(void) {
-  return malloc(sizeof(TObject));
-}
-
 TObject *lua_copy(TObject *val) {
   TObject *result = lua_alloc();
   lua_set_type(result, lua_get_type(val));
