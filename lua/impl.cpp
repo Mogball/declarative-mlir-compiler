@@ -165,6 +165,11 @@ TObject *lua_alloc(void) {
   return ptr++;
 }
 
+TPack g_ret_pack_impl;
+TPack g_arg_pack_impl;
+TPack *g_ret_pack = &g_ret_pack_impl;
+TPack *g_arg_pack = &g_arg_pack_impl;
+
 void lua_init_table_impl(TObject *tbl) {
   tbl->gc->ptable = new lua::LuaTable;
 }

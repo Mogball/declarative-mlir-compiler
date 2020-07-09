@@ -376,7 +376,6 @@ void print_one(TObject *val) {
   lua_pack_push(pack, val);
   lua::print_impl(lua::formatNoop, pack);
   std::cout << std::endl;
-  lua_delete_pack(pack);
 }
 
 }

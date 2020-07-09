@@ -75,17 +75,33 @@ bool lua_is_int(TObject *val) {
   return val->ntype == INT;
 }
 
-TPack *lua_new_pack(int64_t rsv) {
+TPack *lua_new_capture_pack(int64_t rsv) {
   TPack *pack = malloc(sizeof(TPack));
   pack->size = 0;
   pack->idx = 0;
   pack->objs = malloc(sizeof(TObject *) * rsv);
   return pack;
 }
-void lua_delete_pack(TPack *pack) {
-  free(pack->objs);
-  free(pack);
+
+extern TPack *g_ret_pack;
+extern TPack *g_arg_pack;
+
+TPack *lua_new_ret_pack(int64_t rsv) {
+  TPack *pack = g_ret_pack;
+  pack->size = 0;
+  pack->idx = 0;
+  pack->objs = realloc(pack->objs, rsv * sizeof(TObject *));
+  return pack;
 }
+
+TPack *lua_new_pack(int64_t rsv) {
+  TPack *pack = g_arg_pack;
+  pack->size = 0;
+  pack->idx = 0;
+  pack->objs = realloc(pack->objs, rsv * sizeof(TObject *));
+  return pack;
+}
+
 void lua_pack_push_ref(TPack *pack, TObject *val) {
   pack->objs[pack->size++] = val;
 }

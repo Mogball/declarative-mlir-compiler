@@ -57,8 +57,8 @@ class Generator:
 
     def handleBinaryOp(self, expCtx, opCtx):
         loc = self.getStartLoc(opCtx)
-        lhsVal = self.unpackIfPack(loc, self.exp(expCtx.exp(0)))
-        rhsVal = self.unpackIfPack(loc, self.exp(expCtx.exp(1)))
+        lhsVal = self.exp(expCtx.exp(0))
+        rhsVal = self.exp(expCtx.exp(1))
         binary = self.builder.create(lua.binary, lhs=lhsVal, rhs=rhsVal,
                                      op=StringAttr(opCtx.getText()), loc=loc)
         return binary.res()
@@ -100,21 +100,6 @@ class Generator:
             self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx))
-
-    def unpackIfPack(self, loc, val):
-        if val.type == lua.pack():
-            return self.builder.create(lua.unpack, pack=val, vals=[lua.ref()],
-                                       loc=loc).vals()[0]
-        return val
-
-    def unpackExplistPacks(self, loc, vals):
-        # unpack first value of any pack except if it is the last value
-        newVals = []
-        for i in range(0, len(vals) - 1):
-            newVals.append(self.unpackIfPack(loc, vals[i]))
-        if len(vals) != 0:
-            newVals.append(vals[len(vals) - 1])
-        return newVals
 
     #### AST Walker
     ###############
@@ -200,11 +185,12 @@ class Generator:
             varList.append(self.var(var))
         return varList
 
+
     def explist(self, ctx:LuaParser.ExplistContext):
         expList = []
-        for exp in ctx.exp():
-            expList.append(self.exp(exp))
-        return self.unpackExplistPacks(self.getStartLoc(ctx), expList)
+        for i in range(0, len(ctx.exp())):
+            expList.append(self.exp(ctx.exp(i), allowPack=(i+1)==len(ctx.exp())))
+        return expList
 
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
         assert ctx.NAME() == None, "colon operator unimplemented"
@@ -242,14 +228,14 @@ class Generator:
         val = self.handleFunctionLike(var, ctx, unpackLast=True)
         loc = self.getStartLoc(ctx)
         if ctx.exp():
-            key = self.unpackIfPack(loc, self.exp(ctx.exp()))
+            key = self.exp(ctx.exp())
         else:
             key = self.builder.create(lua.get_string,
                                       value=StringAttr(ctx.NAME().getText()),
                                       loc=loc).res()
         return self.builder.create(lua.table_get, tbl=val, key=key, loc=loc).val()
 
-    def exp(self, ctx:LuaParser.ExpContext):
+    def exp(self, ctx:LuaParser.ExpContext, allowPack=False):
         if ctx.nilvalue():
             return self.nilvalue(ctx.nilvalue())
         elif ctx.falsevalue():
@@ -265,7 +251,7 @@ class Generator:
         elif ctx.functiondef():
             return self.functiondef(ctx.functiondef())
         elif ctx.prefixexp():
-            return self.prefixexp(ctx.prefixexp())
+            return self.prefixexp(ctx.prefixexp(), allowPack=allowPack)
         elif ctx.tableconstructor():
             return self.tableconstructor(ctx.tableconstructor())
         elif ctx.operatorUnary():
@@ -350,15 +336,15 @@ class Generator:
             self.builder.create(lua.table_set, tbl=tbl, key=key, val=val, loc=floc)
         return tbl
 
-    def prefixexp(self, ctx:LuaParser.PrefixexpContext):
+    def prefixexp(self, ctx:LuaParser.PrefixexpContext, allowPack):
         # A variable or expression, with optional trailing function calls
         # `myFcn (a, b, c) {a: b} "abc" {} "" (c, b, d)` is valid syntax
-        return self.handleFunctionLike(self.varOrExp(ctx.varOrExp()), ctx)
+        return self.handleFunctionLike(self.varOrExp(ctx.varOrExp()), ctx, unpackLast=not allowPack)
 
     def functioncall(self, ctx:LuaParser.FunctioncallContext):
         # Identical to prefixexp, except len(allArgs) >= 1, and statement does
         # not return a value
-        self.prefixexp(ctx)
+        self.prefixexp(ctx, allowPack=True)
 
     def numericfor(self, ctx:LuaParser.NumericforContext):
         loc = self.getStartLoc(ctx)
@@ -586,8 +572,6 @@ class AllocVisitor:
             self.visitGenericFor(lua.generic_for(op))
         elif isa(op, lua.assign):
             self.visitAssign(lua.assign(op))
-        elif isa(op, lua.call):
-            self.visitCall(lua.call(op))
         elif isa(op, lua.function_def):
             self.visitFunctionDef(lua.function_def(op))
 
@@ -621,12 +605,6 @@ class AllocVisitor:
         assert self.scope.contains(op.var())
         # TODO set this at the highest enclosing scope
         self.scope.set_local(op.var(), op.res())
-
-    def visitCall(self, op:lua.call):
-        if op.rets().useEmpty():
-            self.builder.insertAfter(op)
-            # unused return values
-            self.builder.create(luac.delete_pack, pack=op.rets(), loc=op.loc)
 
     def visitFunctionDef(self, op:lua.function_def):
         for i in range(0, len(op.params())):
@@ -1023,7 +1001,7 @@ def setToNil(op:lua.nil, rewriter:Builder):
 def expandConcatRef(op:lua.concat_ref, rewriter:Builder):
     fixedSz = len(op.vals())
     const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
-    pack = rewriter.create(luac.new_pack, rsv=const.result(), loc=op.loc).pack()
+    pack = rewriter.create(luac.new_capture_pack, rsv=const.result(), loc=op.loc).pack()
     for val in op.vals():
         rewriter.create(luac.pack_push_ref, pack=pack, val=val, loc=op.loc)
     rewriter.replace(op, [pack])
@@ -1040,13 +1018,15 @@ def expandConcat(op:lua.concat, rewriter:Builder):
             addI = rewriter.create(AddIOp, lhs=szVar, rhs=getSz.sz(),
                                    ty=IntegerType(64), loc=op.loc)
             szVar = addI.result()
-    pack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc).pack()
+    if isa(op.pack().getOpUses()[0], ReturnOp):
+        pack = rewriter.create(luac.new_ret_pack, rsv=szVar, loc=op.loc).pack()
+    else:
+        pack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc).pack()
     for val in op.vals():
         if val.type == lua.ref():
             rewriter.create(luac.pack_push, pack=pack, val=val, loc=op.loc)
         else:
             rewriter.create(luac.pack_push_all, pack=pack, vals=val, loc=op.loc)
-            rewriter.create(luac.delete_pack, pack=val, loc=op.loc)
     rewriter.replace(op, [pack])
     return True
 
@@ -1065,7 +1045,6 @@ def expandUnpack(op:lua.unpack, rewriter:Builder):
         pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
         newVals.append(pull.val())
     rewriter.replace(op, newVals)
-    rewriter.create(luac.delete_pack, pack=op.pack(), loc=op.loc)
     return True
 
 def expandUnpackRewind(op:lua.unpack_rewind, rewriter:Builder):
@@ -1164,8 +1143,7 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.concat_ref, expandConcatRef, [luac.new_pack, luac.pack_push_ref]),
         Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
                                            luac.pack_push_all, luac.pack_get_size]),
-        Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one,
-                                           luac.delete_pack]),
+        Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one]),
         Pattern(lua.unpack_rewind, expandUnpackRewind, [luac.pack_pull_one,
                                                         luac.pack_rewind]),
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp,
@@ -1306,8 +1284,9 @@ def luaToLLVM(module):
         convertLibc(luac.get_value_union, "lua_get_value_union"),
         convertLibc(luac.set_value_union, "lua_set_value_union"),
         convertLibc(luac.is_int, "lua_is_int"),
+        convertLibc(luac.new_capture_pack, "lua_new_capture_pack"),
+        convertLibc(luac.new_ret_pack, "lua_new_ret_pack"),
         convertLibc(luac.new_pack, "lua_new_pack"),
-        convertLibc(luac.delete_pack, "lua_delete_pack"),
         convertLibc(luac.pack_push, "lua_pack_push"),
         convertLibc(luac.pack_push_ref, "lua_pack_push_ref"),
         convertLibc(luac.pack_pull_one, "lua_pack_pull_one"),
@@ -1348,27 +1327,20 @@ def main():
     verify(module)
     varAllocPass(main)
     verify(module)
-    applyCSE(module)
-    applyLICM(module)
     cfExpand(module, main)
     applyCSE(module)
     applyLICM(module)
     verify(module)
 
-    applyOpts(module)
-
     if not _test:
+        applyOpts(module)
+
         lib = parseSourceFile("lib.mlir")
         for func in lib.getOps(FuncOp):
             module.append(func.clone())
         lowerSCFToStandard(module)
 
-        applyCSE(module)
-        applyLICM(module)
-        verify(module)
         lowerToLuac(module)
-        applyCSE(module)
-        applyLICM(module)
         verify(module)
 
         os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")

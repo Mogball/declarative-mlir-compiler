@@ -77,7 +77,6 @@ uint64_t lua_get_value_union(TObject *val);
 void lua_set_value_union(TObject *val, uint64_t u);
 bool lua_is_int(TObject *val);
 TPack *lua_new_pack(int64_t size);
-void lua_delete_pack(TPack *pack);
 void lua_pack_push(TPack *pack, TObject *val);
 TObject *lua_pack_pull_one(TPack *pack);
 void lua_pack_push_all(TPack *pack, TPack *vals);

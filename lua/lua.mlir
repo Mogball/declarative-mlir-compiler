@@ -252,8 +252,9 @@ Dialect @luac {
     traits [@ReadFrom<"tgt">]
     config { fmt = "$tgt attr-dict" }
 
-  Op @new_pack(rsv: i64) -> (pack: !lua.value_pack)
-    traits [@Alloc<"pack">]
+  Op @new_capture_pack(rsv: i64) -> (pack: !lua.value_pack) traits [@Alloc<"pack">]
+  Op @new_ret_pack(rsv: i64) -> (pack: !lua.value_pack) traits [@Alloc<"pack">]
+  Op @new_pack(rsv: i64) -> (pack: !lua.value_pack) traits [@Alloc<"pack">]
     config { fmt = "`[` $rsv `]` attr-dict" }
   Op @delete_pack(pack: !lua.value_pack) -> ()
     traits [@Free<"pack">]
