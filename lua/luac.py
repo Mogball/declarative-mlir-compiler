@@ -1371,7 +1371,7 @@ def main():
         os.system("clang -c main.c -o main_impl.o -O2")
 
         os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-        os.system("clang -c main.ll -o main.o -O2")
+        os.system("clang -c main.ll -o main.o -Ofast")
         os.system("ld main.o main_impl.o builtins.o impl.o str.o -lc -lc++ -o main")
 
     else:

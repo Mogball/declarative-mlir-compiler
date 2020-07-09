@@ -101,7 +101,8 @@ void exposeModule(module &m, OpClass &cls) {
 
   class_<ReturnOp>(m, "ReturnOp", cls)
       .def(init(&returnCtor), "operands"_a = ValueList{},
-           "loc"_a = getUnknownLoc());
+           "loc"_a = getUnknownLoc())
+      .def_static("getName", []() { return ReturnOp::getOperationName().str(); });
 
   class_<ConstantOp>(m, "ConstantOp", cls)
       .def(init([](Attribute value, Location loc) {

@@ -158,7 +158,7 @@ std::string &as_std_string(TObject *val) {
 
 extern "C" {
 
-static TObject s_pool[16*1024*1024];
+static TObject s_pool[256*1024*1024];
 static TObject *ptr = s_pool;
 
 TObject *lua_alloc(void) {
