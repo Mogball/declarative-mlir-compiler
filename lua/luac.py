@@ -761,6 +761,14 @@ def lowerGenericFor(op:lua.generic_for, rewriter:Builder):
     rewriter.erase(op)
     return True
 
+def capturesSelf(op, cap):
+    for use in cap.getOpUses():
+        if not isa(use, lua.assign):
+            continue
+        if op.fcn() == lua.assign(use).val():
+            return True
+    return False
+
 anon_name_counter = 0
 def lowerFunctionDef(module:ModuleOp):
     def lowerFcn(op:lua.function_def_capture, rewriter:Builder):
@@ -781,7 +789,11 @@ def lowerFunctionDef(module:ModuleOp):
 
         bvm = BlockAndValueMapping()
         for i in range(0, len(captures)):
-            bvm[captures[i]] = capPack.vals()[i]
+            if capturesSelf(op, captures[i]):
+                bvm[captures[i]] = rewriter.create(luaopt.capture_self,
+                        val=capPack.vals()[i], loc=op.loc).res()
+            else:
+                bvm[captures[i]] = capPack.vals()[i]
         for i in range(0, len(op.params())):
             bvm[op.region().getBlock(0).getArgument(i)] = argPack.vals()[i]
         fcnBlk = op.region().getBlock(0)
@@ -1057,11 +1069,24 @@ def expandUnpackRewind(op:lua.unpack_rewind, rewriter:Builder):
     return True
 
 def expandCall(op:lua.call, rewriter:Builder):
+    if isa(op.fcn().definingOp, luaopt.capture_self):
+        return False
     getAddr = rewriter.create(luac.get_fcn_addr, fcn=op.fcn(), loc=op.loc)
     getPack = rewriter.create(luac.get_capture_pack, fcn=op.fcn(), loc=op.loc)
     icall = rewriter.create(CallIndirectOp, callee=getAddr.fcn_addr(),
                             operands=[getPack.pack(), op.args()], loc=op.loc)
     rewriter.replace(op, icall.results())
+    return True
+
+def expandCallSelf(op:lua.call, rewriter:Builder):
+    if not isa(op.fcn().definingOp, luaopt.capture_self):
+        return False
+    selfFunc = op.parentOp
+    assert isa(selfFunc, FuncOp)
+    pack = selfFunc.getBody().getBlock(0).getArgument(0)
+    call = rewriter.create(CallOp, callee=selfFunc,
+                           operands=[pack, op.args()], loc=op.loc)
+    rewriter.replace(op, call.results())
     return True
 
 def lowerAlloc(op:lua.alloc, rewriter:Builder):
@@ -1090,6 +1115,9 @@ def lowerGetString(module:ModuleOp):
 
     return lowerFcn
 
+def eraseCaptureSelf(op, rewriter):
+    rewriter.replace(op, [op.val()])
+    return True
 
 def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
@@ -1148,6 +1176,7 @@ def lowerToLuac(module:ModuleOp):
                                                         luac.pack_rewind]),
         Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp,
                                        luac.get_capture_pack]),
+        Pattern(lua.call, expandCallSelf, [CallOp, luac.get_capture_pack]),
         Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
                                            luac.get_type, luac.get_value_union]),
         Pattern(lua.get_string, lowerGetString(module), [luac.global_string,
@@ -1156,6 +1185,8 @@ def lowerToLuac(module:ModuleOp):
 
     target.addLegalOp("module_terminator")
     applyFullConversion(module, patterns, target)
+
+    applyOptPatterns(module, [Pattern(luaopt.capture_self, eraseCaptureSelf)])
 
 ################################################################################
 # IR: Dialect Conversion to LLVM IR
@@ -1328,19 +1359,18 @@ def main():
     varAllocPass(main)
     verify(module)
     cfExpand(module, main)
-    applyCSE(module)
-    applyLICM(module)
     verify(module)
+    applyOpts(module)
+    lowerToLuac(module)
 
     if not _test:
-        applyOpts(module)
 
         lib = parseSourceFile("lib.mlir")
+        lowerToLuac(lib)
         for func in lib.getOps(FuncOp):
             module.append(func.clone())
         lowerSCFToStandard(module)
 
-        lowerToLuac(module)
         verify(module)
 
         os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")

@@ -124,6 +124,8 @@ Dialect @luaopt {
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
+
+  Op @capture_self(val: !lua.value) -> (res: !lua.value)
 }
 
 Dialect @luac {
