@@ -32,7 +32,7 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
 
       PyType,
 
-      OpType, OpRegion, OpSuccessor
+      OpType
   >();
   addAttributes<
       AnyAttr, BoolAttr, IndexAttr, APIntAttr,
@@ -48,6 +48,8 @@ SpecDialect::SpecDialect(MLIRContext *ctx)
 
       AnyRegion, SizedRegion, IsolatedFromAboveRegion, VariadicRegion,
       AnySuccessor, VariadicSuccessor,
+
+      OpRegion, OpSuccessor,
 
       mlir::NamedParameter
   >();

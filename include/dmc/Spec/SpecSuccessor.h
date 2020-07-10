@@ -22,7 +22,8 @@ std::string toString(mlir::Attribute opSucc);
 } // end namespace SpecSuccessor
 
 /// Match any successor.
-class AnySuccessor : public mlir::Attribute::AttrBase<AnySuccessor> {
+class AnySuccessor : public mlir::Attribute::AttrBase<
+    AnySuccessor, mlir::Attribute, mlir::AttributeStorage> {
 public:
   using Base::Base;
   static llvm::StringLiteral getName() { return "Any"; }

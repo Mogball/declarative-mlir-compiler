@@ -5,7 +5,7 @@
 #include <llvm/ADT/StringMap.h>
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/OpDefinition.h>
-#include <mlir/Interfaces/SideEffects.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 
 namespace dmc {
 
@@ -149,9 +149,6 @@ public:
   // MemoryEffectOpInterface
   void getEffects(llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
                   mlir::MemoryEffects::Effect>> &effects);
-
-  static void *getRawInterface(mlir::TypeID id);
-  static bool hasTrait(mlir::TypeID id);
 
   // Custom isa<T>
   static bool classof(mlir::Operation *op);

@@ -58,7 +58,7 @@ target_link_libraries(pymlir PUBLIC
   MLIRLLVMIR
   MLIRSCF
   MLIRTransformUtils
-  MLIRLoopToStandard
+  MLIRSCFToStandard
   MLIRStandardToLLVM
   MLIRTransforms
   )

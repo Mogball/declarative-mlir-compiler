@@ -14,7 +14,7 @@ add_library(DMCEmbed
 
 target_link_libraries(DMCEmbed PUBLIC
   MLIRIR
-  LLVMMLIRTableGen
+  MLIRTableGen
   pybind11
   pymlir
   )

@@ -76,7 +76,7 @@ LogicalResult DynamicOperation::finalize() {
       BaseOp::parseAssembly, BaseOp::printAssembly,
       BaseOp::verifyInvariants, BaseOp::foldHook,
       BaseOp::getCanonicalizationPatterns,
-      BaseOp::getRawInterface, BaseOp::hasTrait
+      BaseOp::getInterfaceMap(), BaseOp::hasTrait
   });
   /// Take reference to the operation info.
   opInfo = AbstractOperation::lookup(name, dialect->getContext());
@@ -175,14 +175,6 @@ void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
       }
     }
   }
-}
-
-void *BaseOp::getRawInterface(TypeID id) {
-  return Op::getRawInterface(id);
-}
-
-bool BaseOp::hasTrait(TypeID id) {
-  return Op::hasTrait(id);
 }
 
 } // end namespace dmc

@@ -27,7 +27,8 @@ struct SizedRegionAttrStorage;
 } // end namespace detail
 
 /// Match any region.
-class AnyRegion : public mlir::Attribute::AttrBase<AnyRegion> {
+class AnyRegion : public mlir::Attribute::AttrBase<
+    AnyRegion, mlir::Attribute, mlir::AttributeStorage> {
 public:
   using Base::Base;
   static llvm::StringLiteral getName() { return "Any"; }
@@ -63,7 +64,7 @@ public:
 
 /// Match a region isolated from above.
 class IsolatedFromAboveRegion : public mlir::Attribute::AttrBase<
-    IsolatedFromAboveRegion> {
+    IsolatedFromAboveRegion, mlir::Attribute, mlir::AttributeStorage> {
 public:
   using Base::Base;
   static llvm::StringLiteral getName() { return "IsolatedFromAbove"; }

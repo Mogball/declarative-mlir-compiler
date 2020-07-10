@@ -10,7 +10,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Conversion/LoopToStandard/ConvertLoopToStandard.h>
+#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h>
 
 #include <llvm/Support/ErrorOr.h>

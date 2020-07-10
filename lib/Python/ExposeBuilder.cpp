@@ -9,7 +9,7 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <mlir/Conversion/LoopToStandard/ConvertLoopToStandard.h>
+#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h>
 
@@ -101,19 +101,19 @@ static auto getPatternList(std::vector<PyPattern> patterns) {
 
 bool applyOptPatterns(Operation *op, std::vector<PyPattern> patterns) {
   auto patternList = getPatternList(std::move(patterns));
-  return applyPatternsAndFoldGreedily(op, patternList);
+  return succeeded(applyPatternsAndFoldGreedily(op, patternList));
 }
 
 bool applyPartialConversion(Operation *op, std::vector<PyPattern> patterns,
                             ConversionTarget &target) {
   auto patternList = getPatternList(std::move(patterns));
-  return succeeded(applyPartialConversion(op, target, patternList, nullptr));
+  return succeeded(applyPartialConversion(op, target, patternList));
 }
 
 bool applyFullConversion(Operation *op, std::vector<PyPattern> patterns,
                          ConversionTarget &target) {
   auto patternList = getPatternList(std::move(patterns));
-  return succeeded(applyFullConversion(op, target, patternList, nullptr));
+  return succeeded(applyFullConversion(op, target, patternList));
 }
 
 bool lowerSCFToStandard(ModuleOp module) {
@@ -146,14 +146,6 @@ struct LLVMLoweringPass : public OperationPass<ModuleOp> {
     ModuleOp m = getOperation();
 
     LLVMTypeConverter typeConverter(&getContext());
-
-    OwningRewritePatternList patterns;
-    populateStdToLLVMConversionPatterns(typeConverter, patterns,
-                                        false, false);
-
-    for (auto &pattern : extraPatterns) {
-      patterns.insert<PyPatternImpl>(pattern);
-    }
     for (auto converter : typeConverters) {
       typeConverter.addConversion([converter](Type ty) -> llvm::Optional<Type> {
         auto ret = converter(ty);
@@ -164,7 +156,15 @@ struct LLVMLoweringPass : public OperationPass<ModuleOp> {
       });
     }
 
-    if (failed(applyPartialConversion(m, target, patterns, &typeConverter)))
+    OwningRewritePatternList patterns;
+    populateStdToLLVMConversionPatterns(typeConverter, patterns,
+                                        LowerToLLVMOptions::getDefaultOptions());
+
+    for (auto &pattern : extraPatterns) {
+      patterns.insert<PyPatternImpl>(pattern);
+    }
+
+    if (failed(applyPartialConversion(m, target, patterns)))
       signalPassFailure();
   }
 

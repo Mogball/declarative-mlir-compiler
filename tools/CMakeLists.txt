@@ -20,7 +20,7 @@ target_link_libraries(gen
   MLIRStandardOps
   MLIRParser
   MLIRLLVMIR
-  MLIRLoopToStandard
+  MLIRSCFToStandard
   MLIRStandardToLLVM
   DMCEmbedInit
   )

@@ -46,7 +46,10 @@ DynamicAttributeImpl::DynamicAttributeImpl(
     : DynamicObject{dialect->getDynContext()},
       AttributeMetadata{name, llvm::None, Type{}},
       dialect{dialect},
-      paramSpec{paramSpec} {}
+      paramSpec{paramSpec} {
+  dialect->addAttribute(getTypeID(),
+                        AbstractAttribute::get<DynamicAttribute>(*dialect));
+}
 
 Attribute DynamicAttributeImpl::parseAttribute(Location loc,
                                                DialectAsmParser &parser) {
@@ -99,22 +102,13 @@ void DynamicAttributeImpl::setFormat(std::string parserName,
 /// context, we need to directly call the Attribute uniquer.
 DynamicAttribute DynamicAttribute::get(DynamicAttributeImpl *impl,
                                        ArrayRef<Attribute> params) {
-  auto *ctx = impl->getDynContext()->getContext();
-  return ctx->getAttributeUniquer().get<Base::ImplType>(
-      [impl, ctx](AttributeStorage *storage) {
-        storage->initializeDialect(*impl->getDialect());
-        /// If a type was not provided, default to NoneType.
-        if (!storage->getType())
-          storage->setType(NoneType::get(ctx));
-      },
-      DynamicAttributeKind, impl, params);
+  return Base::get(impl->getDynContext()->getContext(), DynamicAttributeKind,
+                   impl, params);
 }
 
 DynamicAttribute DynamicAttribute::getChecked(
     Location loc, DynamicAttributeImpl *impl, ArrayRef<Attribute> params) {
-  if (failed(verifyConstructionInvariants(loc, impl, params)))
-    return {};
-  return get(impl, params);
+  return Base::getChecked(loc, DynamicAttributeKind, impl, params);
 }
 
 LogicalResult DynamicAttribute::verifyConstructionInvariants(
