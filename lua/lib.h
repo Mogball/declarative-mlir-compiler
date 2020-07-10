@@ -23,19 +23,20 @@ enum {
 struct Object;
 
 typedef struct Pack {
-  int64_t size;
-  int64_t idx;
-  struct Object **objs;
+  int32_t size;
+  struct Object *objs;
 } TPack;
 
-typedef TPack *(*lua_fcn_t)(TPack *, TPack *);
+typedef struct Object **TCapture;
+
+typedef TPack (*lua_fcn_t)(TCapture, TPack);
 typedef void *lua_opaque_table_t;
 typedef void *lua_opaque_string_t;
 
 typedef union Complex {
   struct {
     lua_fcn_t fcn_addr;
-    TPack *cap_pack;
+    TCapture capture;
   };
   lua_opaque_table_t ptable;
   lua_opaque_string_t pstring;
@@ -52,34 +53,43 @@ typedef struct Object {
   };
 } TObject;
 
-TObject *lua_alloc(void);
-void lua_alloc_gc(TObject *val);
-int16_t lua_get_type(TObject *val);
-void lua_set_type(TObject *val, int16_t ty);
-bool lua_get_bool_val(TObject *val);
-void lua_set_bool_val(TObject *val, bool b);
-double lua_get_double_val(TObject *val);
-void lua_set_double_val(TObject *val, double fp);
-lua_fcn_t lua_get_fcn_addr(TObject *val);
-void lua_set_fcn_addr(TObject *val, lua_fcn_t fcn_addr);
-TPack *lua_get_capture_pack(TObject *val);
-void lua_set_capture_pack(TObject *val, TPack *pack);
-uint64_t lua_get_value_union(TObject *val);
-void lua_set_value_union(TObject *val, uint64_t u);
-TPack *lua_new_pack(int64_t size);
-void lua_pack_push(TPack *pack, TObject *val);
-TObject *lua_pack_pull_one(TPack *pack);
-void lua_pack_push_all(TPack *pack, TPack *vals);
-int64_t lua_pack_get_size(TPack *pack);
-void lua_pack_rewind(TPack *pack);
-void lua_init_table(TObject *tbl);
-void lua_table_set(TObject *tbl, TObject *key, TObject *val);
-TObject *lua_table_get(TObject *tbl, TObject *key);
-void lua_table_set(TObject *tbl, TObject *key, TObject *val);
-TObject *lua_load_string(const char *data, uint64_t len);
+void lua_alloc_gc(TObject *ptr);
 
-TObject *lua_list_size(TObject *tbl);
-TObject *lua_add(TObject *lhs, TObject *rhs);
+
+int32_t lua_get_type(TObject val);
+void lua_set_type(TObject *ptr, int32_t ty);
+
+bool lua_get_bool_val(TObject val);
+void lua_set_bool_val(TObject *ptr, bool b);
+
+double lua_get_double_val(TObject val);
+void lua_set_double_val(TObject *ptr, double fp);
+
+lua_fcn_t lua_get_fcn_addr(TObject val);
+void lua_set_fcn_addr(TObject val, lua_fcn_t fcn_addr);
+
+TCapture lua_get_capture_pack(TObject val);
+void lua_set_capture_pack(TObject val, TCapture capture);
+
+uint64_t lua_get_value_union(TObject val);
+void lua_set_value_union(TObject *ptr, uint64_t u);
+
+TCapture lua_new_capture(int32_t size);
+void lua_add_capture(TCapture capture, TObject *ptr, int32_t idx);
+
+TPack lua_get_ret_pack(int32_t size);
+TPack lua_get_arg_pack(int32_t size);
+
+void lua_pack_insert(TPack pack, TObject val, int32_t idx);
+void lua_pack_insert_all(TPack pack, TPack tail, int32_t idx);
+TObject lua_pack_get(TPack pack, int32_t idx);
+int32_t lua_pack_get_size(TPack pack);
+
+void lua_init_table(TObject tbl);
+void lua_table_set(TObject tbl, TObject key, TObject val);
+TObject lua_table_get(TObject tbl, TObject key);
+void lua_table_set(TObject tbl, TObject key, TObject val);
+TObject lua_load_string(const char *data, uint64_t len);
 
 #ifdef __cplusplus
 }

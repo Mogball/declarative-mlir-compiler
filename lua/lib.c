@@ -6,148 +6,138 @@
  * Library Functions
  ******************************************************************************/
 
-// NOTE: this allocator is faster in some cases because the malloc call can
-// be inlined
-//TObject *lua_alloc(void) {
-//  return malloc(sizeof(TObject));
-//}
-
-TObject *lua_copy(TObject *val) {
-  TObject *result = lua_alloc();
-  result->type = val->type;
-  result->u = val->u;
-  return result;
+void lua_alloc_gc(TObject *ptr) {
+  ptr->gc = malloc(sizeof(TComplex));
 }
 
-void lua_alloc_gc(TObject *val) {
-  val->gc = malloc(sizeof(TComplex));
+/*******************************************************************************
+ * Getters and setters
+ ******************************************************************************/
+
+int32_t lua_get_type(TObject val) {
+  return val.type;
+}
+void lua_set_type(TObject *ptr, int32_t ty) {
+  ptr->type = ty;
 }
 
-int16_t lua_get_type(TObject *val) {
-  return val->type;
+bool lua_get_bool_val(TObject val) {
+  return val.b;
 }
-void lua_set_type(TObject *val, int16_t ty) {
-  val->type = ty;
-}
-
-bool lua_get_bool_val(TObject *val) {
-  return val->b;
+void lua_set_bool_val(TObject *ptr, bool b) {
+  ptr->b = b;
 }
 
-void lua_set_bool_val(TObject *val, bool b) {
-  val->b = b;
+double lua_get_double_val(TObject val) {
+  return val.num;
+}
+void lua_set_double_val(TObject *ptr, double num) {
+  ptr->num = num;
 }
 
-double lua_get_double_val(TObject *val) {
-  return val->num;
+lua_fcn_t lua_get_fcn_addr(TObject val) {
+  return val.gc->fcn_addr;
 }
-void lua_set_double_val(TObject *val, double num) {
-  val->num = num;
-}
-
-lua_fcn_t lua_get_fcn_addr(TObject *val) {
-  return val->gc->fcn_addr;
+void lua_set_fcn_addr(TObject val, lua_fcn_t fcn_addr) {
+  val.gc->fcn_addr = fcn_addr;
 }
 
-void lua_set_fcn_addr(TObject *val, lua_fcn_t fcn_addr) {
-  val->gc->fcn_addr = fcn_addr;
+TCapture lua_get_capture_pack(TObject val) {
+  return val.gc->capture;
+}
+void lua_set_capture_pack(TObject val, TCapture capture) {
+  val.gc->capture = capture;
 }
 
-TPack *lua_get_capture_pack(TObject *val) {
-  return val->gc->cap_pack;
+uint64_t lua_get_value_union(TObject val) {
+  return val.u;
+}
+void lua_set_value_union(TObject *ptr, uint64_t u) {
+  ptr->u = u;
 }
 
-void lua_set_capture_pack(TObject *val, TPack *pack) {
-  val->gc->cap_pack = pack;
+/*******************************************************************************
+ * Capture Packs
+ ******************************************************************************/
+
+TCapture lua_new_capture(int32_t size) {
+  return malloc(sizeof(TObject *) * size);
+}
+void lua_add_capture(TCapture capture, TObject *ptr, int32_t idx) {
+  capture[idx] = ptr;
 }
 
-uint64_t lua_get_value_union(TObject *val) {
-  return val->u;
-}
-void lua_set_value_union(TObject *val, uint64_t u) {
-  val->u = u;
-}
-
-TPack *lua_new_capture_pack(int64_t rsv) {
-  TPack *pack = malloc(sizeof(TPack));
-  pack->size = 0;
-  pack->idx = 0;
-  pack->objs = malloc(sizeof(TObject *) * rsv);
-  return pack;
-}
+/*******************************************************************************
+ * Value Packs
+ ******************************************************************************/
 
 extern TPack *g_ret_pack;
 extern TPack *g_arg_pack;
 
-TPack *lua_new_ret_pack(int64_t rsv) {
-  TPack *pack = g_ret_pack;
-  pack->size = 0;
-  pack->idx = 0;
-  pack->objs = realloc(pack->objs, rsv * sizeof(TObject *));
-  return pack;
+TPack lua_get_ret_pack(int32_t rsv) {
+  g_ret_pack->size = rsv;
+  g_ret_pack->objs = realloc(g_ret_pack->objs, rsv * sizeof(TObject));
+  return *g_ret_pack;
 }
 
-TPack *lua_new_pack(int64_t rsv) {
-  TPack *pack = g_arg_pack;
-  pack->size = 0;
-  pack->idx = 0;
-  pack->objs = realloc(pack->objs, rsv * sizeof(TObject *));
-  return pack;
+TPack lua_get_arg_pack(int32_t rsv) {
+  g_arg_pack->size = rsv;
+  g_arg_pack->objs = realloc(g_arg_pack->objs, rsv * sizeof(TObject));
+  return *g_arg_pack;
 }
 
-void lua_pack_push_ref(TPack *pack, TObject *val) {
-  pack->objs[pack->size++] = val;
+void lua_pack_insert(TPack pack, TObject val, int32_t idx) {
+  pack.objs[idx] = val;
 }
-void lua_pack_push(TPack *pack, TObject *val) {
-  pack->objs[pack->size++] = lua_copy(val);
+void lua_pack_insert_all(TPack pack, TPack tail, int32_t idx) {
+  for (int32_t i = 0, e = tail.size; i != e; ++i, ++idx) {
+    pack.objs[idx] = tail.objs[i];
+  }
 }
-TObject *lua_pack_pull_one(TPack *pack) {
-  if (pack->idx == pack->size) {
-    TObject *ret = lua_alloc();
-    lua_set_type(ret, NIL);
+TObject lua_pack_get(TPack pack, int32_t idx) {
+  if (idx >= pack.size) {
+    TObject ret;
+    ret.type = NIL;
     return ret;
   }
-  return pack->objs[pack->idx++];
+  return pack.objs[idx];
 }
-void lua_pack_push_all(TPack *pack, TPack *vals) {
-  while (vals->idx != vals->size) {
-    lua_pack_push(pack, vals->objs[vals->idx++]);
-  }
-}
-int64_t lua_pack_get_size(TPack *pack) {
-  return pack->size;
-}
-void lua_pack_rewind(TPack *pack) {
-  pack->idx = 0;
+int32_t lua_pack_get_size(TPack pack) {
+  return pack.size;
 }
 
-extern void lua_init_table_impl(TObject *tbl);
-void lua_init_table(TObject *tbl) {
+/*******************************************************************************
+ * Tables
+ ******************************************************************************/
+
+extern void lua_init_table_impl(TObject tbl);
+extern void lua_table_set_impl(TObject tbl, TObject key, TObject val);
+extern TObject lua_table_get_impl(TObject tbl, TObject key);
+void lua_init_table(TObject tbl) {
   lua_init_table_impl(tbl);
 }
-
-extern void lua_table_set_impl(TObject *tbl, TObject *key, TObject *val);
-void lua_table_set(TObject *tbl, TObject *key, TObject *val) {
+void lua_table_set(TObject tbl, TObject key, TObject val) {
   lua_table_set_impl(tbl, key, val);
 }
-
-extern TObject *lua_table_get_impl(TObject *tbl, TObject *key);
-TObject *lua_table_get(TObject *tbl, TObject *key) {
+TObject lua_table_get(TObject tbl, TObject key) {
   return lua_table_get_impl(tbl, key);
 }
 
-extern void lua_table_set_prealloc_impl(TObject *tbl, int64_t iv, TObject *val);
-void lua_table_set_prealloc(TObject *tbl, int64_t iv, TObject *val) {
+extern void lua_table_set_prealloc_impl(TObject tbl, int64_t iv, TObject val);
+extern TObject lua_table_get_prealloc_impl(TObject tbl, int64_t iv);
+void lua_table_set_prealloc(TObject tbl, int64_t iv, TObject val) {
   lua_table_set_prealloc_impl(tbl, iv, val);
 }
-
-extern TObject *lua_table_get_prealloc_impl(TObject *tbl, int64_t iv);
-TObject *lua_table_get_prealloc(TObject *tbl, int64_t iv) {
+TObject lua_table_get_prealloc(TObject tbl, int64_t iv) {
   return lua_table_get_prealloc_impl(tbl, iv);
 }
 
-extern TObject *lua_load_string_impl(const char *data, uint64_t len);
-TObject *lua_load_string(const char *data, uint64_t len) {
+/*******************************************************************************
+ * Strings
+ ******************************************************************************/
+
+extern TObject lua_load_string_impl(const char *data, uint64_t len);
+TObject lua_load_string(const char *data, uint64_t len) {
   return lua_load_string_impl(data, len);
 }
 
@@ -161,18 +151,18 @@ extern TObject *builtin_table;
 extern TObject *builtin_io;
 extern TObject *builtin_math;
 
-TObject *lua_builtin_print(void) {
-  return builtin_print;
+TObject lua_builtin_print(void) {
+  return *builtin_print;
 }
-TObject *lua_builtin_string(void) {
-  return builtin_string;
+TObject lua_builtin_string(void) {
+  return *builtin_string;
 }
-TObject *lua_builtin_table(void) {
-  return builtin_table;
+TObject lua_builtin_table(void) {
+  return *builtin_table;
 }
-TObject *lua_builtin_io(void) {
-  return builtin_io;
+TObject lua_builtin_io(void) {
+  return *builtin_io;
 }
-TObject *lua_builtin_math(void) {
-  return builtin_math;
+TObject lua_builtin_math(void) {
+  return *builtin_math;
 }

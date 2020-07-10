@@ -71,7 +71,7 @@ TPack *fcn_builtin_print(TPack *, TPack *pack) {
   print_impl(&formatPrint, pack);
   std::cout << std::endl;
 
-  auto *ret = lua_new_pack(1);
+  auto *ret = lua_new_ret_pack(1);
   auto *nil = lua_alloc();
   lua_set_type(nil, NIL);
   lua_pack_push(ret, nil);
@@ -107,13 +107,13 @@ TPack *fcn_builtin_string_find(TPack *, TPack *pack) {
   auto n = str_match(textStr.c_str() + offset, textStr.size() - offset,
                      patStr.c_str(), &m);
   if (n == 0) {
-    auto *ret = lua_new_pack(1);
+    auto *ret = lua_new_ret_pack(1);
     auto *nil = lua_alloc();
     lua_set_type(nil, NIL);
     lua_pack_push(ret, nil);
     return ret;
   }
-  auto *ret = lua_new_pack(2);
+  auto *ret = lua_new_ret_pack(2);
   auto *start = lua_alloc();
   start->type = NUM;
   start->num = m.start + 1 + offset;
@@ -140,7 +140,7 @@ TPack *fcn_builtin_string_sub(TPack *, TPack *pack) {
   lua_alloc_gc(substring);
   substring->gc->pstring = new std::string{textStr.substr(istart, iend - istart + 1)};
 
-  auto *ret = lua_new_pack(1);
+  auto *ret = lua_new_ret_pack(1);
   lua_pack_push(ret, substring);
   return ret;
 }
@@ -156,7 +156,7 @@ TPack *fcn_builtin_table_insert(TPack *, TPack *pack) {
   auto *nextIndex = lua_add(listSz, &one);
   lua_table_set(tbl, nextIndex, val);
 
-  auto *ret = lua_new_pack(1);
+  auto *ret = lua_new_ret_pack(1);
   auto *nil = lua_alloc();
   lua_set_type(nil, NIL);
   lua_pack_push(ret, nil);
@@ -210,7 +210,7 @@ read_line:
     std::getline(std::cin, *pstring);
   }
 
-  auto *retpack = lua_new_pack(1);
+  auto *retpack = lua_new_ret_pack(1);
   lua_pack_push(retpack, ret);
   return retpack;
 }
@@ -218,7 +218,7 @@ read_line:
 TPack *fcn_builtin_io_write(TPack *, TPack *pack) {
   print_impl(&formatNoop, pack);
 
-  auto *ret = lua_new_pack(1);
+  auto *ret = lua_new_ret_pack(1);
   auto *nil = lua_alloc();
   lua_set_type(nil, NIL);
   lua_pack_push(ret, nil);
@@ -247,7 +247,7 @@ TPack *fcn_builtin_math_random(TPack *, TPack *pack) {
     r->num = dist(e2);
   }
 
-  auto *ret = lua_new_pack(1);
+  auto *ret = lua_new_ret_pack(1);
   lua_pack_push(ret, r);
   return ret;
 }

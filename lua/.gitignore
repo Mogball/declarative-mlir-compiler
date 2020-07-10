@@ -1,5 +1,6 @@
 *.ll
 *.o
+*.s
 main
 libc.mlir
 test.mlir
