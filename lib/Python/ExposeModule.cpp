@@ -134,7 +134,9 @@ void exposeModule(module &m, OpClass &cls) {
         OpBuilder b{getMLIRContext()};
         return b.create<CallOp>(loc, callee, operands);
       }), "callee"_a, "operands"_a, "loc"_a = getUnknownLoc())
-      .def_static("getName", []() { return CallOp::getOperationName().str(); });
+      .def_static("getName", []() { return CallOp::getOperationName().str(); })
+      .def("results",
+           [](CallOp op) -> ValueRange { return op.getResults(); });
 
   class_<AddIOp>(m, "AddIOp", cls)
       .def(init(&addICtor), "lhs"_a, "rhs"_a, "ty"_a, "loc"_a = getUnknownLoc())
