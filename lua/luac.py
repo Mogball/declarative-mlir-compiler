@@ -23,6 +23,8 @@ lua, luaopt, luac, luallvm = get_dialects()
 # Front-End: Parser and AST Walker / MLIR Generator
 ################################################################################
 
+_test = True
+
 class Generator:
     #### Helpers
     ###############
@@ -387,7 +389,7 @@ class Generator:
         loc = self.getStartLoc(ctx)
         fcnDef = self.builder.create(lua.function_def, params=params, loc=loc)
 
-        self.pushBlock(fcnDef.region().addEntryBlock([lua.ref()] * len(params)))
+        self.pushBlock(fcnDef.region().addEntryBlock([lua.val()] * len(params)))
         self.block(ctx.funcbody().block())
         retstat = ctx.funcbody().block().retstat()
         retVals = []
@@ -947,8 +949,6 @@ def tableSetPrealloc(op:lua.table_set, rewriter:Builder):
     rewriter.erase(op)
     return True
 
-_test = False
-
 def applyOpts(module):
     applyOptPatterns(module, [
         Pattern(lua.table_get, tableGetPrealloc),
@@ -1011,15 +1011,6 @@ def setToNil(op:lua.nil, rewriter:Builder):
     rewriter.replace(op, [alloc.res()])
     return True
 
-def expandConcatRef(op:lua.concat_ref, rewriter:Builder):
-    fixedSz = len(op.vals())
-    const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
-    pack = rewriter.create(luac.new_capture_pack, rsv=const.result(), loc=op.loc).pack()
-    for val in op.vals():
-        rewriter.create(luac.pack_push_ref, pack=pack, val=val, loc=op.loc)
-    rewriter.replace(op, [pack])
-    return True
-
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
     fixedSz = sum(1 if val.type == lua.ref() else 0 for val in op.vals())
@@ -1058,15 +1049,6 @@ def expandUnpack(op:lua.unpack, rewriter:Builder):
         pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
         newVals.append(pull.val())
     rewriter.replace(op, newVals)
-    return True
-
-def expandUnpackRewind(op:lua.unpack_rewind, rewriter:Builder):
-    newVals = []
-    for val in op.vals():
-        pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
-        newVals.append(pull.val())
-    rewriter.replace(op, newVals)
-    rewriter.create(luac.pack_rewind, pack=op.pack(), loc=op.loc)
     return True
 
 def expandCall(op:lua.call, rewriter:Builder):
@@ -1350,14 +1332,14 @@ def main():
 
     module, main = generator.chunk(parser.chunk())
     verify(module)
-    varAllocPass(main)
-    verify(module)
-    cfExpand(module, main)
-    verify(module)
-    applyOpts(module)
-    lowerToLuac(module)
 
     if not _test:
+        varAllocPass(main)
+        verify(module)
+        cfExpand(module, main)
+        verify(module)
+        applyOpts(module)
+        lowerToLuac(module)
 
         lib = parseSourceFile("lib.mlir")
         lowerToLuac(lib)
