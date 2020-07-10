@@ -81,8 +81,8 @@ AttributeMetadata *lookupAttributeData(DynamicContext *ctx, Attribute attr) {
 
 template <typename T> auto inlineOrConcat(PythonGenStream::Line &line) {
   return [&](const T &t) {
-    line << (t.isVariadic() ? "] + " : "") << t.name
-         << (t.isVariadic() ? " + [" : "");
+    line << " + " << (t.isVariadic() ? "" : "[") << t.name
+         << (t.isVariadic() ? "" : "]");
   };
 }
 
@@ -159,22 +159,22 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
 
   // Call to generic operation constructor
   {
-    auto line = s.line() << "theOp = mlir.Operation(loc, \"" << opName << "\", [";
+    auto line = s.line() << "theOp = mlir.Operation(loc, \"" << opName << "\", []";
     /// TODO unpack arrays for variadic operands, results, and successors
     interleaveComma(opType.getResults(), line,
                     inlineOrConcat<NamedType>(line));
-    line << "], [";
+    line << ", []";
     interleaveComma(opType.getOperands(), line,
                     inlineOrConcat<NamedType>(line));
-    line << "], {";
+    line << ", {";
     interleaveComma(opAttr, line, [&](const NamedAttribute &attr) {
       auto name = attr.first.strref();
       line << '"' << name << "\": " << name;
     });
-    line << "}, [";
+    line << "}, []";
     interleaveComma(opSucc.getSuccessors(), line,
                     inlineOrConcat<NamedConstraint>(line));
-    line << "], numRegions)";
+    line << ", numRegions)";
   }
 
   s.endif();

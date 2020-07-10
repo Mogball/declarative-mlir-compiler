@@ -102,13 +102,19 @@ void DynamicAttributeImpl::setFormat(std::string parserName,
 /// context, we need to directly call the Attribute uniquer.
 DynamicAttribute DynamicAttribute::get(DynamicAttributeImpl *impl,
                                        ArrayRef<Attribute> params) {
-  return Base::get(impl->getDynContext()->getContext(), DynamicAttributeKind,
-                   impl, params);
+  auto *ctx = impl->getDynContext()->getContext();
+  return ctx->getAttributeUniquer().get<Base::ImplType>(
+      [impl, ctx](AttributeStorage *storage) {
+        storage->initialize(AbstractAttribute::lookup(impl->getTypeID(), ctx));
+      },
+      DynamicAttributeKind, impl, params);
 }
 
 DynamicAttribute DynamicAttribute::getChecked(
     Location loc, DynamicAttributeImpl *impl, ArrayRef<Attribute> params) {
-  return Base::getChecked(loc, DynamicAttributeKind, impl, params);
+  if (failed(verifyConstructionInvariants(loc, impl, params)))
+    return {};
+  return get(impl, params);
 }
 
 LogicalResult DynamicAttribute::verifyConstructionInvariants(

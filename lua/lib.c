@@ -6,6 +6,11 @@
  * Library Functions
  ******************************************************************************/
 
+TObject lua_alloc(void) {
+  TObject ret;
+  return ret;
+}
+
 void lua_alloc_gc(TObject *ptr) {
   ptr->gc = malloc(sizeof(TComplex));
 }

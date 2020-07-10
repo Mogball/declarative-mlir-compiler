@@ -1367,7 +1367,7 @@ def main():
 
         verify(module)
 
-        os.system("clang -S -emit-llvm lib.c -o lib.ll -O2")
+        os.system("clang -S -emit-llvm lib.c -o lib.ll -O1")
         os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
         libc = parseSourceFile("libc.mlir")
         for glob in libc.getOps(LLVMGlobalOp):
@@ -1395,7 +1395,8 @@ def main():
         os.system("clang -c main.c -o main_impl.o -O2")
 
         os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-        os.system("clang -c main.ll -o main.o -Ofast")
+        os.system("clang -S -emit-llvm main.ll -o mainopt.ll -Ofast")
+        os.system("clang -c mainopt.ll -o main.o -Ofast")
         os.system("clang++ main.o main_impl.o builtins.o impl.o str.o -o main")
 
     else:

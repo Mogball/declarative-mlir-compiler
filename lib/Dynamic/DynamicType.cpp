@@ -112,13 +112,19 @@ void DynamicTypeImpl::setFormat(std::string parserName,
 /// the Dialect, so we must directly provide the dialect.
 DynamicType DynamicType::get(DynamicTypeImpl *impl,
                              ArrayRef<Attribute> params) {
-  return Base::get(impl->getDynContext()->getContext(), DynamicTypeKind,
-                   impl, params);
+  auto *ctx = impl->getDynContext()->getContext();
+  return ctx->getTypeUniquer().get<Base::ImplType>(
+      [impl, ctx](TypeStorage *storage) {
+        storage->initialize(AbstractType::lookup(impl->getTypeID(), ctx));
+      },
+      DynamicTypeKind, impl, params);
 }
 
 DynamicType DynamicType::getChecked(Location loc, DynamicTypeImpl *impl,
                                     ArrayRef<Attribute> params) {
-  return Base::getChecked(loc, DynamicTypeKind, impl, params);
+  if (failed(verifyConstructionInvariants(loc, impl, params)))
+    return {};
+  return get(impl, params);
 }
 
 LogicalResult DynamicType::verifyConstructionInvariants(
