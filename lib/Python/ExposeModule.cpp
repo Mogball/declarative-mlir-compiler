@@ -144,6 +144,15 @@ void exposeModule(module &m, OpClass &cls) {
       .def("rhs", &AddIOp::rhs)
       .def("result", &AddIOp::getResult);
 
+  class_<AddFOp>(m, "AddFOp", cls)
+      .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<AddFOp>(loc, ty, lhs, rhs);
+      }), "ty"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("lhs", &AddFOp::lhs)
+      .def("rhs", &AddFOp::rhs)
+      .def("result", &AddFOp::getResult);
+
   class_<IndexCastOp>(m, "IndexCastOp", cls)
       .def(init([](Value source, Type type, Location loc) {
         OpBuilder b{getMLIRContext()};

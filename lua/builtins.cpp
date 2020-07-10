@@ -39,10 +39,10 @@ void print_impl(FormatFcn formatOutput, TPack *pack) {
       break;
     case NUM:
       formatOutput(std::cout);
-      if (lua_is_int(val)) {
-        std::cout << lua_get_int64_val(val);
+      if (auto iv = (int64_t) val->num; iv == val->num) {
+        std::cout << iv;
       } else {
-        std::cout << lua_get_double_val(val);
+        std::cout << val->num;
       }
       break;
     case STR:
@@ -100,8 +100,8 @@ TPack *fcn_builtin_string_find(TPack *, TPack *pack) {
   auto &textStr = as_std_string(text);
   auto &patStr = as_std_string(pattern);
   int64_t offset = 0;
-  if (lua_get_type(pos) != NIL) {
-    offset = correct_str_offset(textStr, lua_get_int64_val(pos));
+  if (pos->type != NIL) {
+    offset = correct_str_offset(textStr, (int64_t) pos->num);
   }
   LuaMatch m;
   auto n = str_match(textStr.c_str() + offset, textStr.size() - offset,
@@ -115,12 +115,13 @@ TPack *fcn_builtin_string_find(TPack *, TPack *pack) {
   }
   auto *ret = lua_new_pack(2);
   auto *start = lua_alloc();
-  lua_set_type(start, NUM);
-  lua_set_int64_val(start, m.start + 1 + offset);
+  start->type = NUM;
+  start->num = m.start + 1 + offset;
   lua_pack_push(ret, start);
+
   auto *end = lua_alloc();
-  lua_set_type(end, NUM);
-  lua_set_int64_val(end, m.end + offset);
+  end->type = NUM;
+  end->num = m.end + offset;
   lua_pack_push(ret, end);
   return ret;
 }
@@ -131,8 +132,8 @@ TPack *fcn_builtin_string_sub(TPack *, TPack *pack) {
   auto *end = lua_pack_pull_one(pack);
 
   auto &textStr = as_std_string(text);
-  auto istart = correct_str_offset(textStr, lua_get_int64_val(start));
-  auto iend = correct_str_offset(textStr, lua_get_int64_val(end));
+  auto istart = correct_str_offset(textStr, (int64_t) start->num);
+  auto iend = correct_str_offset(textStr, (int64_t) end->num);
 
   auto *substring = lua_alloc();
   lua_set_type(substring, STR);
@@ -149,10 +150,10 @@ TPack *fcn_builtin_table_insert(TPack *, TPack *pack) {
   auto *val = lua_pack_pull_one(pack);
   auto *listSz = lua_list_size(tbl);
 
-  auto *one = lua_alloc();
-  lua_set_type(one, NUM);
-  lua_set_int64_val(one, 1);
-  auto *nextIndex = lua_add(listSz, one);
+  TObject one;
+  one.type = NUM;
+  one.num = 1;
+  auto *nextIndex = lua_add(listSz, &one);
   lua_table_set(tbl, nextIndex, val);
 
   auto *ret = lua_new_pack(1);
@@ -175,12 +176,7 @@ TPack *fcn_builtin_io_read(TPack *, TPack *pack) {
     auto *pstring = new std::string{};
     ret->gc->pstring = pstring;
 
-    int numChars;
-    if (lua_is_int(ctrl)) {
-      numChars = lua_get_int64_val(ctrl);
-    } else {
-      numChars = (int) lua_get_double_val(ctrl);
-    }
+    int numChars = (int) lua_get_double_val(ctrl);
     for (int i = 0; i < numChars; ++i) {
       auto nextChar = std::cin.get();
       if (nextChar == EOF) {
@@ -200,15 +196,8 @@ TPack *fcn_builtin_io_read(TPack *, TPack *pack) {
         *pstring += nextChar;
       }
     } else if (lua::as_std_string(ctrl) == "*number") {
-      double number;
-      std::cin >> number;
-
-      lua_set_type(ret, NUM);
-      if (std::ceilf(number) == number) {
-        lua_set_int64_val(ret, (int64_t) number);
-      } else {
-        lua_set_double_val(ret, number);
-      }
+      ret->type = NUM;
+      std::cin >> ret->num;
     } else {
       goto read_line;
     }
@@ -248,14 +237,14 @@ TPack *fcn_builtin_math_random(TPack *, TPack *pack) {
     lua_set_double_val(r, dist(e2));
   } else if (lua_pack_get_size(pack) == 1) {
     auto *upper = lua_pack_pull_one(pack);
-    std::uniform_int_distribution<int64_t> dist{1, lua_get_int64_val(upper)};
-    lua_set_int64_val(r, dist(e2));
+    std::uniform_int_distribution<int64_t> dist{1, (int64_t) upper->num};
+    r->num = dist(e2);
   } else {
     auto *lower = lua_pack_pull_one(pack);
     auto *upper = lua_pack_pull_one(pack);
-    std::uniform_int_distribution<int64_t> dist{lua_get_int64_val(lower),
-                                                lua_get_int64_val(upper)};
-    lua_set_int64_val(r, dist(e2));
+    std::uniform_int_distribution<int64_t> dist{(int64_t) lower->num,
+                                                (int64_t) upper->num};
+    r->num = dist(e2);
   }
 
   auto *ret = lua_new_pack(1);

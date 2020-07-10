@@ -52,7 +52,7 @@ Dialect @lua {
   // Value getters
   Op @nil() -> (res: !lua.value)
     traits [@Alloc<"res">] config { fmt = "attr-dict" }
-  Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.AnyI<64>, #dmc.F<64>> }
+  Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
     traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
   Op @table() -> (res: !lua.value) traits [@Alloc<"res">] config { fmt = "attr-dict" }
@@ -129,8 +129,9 @@ Dialect @luaopt {
 }
 
 Dialect @luac {
+  Alias @_int -> i64 { builder = "IntegerType(64)" }
+
   Alias @bool -> i1 { builder = "IntegerType(1)" }
-  Alias @integer -> i64 { builder = "IntegerType(64)" }
   Alias @real -> f64 { builder = "F64Type()" }
   Alias @pack_fcn -> (!lua.pack, !lua.pack) -> !lua.pack
     { builder = "FunctionType([lua.pack(), lua.pack()], [lua.pack()])" }
@@ -144,9 +145,6 @@ Dialect @luac {
   Alias @type_fcn -> 5 : i16
   // userdata, thread unimplemented
 
-  Op @wrap_int(num: !luac.integer) -> (res: !lua.value)
-    traits [@Alloc<"res">]
-    config { fmt = "$num attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
     traits [@Alloc<"res">]
     config { fmt = "$num attr-dict" }
@@ -216,13 +214,6 @@ Dialect @luac {
     traits [@ReadFrom<"val">]
     config { fmt = "$val attr-dict" }
 
-  Op @set_int64_val(tgt: !lua.value, num: !luac.integer) -> ()
-    traits [@WriteTo<"tgt">]
-    config { fmt = "$tgt `=` $num attr-dict" }
-  Op @get_int64_val(tgt: !lua.value) -> (num: !luac.integer)
-    traits [@ReadFrom<"tgt">]
-    config { fmt = "$tgt attr-dict" }
-
   Op @set_double_val(tgt: !lua.value, num: !luac.real) -> ()
     traits [@WriteTo<"tgt">]
     config { fmt = "$tgt `=` $num attr-dict" }
@@ -285,8 +276,8 @@ Dialect @luac {
 }
 
 Dialect @luallvm {
-  Alias @ref -> !llvm<"{ i16, i16, { i64 } }*">
-  Alias @pack -> !llvm<"{ i64, i64, { i16, i16, { i64 } }** }*">
+  Alias @ref -> !llvm<"{ i32, { i64 } }*">
+  Alias @pack -> !llvm<"{ i64, i64, { i32, { i64 } }** }*">
 
   Op @load_string(data: !llvm<"i8*">, length: !llvm.i64) -> (val: !luallvm.ref)
     traits [@Alloc<"val">]

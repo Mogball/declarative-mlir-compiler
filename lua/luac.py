@@ -286,9 +286,9 @@ class Generator:
 
     def number(self, ctx:LuaParser.NumberContext):
         if ctx.INT():
-            attr = I64Attr(int(ctx.INT().getText()))
+            attr = F64Attr(int(ctx.INT().getText()))
         elif ctx.HEX():
-            attr = I64Attr(int(ctx.HEX().getText(), 16))
+            attr = F64Attr(int(ctx.HEX().getText(), 16))
         elif ctx.FLOAT():
             attr = F64Attr(float(ctx.FLOAT().getText()()))
         elif ctx.HEX_FLOAT():
@@ -330,7 +330,7 @@ class Generator:
                 key = self.builder.create(lua.get_string, value=keyStr, loc=floc).res()
                 val = self.exp(field.exp(0))
             else:
-                key = self.builder.create(lua.number, value=I64Attr(idx), loc=floc).res()
+                key = self.builder.create(lua.number, value=F64Attr(idx), loc=floc).res()
                 val = self.exp(field.exp(0))
                 idx += 1
             self.builder.create(lua.table_set, tbl=tbl, key=key, val=val, loc=floc)
@@ -353,7 +353,7 @@ class Generator:
         lower = self.exp(ctx.exp(0))
         upper = self.exp(ctx.exp(1))
         if len(ctx.exp()) == 2:
-            num = self.builder.create(lua.number, value=I64Attr(1), loc=loc)
+            num = self.builder.create(lua.number, value=F64Attr(1), loc=loc)
             step = num.res()
         else:
             step = self.exp(ctx.exp(2))
@@ -709,9 +709,9 @@ def copyInto(newBlk, oldBlk, termCls=None, bvm=None):
             newBlk.append(oldOp.clone(bvm))
 
 def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
-    step = rewriter.create(luac.get_int64_val, tgt=op.step(), loc=op.loc).num()
-    lower = rewriter.create(luac.get_int64_val, tgt=op.lower(), loc=op.loc)
-    i = rewriter.create(luac.wrap_int, num=lower.num(), loc=op.loc).res()
+    step = rewriter.create(luac.get_double_val, tgt=op.step(), loc=op.loc).num()
+    lower = rewriter.create(luac.get_double_val, tgt=op.lower(), loc=op.loc)
+    i = rewriter.create(luac.wrap_real, num=lower.num(), loc=op.loc).res()
     loopWhile = rewriter.create(lua.loop_while, loc=op.loc)
     rewriter.insertAtStart(loopWhile.eval().addEntryBlock([]))
     le = rewriter.create(luac.le, lhs=i, rhs=op.upper(), loc=op.loc)
@@ -723,9 +723,9 @@ def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
              None, bvm)
 
     rewriter.insertBefore(loopWhile.region().getBlock(0).getTerminator())
-    iv = rewriter.create(luac.get_int64_val, tgt=i, loc=op.loc).num()
-    newI = rewriter.create(AddIOp, lhs=iv, rhs=step, ty=I64Type(), loc=op.loc).result()
-    rewriter.create(luac.set_int64_val, tgt=i, num=newI, loc=op.loc)
+    iv = rewriter.create(luac.get_double_val, tgt=i, loc=op.loc).num()
+    newI = rewriter.create(AddFOp, lhs=iv, rhs=step, ty=F64Type(), loc=op.loc).result()
+    rewriter.create(luac.set_double_val, tgt=i, num=newI, loc=op.loc)
     rewriter.erase(op)
     return True
 
@@ -925,8 +925,9 @@ def preallocValid(op, rewriter):
     numOp = op.key().definingOp
     if not isa(numOp, lua.number):
         return None
-    ivVal = lua.number(numOp).value().getInt()
-    if not isinstance(ivVal, int) or ivVal <= 0 or ivVal > luaopt.table_prealloc().getInt():
+    raw = lua.number(numOp).value().getValue()
+    ivVal = int(raw)
+    if ivVal != raw or ivVal <= 0 or ivVal > luaopt.table_prealloc().getInt():
         return None
     return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1), loc=op.loc).result()
 
@@ -1128,7 +1129,6 @@ def lowerToLuac(module:ModuleOp):
     target.addLegalDialect("loop")
     target.addLegalOp(FuncOp)
 
-    target.addIllegalOp(luac.wrap_int)
     target.addIllegalOp(luac.wrap_real)
 
     target.addLegalOp(lua.builtin)
@@ -1140,8 +1140,6 @@ def lowerToLuac(module:ModuleOp):
     patterns = [
         Pattern(lua.alloc, lowerAlloc, [lua.nil]),
 
-        Pattern(lua.number, getWrapperFor(luac.integer(), luac.wrap_int),
-                [ConstantOp, luac.wrap_int]),
         Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
                 [ConstantOp, luac.wrap_real]),
         Pattern(lua.table, expandTable),
@@ -1162,8 +1160,6 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
         Pattern(lua.unary, getUnaryExpander("-", luac.neg), [luac.neg]),
 
-        Pattern(luac.wrap_int, allocAndSet(luac.set_int64_val),
-                [luac.alloc, luac.set_int64_val, luac.set_type, ConstantOp]),
         Pattern(luac.wrap_real, allocAndSet(luac.set_double_val),
                 [luac.alloc, luac.set_double_val, luac.set_type, ConstantOp]),
         Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
@@ -1304,8 +1300,6 @@ def luaToLLVM(module):
         convertLibc(luac.set_type, "lua_set_type"),
         convertLibc(luac.get_bool_val, "lua_get_bool_val"),
         convertLibc(luac.set_bool_val, "lua_set_bool_val"),
-        convertLibc(luac.get_int64_val, "lua_get_int64_val"),
-        convertLibc(luac.set_int64_val, "lua_set_int64_val"),
         convertLibc(luac.get_double_val, "lua_get_double_val"),
         convertLibc(luac.set_double_val, "lua_set_double_val"),
         convertLibc(luac.get_fcn_addr, "lua_get_fcn_addr"),

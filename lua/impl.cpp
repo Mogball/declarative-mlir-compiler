@@ -19,11 +19,7 @@ struct LuaHash {
     case BOOL:
       return std::hash<bool>{}(lua_get_bool_val(val));
     case NUM:
-      if (lua_is_int(val)) {
-        return std::hash<int64_t>{}(lua_get_int64_val(val));
-      } else {
-        return std::hash<double>{}(lua_get_double_val(val));
-      }
+      return std::hash<double>{}(lua_get_double_val(val));
     case STR:
       return std::hash<std::string>{}(as_std_string(val));
     default:
@@ -40,13 +36,7 @@ struct LuaEq {
     case BOOL:
       return lua_get_bool_val(lhs) == lua_get_bool_val(rhs);
     case NUM:
-      if (lua_is_int(lhs) != lua_is_int(rhs)) {
-        return false;
-      } else if (lua_is_int(lhs)) {
-        return lua_get_int64_val(lhs) == lua_get_int64_val(rhs);
-      } else {
-        return lua_get_double_val(lhs) == lua_get_double_val(rhs);
-      }
+      return lua_get_double_val(lhs) == lua_get_double_val(rhs);
     case STR:
       return as_std_string(lhs) == as_std_string(rhs);
     default:
@@ -85,8 +75,10 @@ struct LuaTable {
   }
 
   auto *get_or_alloc(TObject *key) {
-    if (lua_get_type(key) == NUM && lua_is_int(key)) {
-      if (auto iv = lua_get_int64_val(key); iv > 0) {
+    if (key->type == NUM) {
+      auto num = key->num;
+      auto iv = (int64_t) num;
+      if (iv == num && iv > 0) {
         return list_get_or_alloc(iv);
       }
     }
@@ -118,9 +110,12 @@ struct LuaTable {
   }
 
   void insert_or_assign(TObject *key, TObject *val) {
-    if (lua_get_type(key) == NUM && lua_is_int(key)) {
-      if (auto iv = lua_get_int64_val(key); iv > 0) {
-        return list_insert_or_assign(iv, val);
+    if (key->type == NUM) {
+      auto num = key->num;
+      auto iv = (int64_t) num;
+      if (iv == num && iv > 0) {
+        list_insert_or_assign(iv, val);
+        return;
       }
     }
     auto *nval = lua_alloc();
@@ -210,21 +205,6 @@ int64_t lua_list_size_impl(TObject *tbl) {
 void lua_strcat_impl(TObject *dest, TObject *lhs, TObject *rhs) {
   dest->gc->pstring = new std::string{lua::as_std_string(lhs) +
                                       lua::as_std_string(rhs)};
-}
-
-int64_t ipow_impl(int64_t base, int64_t exp) {
-  int64_t result = 1;
-  for (;;) {
-    if (exp & 1) {
-      result *= base;
-    }
-    exp >>= 1;
-    if (!exp) {
-      break;
-    }
-    base *= base;
-  }
-  return result;
 }
 
 }

@@ -14,8 +14,8 @@
 
 TObject *lua_copy(TObject *val) {
   TObject *result = lua_alloc();
-  lua_set_type(result, lua_get_type(val));
-  lua_set_value_union(result, lua_get_value_union(val));
+  result->type = val->type;
+  result->u = val->u;
   return result;
 }
 
@@ -38,20 +38,11 @@ void lua_set_bool_val(TObject *val, bool b) {
   val->b = b;
 }
 
-int64_t lua_get_int64_val(TObject *val) {
-  return val->iv;
-}
-void lua_set_int64_val(TObject *val, int64_t iv) {
-  val->ntype = INT;
-  val->iv = iv;
-}
-
 double lua_get_double_val(TObject *val) {
-  return val->fp;
+  return val->num;
 }
-void lua_set_double_val(TObject *val, double fp) {
-  val->ntype = REAL;
-  val->fp = fp;
+void lua_set_double_val(TObject *val, double num) {
+  val->num = num;
 }
 
 lua_fcn_t lua_get_fcn_addr(TObject *val) {
@@ -75,10 +66,6 @@ uint64_t lua_get_value_union(TObject *val) {
 }
 void lua_set_value_union(TObject *val, uint64_t u) {
   val->u = u;
-}
-
-bool lua_is_int(TObject *val) {
-  return val->ntype == INT;
 }
 
 TPack *lua_new_capture_pack(int64_t rsv) {

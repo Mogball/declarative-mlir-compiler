@@ -11,11 +11,7 @@ int main() {
   case BOOL:
     return (int) lua_get_bool_val(code);
   case NUM:
-    if (lua_is_int(code)) {
-      return (int) lua_get_int64_val(code);
-    } else {
-      return (int) lua_get_double_val(code);
-    }
+    return (int) lua_get_double_val(code);
   default:
     return 0;
   }

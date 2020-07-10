@@ -12,11 +12,6 @@ extern "C" {
  ******************************************************************************/
 
 enum {
-  INT,
-  REAL
-};
-
-enum {
   NIL,
   BOOL,
   NUM,
@@ -47,14 +42,12 @@ typedef union Complex {
 } TComplex;
 
 typedef struct Object {
-  int16_t type;
-  int16_t ntype;
+  int32_t type;
   union {
     uint64_t u;
 
     bool b;
-    int64_t iv;
-    double fp;
+    double num;
     TComplex *gc;
   };
 } TObject;
@@ -65,8 +58,6 @@ int16_t lua_get_type(TObject *val);
 void lua_set_type(TObject *val, int16_t ty);
 bool lua_get_bool_val(TObject *val);
 void lua_set_bool_val(TObject *val, bool b);
-int64_t lua_get_int64_val(TObject *val);
-void lua_set_int64_val(TObject *val, int64_t iv);
 double lua_get_double_val(TObject *val);
 void lua_set_double_val(TObject *val, double fp);
 lua_fcn_t lua_get_fcn_addr(TObject *val);
@@ -75,7 +66,6 @@ TPack *lua_get_capture_pack(TObject *val);
 void lua_set_capture_pack(TObject *val, TPack *pack);
 uint64_t lua_get_value_union(TObject *val);
 void lua_set_value_union(TObject *val, uint64_t u);
-bool lua_is_int(TObject *val);
 TPack *lua_new_pack(int64_t size);
 void lua_pack_push(TPack *pack, TObject *val);
 TObject *lua_pack_pull_one(TPack *pack);
