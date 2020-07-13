@@ -46,17 +46,6 @@ class Generator:
         endTok = self.stream.get(b)
         return FileLineColLoc(self.filename, endTok.line, endTok.column)
 
-    def handleAssignList(self, varList, expList, loc):
-        concat = self.builder.create(lua.concat, vals=expList, loc=loc)
-        unpack = self.builder.create(lua.unpack, pack=concat.pack(), loc=loc,
-                                     vals=[lua.ref()] * len(varList))
-        vals = unpack.vals()
-        assert len(vals) == len(varList)
-        for i in range(0, len(varList)):
-            var = varList[i].definingOp.getAttr("var")
-            self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
-                                var=var if var else UnitAttr(), loc=loc)
-
     def handleBinaryOp(self, expCtx, opCtx):
         loc = self.getStartLoc(opCtx)
         lhsVal = self.exp(expCtx.exp(0))
@@ -73,9 +62,7 @@ class Generator:
         loc = self.getStartLoc(ctx)
         for i in range(0, len(allArgs)):
             args = self.nameAndArgs(allArgs[i])
-            concat = self.builder.create(lua.concat, vals=args, loc=loc)
-            call = self.builder.create(lua.call, fcn=val, args=concat.pack(),
-                                       loc=loc)
+            call = self.builder.create(lua.call, fcn=val, args=args, loc=loc)
             if not unpackLast and i == len(allArgs) - 1:
                 return call.rets()
             unpack = self.builder.create(lua.unpack, pack=call.rets(),
@@ -165,10 +152,18 @@ class Generator:
         else:
             raise ValueError("Unknown StatContext case")
 
+    def handleAssignList(self, varList, explist):
+        expPack = self.explist(ctx.explist())
+        vals = self.builder.create(
+                lua.unpack, pack=expPack, vals=[lua.val()] * len(varList),
+                loc=self.getStartLoc(explist))
+        for i in range(0, len(varList)):
+            self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
+                                loc=self.getStartLoc(explist().exp(i)))
+
     def assignlist(self, ctx:LuaParser.AssignlistContext):
-        self.handleAssignList(self.varlist(ctx.varlist()),
-                              self.explist(ctx.explist()),
-                              self.getStartLoc(ctx))
+        varList = self.varlist(ctx.varlist())
+        self.handleAssignList(varList, ctx.explist())
 
     def localvarlist(self, ctx:LuaParser.LocalvarlistContext):
         varList = []
@@ -179,7 +174,7 @@ class Generator:
             varList.append(lalloc.res())
 
         if ctx.explist():
-            self.handleAssignList(varList, self.explist(ctx.explist()), loc)
+            self.handleAssignList(varList, ctx.explist())
 
     def varlist(self, ctx:LuaParser.VarlistContext):
         varList = []
@@ -187,12 +182,17 @@ class Generator:
             varList.append(self.var(var))
         return varList
 
-
     def explist(self, ctx:LuaParser.ExplistContext):
-        expList = []
+        vals = []
         for i in range(0, len(ctx.exp())):
-            expList.append(self.exp(ctx.exp(i), allowPack=(i+1)==len(ctx.exp())))
-        return expList
+            vals.append(self.exp(ctx.exp(i),
+                                 allowPack=((i+1)==len(ctx.exp()))))
+        tail = []
+        if len(vals) > 0 and vals[-1].type == lua.pack():
+            tail = [vals[-1]]
+            vals = vals[1:-1]
+        return self.builder.create(lua.concat, vals=vals, tail=tail,
+                                   loc=self.getStartLoc(ctx))
 
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
         assert ctx.NAME() == None, "colon operator unimplemented"
@@ -341,7 +341,8 @@ class Generator:
     def prefixexp(self, ctx:LuaParser.PrefixexpContext, allowPack):
         # A variable or expression, with optional trailing function calls
         # `myFcn (a, b, c) {a: b} "abc" {} "" (c, b, d)` is valid syntax
-        return self.handleFunctionLike(self.varOrExp(ctx.varOrExp()), ctx, unpackLast=not allowPack)
+        return self.handleFunctionLike(self.varOrExp(ctx.varOrExp()), ctx,
+                                       unpackLast=not allowPack)
 
     def functioncall(self, ctx:LuaParser.FunctioncallContext):
         # Identical to prefixexp, except len(allArgs) >= 1, and statement does
