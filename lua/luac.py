@@ -501,15 +501,13 @@ class ScopedMap:
         for scope in reversed(self.scopes):
             if k in scope:
                 return scope[k]
-        return None
+        raise ValueError("failed to lookup variable")
 
     def set_local(self, k, e):
-        scope = self.scopes[len(self.scopes) - 1]
-        scope[k] = e
+        self.scopes[-1][k] = e
 
     def set_global(self, k, e):
-        scope = self.scopes[0]
-        scope[k] = e
+        self.scopes[0][k] = e
 
     def push_scope(self):
         self.scopes.append({})
@@ -524,7 +522,6 @@ def walkInOrder(op, func):
             for o in block:
                 walkInOrder(o, func)
 
-
 class AllocVisitor:
     def __init__(self):
         self.scope = ScopedMap()
@@ -532,15 +529,14 @@ class AllocVisitor:
         self.removed = set()
         self.worklist = []
 
-    def addWork(self, op):
-        self.worklist.append(op)
     def addRegion(self, region):
         for o in region.getBlock(0):
             self.checkWork(o)
-    def pushScope(self):
-        self.addWork("push_scope")
-    def popScope(self):
-        self.addWork("pop_scope")
+
+    def addWork(self, op): self.worklist.append(op)
+    def pushScope(self): self.addWork("push_scope")
+    def popScope(self): self.addWork("pop_scope")
+
     def checkWork(self, op):
         if isa(op, FuncOp):
             self.addRegion(op.getRegion(0))
@@ -579,10 +575,10 @@ class AllocVisitor:
             self.visitNumericFor(lua.numeric_for(op))
         elif isa(op, lua.generic_for):
             self.visitGenericFor(lua.generic_for(op))
-        elif isa(op, lua.assign):
-            self.visitAssign(lua.assign(op))
         elif isa(op, lua.function_def):
             self.visitFunctionDef(lua.function_def(op))
+        elif isa(op, lua.assign):
+            self.visitAssign(lua.assign(op))
 
     def visitGetOrAlloc(self, op:lua.get_or_alloc):
         if not self.scope.contains(op.var()):
@@ -608,17 +604,20 @@ class AllocVisitor:
             self.scope.set_local(op.params()[i],
                                  op.region().getBlock(0).getArgument(i))
 
-    def visitAssign(self, op:lua.assign):
-        if op.var() == UnitAttr():
-            return
-        assert self.scope.contains(op.var())
-        # TODO set this at the highest enclosing scope
-        self.scope.set_local(op.var(), op.res())
-
     def visitFunctionDef(self, op:lua.function_def):
         for i in range(0, len(op.params())):
             self.scope.set_local(op.params()[i],
                                  op.region().getBlock(0).getArgument(i))
+
+    def visitAssign(self, op):
+        if (not isa(op.tgt().definingOp, lua.alloc) or
+                not op.val().hasOneUse() or
+                op.tgt().definingOp.parentOp != op.val().definingOp.parentOp):
+            return
+        self.scope.set_local(lua.alloc(op.tgt().definingOp).var(),
+                             op.val())
+        self.builder.erase(op)
+        self.removed.add(op)
 
 def explicitCapture(op:lua.function_def, rewriter:Builder):
     captures = set()
@@ -639,8 +638,7 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     if not isa(parent, lua.concat):
         return False
     concat = lua.concat(parent)
-    trivialUnpack = all(val.type == lua.ref() for val in concat.vals())
-    if not trivialUnpack:
+    if len(concat.tail()) != 0:
         return False
     newVals = []
     for i in range(0, min(len(concat.vals()), len(op.vals()))):
@@ -651,6 +649,12 @@ def elideConcatAndUnpack(op:lua.unpack, rewriter:Builder):
     rewriter.replace(op, newVals)
     return True
 
+def elideConcatPack(op, rewriter):
+    if len(op.vals()) != 0 or len(op.tail()) == 0:
+        return False
+    rewriter.replace(op, op.tail())
+    return True
+
 lua_builtins = set(["print", "string", "io", "table", "math"])
 def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     if op.var().getValue() not in lua_builtins:
@@ -659,29 +663,7 @@ def raiseBuiltins(op:lua.alloc, rewriter:Builder):
     rewriter.replace(op, [builtin.val()])
     return True
 
-def scopeUseDominates(tgtOp, valOp):
-    if valOp == None:
-        return False
-    while tgtOp and not isa(tgtOp, FuncOp):
-        if tgtOp.parentOp == valOp.parentOp:
-            return True
-        tgtOp = tgtOp.parentOp
-    return False
-
-def elideAssign(op:lua.assign, rewriter:Builder):
-    if op.var() == UnitAttr():
-        return False
-    for user in op.tgt().getOpUses():
-        if isa(user, lua.function_def_capture):
-            return False
-    if scopeUseDominates(op.tgt().definingOp, op.val().definingOp):
-        rewriter.replace(op, [op.val()])
-        return True
-    return False
-
 def assignTableSet(op:lua.assign, rewriter:Builder):
-    if op.var() != UnitAttr():
-        return False
     if not isa(op.tgt().definingOp, lua.table_get):
         return False
     tableGet = lua.table_get(op.tgt().definingOp)
@@ -698,11 +680,11 @@ def varAllocPass(main:FuncOp):
 
     applyOptPatterns(main, [Pattern(lua.function_def, explicitCapture)])
 
-    # Trivial passes as patterns
+    ## Trivial passes as patterns
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
+        Pattern(lua.concat, elideConcatPack),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
-        Pattern(lua.assign, elideAssign),
         Pattern(lua.assign, assignTableSet),
     ])
 
@@ -1338,9 +1320,10 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
+    verify(module)
+    varAllocPass(main)
+    applyLICM(module)
     if not _test:
-        verify(module)
-        varAllocPass(main)
         verify(module)
         cfExpand(module, main)
         verify(module)
