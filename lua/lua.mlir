@@ -22,9 +22,9 @@ Dialect @lua {
     config { fmt = "$var attr-dict" }
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
     config { fmt = "$var attr-dict" }
-  Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
+  Op @assign(tgt: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tgt">]
-    config { fmt = "$var $tgt `=` $val attr-dict" }
+    config { fmt = "$tgt `=` $val attr-dict" }
 
   // Function calls
   Op @call(fcn: !lua.value, args: !lua.value_pack) -> (rets: !lua.value_pack)

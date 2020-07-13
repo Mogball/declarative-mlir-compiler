@@ -25,6 +25,12 @@ lua, luaopt, luac, luallvm = get_dialects()
 
 _test = True
 
+def makeConcat(b, vals, tail, loc):
+    concat = b.create(lua.concat, vals=vals, tail=tail, loc=loc)
+    concat.setAttr("operand_segment_sizes", DenseIntElementsAttr(
+        VectorType([2], I64Type(), loc), [len(vals), len(tail)]))
+    return concat
+
 class Generator:
     #### Helpers
     ###############
@@ -66,7 +72,7 @@ class Generator:
             if not unpackLast and i == len(allArgs) - 1:
                 return call.rets()
             unpack = self.builder.create(lua.unpack, pack=call.rets(),
-                                         vals=[lua.ref()], loc=loc)
+                                         vals=[lua.val()], loc=loc)
             val = unpack.vals()[0]
         assert unpackLast
         return val
@@ -81,12 +87,15 @@ class Generator:
         assert self.curBlock != None, "too many block pops"
         self.builder.insertAtEnd(self.curBlock)
 
+    def handleRetStat(self, ctx, retstat):
+        if retstat and retstat.explist():
+            return self.explist(retstat.explist())
+        return makeConcat(self.builder, [], [], self.getEndLoc(ctx)).pack()
+
     def handleCondRetstat(self, ctx, retstat):
         if retstat:
-            retVals = []
-            if retstat.explist():
-                retVals = self.explist(retstat.explist())
-            self.builder.create(lua.ret, vals=retVals, loc=self.getEndLoc(ctx))
+            self.builder.create(lua.ret, pack=self.handleRetStat(ctx, retstat),
+                                loc=self.getStartLoc(retstat))
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx))
 
@@ -106,8 +115,9 @@ class Generator:
         # Process the block
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unexpected return statement"
-        empty = self.builder.create(lua.concat, vals=[], loc=self.getEndLoc(ctx))
-        self.builder.create(ReturnOp, operands=[empty.pack()], loc=self.getEndLoc(ctx))
+        empty = makeConcat(self.builder, [], [], self.getEndLoc(ctx))
+        self.builder.create(ReturnOp, operands=[empty.pack()],
+                            loc=self.getEndLoc(ctx))
 
         # Return the module
         assert verify(module), "module failed to verify"
@@ -153,13 +163,13 @@ class Generator:
             raise ValueError("Unknown StatContext case")
 
     def handleAssignList(self, varList, explist):
-        expPack = self.explist(ctx.explist())
+        expPack = self.explist(explist)
         vals = self.builder.create(
                 lua.unpack, pack=expPack, vals=[lua.val()] * len(varList),
-                loc=self.getStartLoc(explist))
+                loc=self.getStartLoc(explist)).vals()
         for i in range(0, len(varList)):
             self.builder.create(lua.assign, tgt=varList[i], val=vals[i],
-                                loc=self.getStartLoc(explist().exp(i)))
+                                loc=self.getStartLoc(explist))
 
     def assignlist(self, ctx:LuaParser.AssignlistContext):
         varList = self.varlist(ctx.varlist())
@@ -191,8 +201,7 @@ class Generator:
         if len(vals) > 0 and vals[-1].type == lua.pack():
             tail = [vals[-1]]
             vals = vals[1:-1]
-        return self.builder.create(lua.concat, vals=vals, tail=tail,
-                                   loc=self.getStartLoc(ctx))
+        return makeConcat(self.builder, vals, tail, self.getStartLoc(ctx)).pack()
 
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
         assert ctx.NAME() == None, "colon operator unimplemented"
@@ -201,13 +210,13 @@ class Generator:
     def args(self, ctx:LuaParser.ArgsContext):
         if ctx.explist():
             return self.explist(ctx.explist())
-        elif ctx.tableconstructor():
+        vals = []
+        if ctx.tableconstructor():
             # Ensure return value is a list of values
-            return [self.tableconstructor(ctx.tableconstructor())]
+            vals = [self.tableconstructor(ctx.tableconstructor())]
         elif ctx.string():
-            return [self.string(ctx.string())]
-        else:
-            return []
+            vals = [self.string(ctx.string())]
+        return makeConcat(self.builder, vals, [], self.getStartLoc(ctx)).pack()
 
     def varOrExp(self, ctx:LuaParser.VarOrExpContext):
         if ctx.var():
@@ -367,7 +376,7 @@ class Generator:
                                    step=step, loc=loc, ivar=varName)
 
         # Save previous block and add entry block
-        self.pushBlock(loop.region().addEntryBlock([lua.ref()]))
+        self.pushBlock(loop.region().addEntryBlock([lua.val()]))
         # Process the block and restore builder
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unsupported return statement"
@@ -393,10 +402,8 @@ class Generator:
         self.pushBlock(fcnDef.region().addEntryBlock([lua.val()] * len(params)))
         self.block(ctx.funcbody().block())
         retstat = ctx.funcbody().block().retstat()
-        retVals = []
-        if retstat and retstat.explist():
-            retVals = self.explist(retstat.explist())
-        self.builder.create(lua.ret, vals=retVals, loc=loc)
+        retPack = self.handleRetStat(ctx, ctx.funcbody().block().retstat())
+        self.builder.create(lua.ret, pack=retPack, loc=loc)
         self.popBlock()
         return fcnDef.fcn()
 
@@ -406,7 +413,7 @@ class Generator:
         name = self.funcname(ctx.funcname())
         alloc = self.builder.create(lua.get_or_alloc, var=name,
                                     loc=self.getStartLoc(ctx))
-        self.builder.create(lua.assign, tgt=alloc.res(), val=fcn, var=name,
+        self.builder.create(lua.assign, tgt=alloc.res(), val=fcn,
                             loc=self.getStartLoc(ctx))
 
     def ifblock(self, ctx):
@@ -464,13 +471,12 @@ class Generator:
     def genericfor(self, ctx:LuaParser.GenericforContext):
         loc = self.getStartLoc(ctx)
         params = ArrayAttr([StringAttr(t.getText()) for t in ctx.namelist().NAME()])
-        exps = self.explist(ctx.explist())
-        forPack = self.builder.create(lua.concat, vals=exps, loc=loc).pack()
-        itVars = self.builder.create(lua.unpack, pack=forPack,
-                                     vals=[lua.ref()] * 3, loc=loc).vals()
+        expPack = self.explist(ctx.explist())
+        itVars = self.builder.create(lua.unpack, pack=expPack,
+                                     vals=[lua.val()] * 3, loc=loc).vals()
         loop = self.builder.create(lua.generic_for, f=itVars[0], s=itVars[1],
                                    var=itVars[2], params=params, loc=loc)
-        self.pushBlock(loop.region().addEntryBlock([lua.ref()] * len(params)))
+        self.pushBlock(loop.region().addEntryBlock([lua.val()] * len(params)))
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unexpected terminator statement"
         self.builder.create(lua.end, loc=self.getEndLoc(ctx))
@@ -1332,9 +1338,8 @@ def main():
     generator = Generator(filename, stream)
 
     module, main = generator.chunk(parser.chunk())
-    verify(module)
-
     if not _test:
+        verify(module)
         varAllocPass(main)
         verify(module)
         cfExpand(module, main)
