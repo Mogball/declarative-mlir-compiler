@@ -1,9 +1,12 @@
 #include "Scope.h"
 #include "dmc/Embed/Constraints.h"
+#include "dmc/Traits/StandardTraits.h"
+#include "dmc/Dynamic/DynamicOperation.h"
 
 /// The polymorphic_type_hook must be visible so that Type and Attribute can be
 /// downcasted to their appropriate derived classes.
 #include "dmc/Python/Polymorphic.h"
+#include "dmc/Python/OpAsm.h"
 
 #include <mlir/IR/Diagnostics.h>
 #include <pybind11/embed.h>
@@ -69,4 +72,16 @@ LogicalResult evalConstraint(const std::string &funcName, Attribute attr) {
 }
 
 } // end namespace py
+
+Region &LoopLike::getLoopRegion(DynamicOperation *impl, Operation *op) {
+  py::OperationWrap wrap{op, impl};
+  return wrap.getRegion(region.str());
+}
+
+bool LoopLike::isDefinedOutside(DynamicOperation *impl, Operation *op,
+                                Value value) {
+  return !getLoopRegion(impl, op).isAncestor(value.getParentRegion()) &&
+      py::getMainScope()[definedOutsideFcn.str().c_str()](op, value).cast<bool>();
+}
+
 } // end namespace dmc

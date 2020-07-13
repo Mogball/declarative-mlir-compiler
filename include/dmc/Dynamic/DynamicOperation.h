@@ -6,6 +6,7 @@
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Interfaces/LoopLikeInterface.h>
 
 namespace dmc {
 
@@ -120,7 +121,8 @@ public:
 /// Define base properies of all dynamic ops.
 class BaseOp : public mlir::Op<BaseOp, DynamicOpTrait,
                mlir::MemoryEffectOpInterface::Trait,
-               mlir::OpTrait::HasRecursiveSideEffects> {
+               mlir::OpTrait::HasRecursiveSideEffects,
+               mlir::LoopLikeOpInterface::Trait> {
 public:
   using Op::Op;
 
@@ -149,6 +151,11 @@ public:
   // MemoryEffectOpInterface
   void getEffects(llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
                   mlir::MemoryEffects::Effect>> &effects);
+
+  // LoopLikeOpInterface
+  mlir::Region &getLoopBody();
+  bool isDefinedOutsideOfLoop(mlir::Value value);
+  mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation *> ops);
 
   // Custom isa<T>
   static bool classof(mlir::Operation *op);

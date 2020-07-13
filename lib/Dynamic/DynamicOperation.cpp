@@ -80,6 +80,9 @@ static auto handleDynamicInterfaces(DynamicOperation *op) {
       !op->getTrait<NoSideEffects>())
     map->erase(TypeID::get<MemoryEffectOpInterface>());
 
+  if (!op->getTrait<LoopLike>())
+    map->erase(TypeID::get<LoopLikeOpInterface>());
+
   return interfaces;
 }
 
@@ -192,6 +195,26 @@ void BaseOp::getEffects(SmallVectorImpl<SideEffects::EffectInstance<
       }
     }
   }
+}
+
+Region &BaseOp::getLoopBody() {
+  auto *impl = DynamicOperation::of(*this);
+  auto *trait = impl->getTrait<LoopLike>();
+  assert(trait);
+  return trait->getLoopRegion(impl, *this);
+}
+
+bool BaseOp::isDefinedOutsideOfLoop(Value value) {
+  auto *impl = DynamicOperation::of(*this);
+  auto *trait = impl->getTrait<LoopLike>();
+  assert(trait);
+  return trait->isDefinedOutside(impl, *this, value);
+}
+
+LogicalResult BaseOp::moveOutOfLoop(ArrayRef<Operation *> ops) {
+  for (auto op : ops)
+    op->moveBefore(*this);
+  return success();
 }
 
 } // end namespace dmc

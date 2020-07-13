@@ -94,10 +94,11 @@ Dialect @lua {
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
     { ivar = #dmc.String } (region: Sized<1>)
-    traits [@NoSideEffects]
+    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
   Op @generic_for(f: !lua.value, s: !lua.value, var: !lua.value) -> ()
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
+    traits [@MemoryWrite, @LoopLike<"region", "notAssigned">]
     config { fmt = "$params `in` $f `,` $s `,` $var `do` $region attr-dict" }
   Op @function_def() -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
@@ -111,13 +112,13 @@ Dialect @lua {
     traits [@NoSideEffects]
     config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @loop_while() -> () (eval: Any, region: Any)
-    traits [@NoSideEffects]
+    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
     config { fmt = "$eval `do` $region attr-dict" }
   Op @repeat() -> () (region: Sized<1>)
-    traits [@NoSideEffects]
+    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
     config { fmt = "$region attr-dict" }
   Op @until() -> () (eval: Sized<1>)
-    traits [@IsTerminator]
+    traits [@IsTerminator, @LoopLike<"region", "notAssigned">]
     config { fmt = "$eval attr-dict" }
   Op @end() -> ()
     traits [@IsTerminator]

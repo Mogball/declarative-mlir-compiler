@@ -232,6 +232,20 @@ public:
   static llvm::StringRef getName() { return "NoSideEffects"; }
 };
 
+class LoopLike : public DynamicTrait {
+public:
+  static llvm::StringRef getName() { return "LoopLike"; }
+  explicit LoopLike(llvm::StringRef region, llvm::StringRef definedOutsideFcn)
+      : region{region}, definedOutsideFcn{definedOutsideFcn} {}
+
+  mlir::Region &getLoopRegion(DynamicOperation *impl, mlir::Operation *op);
+  bool isDefinedOutside(DynamicOperation *impl, mlir::Operation *op,
+                        mlir::Value value);
+
+private:
+  llvm::StringRef region, definedOutsideFcn;
+};
+
 /// TODO Some standard traits not rebound (complexity/API restrictions):
 /// - AutomaticAllocationScope
 /// - ConstantLike

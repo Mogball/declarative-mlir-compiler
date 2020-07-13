@@ -25,6 +25,12 @@ lua, luaopt, luac, luallvm = get_dialects()
 
 _test = True
 
+def notAssigned(op, val):
+    for use in val.getOpUses():
+        if isa(use, lua.copy) and lua.copy(use).tgt() == val:
+            return False
+    return True
+
 def makeConcat(b, vals, tail, loc, concatLike=lua.concat):
     concat = b.create(concatLike, vals=vals, tail=tail, loc=loc)
     concat.setAttr("operand_segment_sizes", DenseIntElementsAttr(
@@ -1333,6 +1339,7 @@ def main():
     module, main = generator.chunk(parser.chunk())
     verify(module)
     varAllocPass(main)
+    applyLICM(module)
     if not _test:
         verify(module)
         cfExpand(module, main)
