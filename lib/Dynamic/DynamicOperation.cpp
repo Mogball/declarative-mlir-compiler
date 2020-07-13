@@ -66,6 +66,22 @@ void DynamicOperation::setOpFormat(std::string parserName,
   printerFcn = std::move(printerName);
 }
 
+static auto handleDynamicInterfaces(DynamicOperation *op) {
+  auto interfaces = BaseOp::getInterfaceMap();
+  auto *map = interfaces.getInterfaces();
+  /// SideEffectInterface
+  ///   The interface should be removed if none of
+  ///   Memory(Write|Read|Alloc|Free) or
+  ///   (WriteTo|ReadFrom|Alloc|Free)<> are defined
+  if (!op->getTrait<MemoryWrite>() && !op->getTrait<MemoryRead>() &&
+      !op->getTrait<MemoryAlloc>() && !op->getTrait<MemoryFree>() &&
+      !op->getTrait<ReadFrom>() && !op->getTrait<WriteTo>() &&
+      !op->getTrait<Alloc>() && !op->getTrait<Free>())
+    map->erase(TypeID::get<MemoryEffectOpInterface>());
+
+  return interfaces;
+}
+
 LogicalResult DynamicOperation::finalize() {
   // Check that the operation name is unused.
   if (AbstractOperation::lookup(name, dialect->getContext()))
@@ -76,7 +92,7 @@ LogicalResult DynamicOperation::finalize() {
       BaseOp::parseAssembly, BaseOp::printAssembly,
       BaseOp::verifyInvariants, BaseOp::foldHook,
       BaseOp::getCanonicalizationPatterns,
-      BaseOp::getInterfaceMap(), BaseOp::hasTrait
+      handleDynamicInterfaces(this), BaseOp::hasTrait
   });
   /// Take reference to the operation info.
   opInfo = AbstractOperation::lookup(name, dialect->getContext());
