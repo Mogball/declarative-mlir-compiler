@@ -71,12 +71,13 @@ static auto handleDynamicInterfaces(DynamicOperation *op) {
   auto *map = interfaces.getInterfaces();
   /// SideEffectInterface
   ///   The interface should be removed if none of
-  ///   Memory(Write|Read|Alloc|Free) or
+  ///   Memory(Write|Read|Alloc|Free) or NoSideEffect or
   ///   (WriteTo|ReadFrom|Alloc|Free)<> are defined
   if (!op->getTrait<MemoryWrite>() && !op->getTrait<MemoryRead>() &&
       !op->getTrait<MemoryAlloc>() && !op->getTrait<MemoryFree>() &&
       !op->getTrait<ReadFrom>() && !op->getTrait<WriteTo>() &&
-      !op->getTrait<Alloc>() && !op->getTrait<Free>())
+      !op->getTrait<Alloc>() && !op->getTrait<Free>() &&
+      !op->getTrait<NoSideEffects>())
     map->erase(TypeID::get<MemoryEffectOpInterface>());
 
   return interfaces;

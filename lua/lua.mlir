@@ -9,54 +9,67 @@ Dialect @lua {
 
   Op @concat(vals: !dmc.Variadic<!lua.value>,
              tail: !dmc.Variadic<!lua.value_pack>) -> (pack: !lua.value_pack)
-    traits [@SizedOperandSegments]
+    traits [@SizedOperandSegments, @NoSideEffects]
     config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
   Op @unpack(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
-    traits [@SameVariadicResultSizes]
+    traits [@SameVariadicResultSizes, @NoSideEffects]
     config { fmt = "$pack `:` functional-type($pack, $vals) attr-dict" }
 
   // Variable handling
   Op @alloc_local() -> (res: !lua.value) { var = #dmc.String }
+    traits [@NoSideEffects]
     config { fmt = "$var attr-dict" }
   Op @get_or_alloc() -> (res: !lua.value) { var = #dmc.String }
+    traits [@NoSideEffects]
     config { fmt = "$var attr-dict" }
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
+    traits [@NoSideEffects]
     config { fmt = "$var attr-dict" }
-  Op @assign(tgt: !lua.value, val: !lua.value) -> ()
+  Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
+    traits [@WriteTo<"tgt">]
+    config { fmt = "$tgt `=` $val attr-dict" }
+  Op @copy(tgt: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tgt">]
     config { fmt = "$tgt `=` $val attr-dict" }
 
   // Function calls
   Op @call(fcn: !lua.value, args: !lua.value_pack) -> (rets: !lua.value_pack)
-    traits [@MemoryAlloc, @MemoryFree, @MemoryRead, @MemoryWrite]
+    traits [@MemoryWrite]
     config { fmt = "$fcn `(` $args `)` attr-dict" }
 
   Alias @Builtin -> #dmc.AnyOf<
       "math", "io", "table", "print", "string">
 
   Op @builtin() -> (val: !lua.value) { var = #lua.Builtin }
+    traits [@NoSideEffects]
     config { fmt = "$var attr-dict" }
 
   // Value getters
   Op @nil() -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "attr-dict" }
   Op @boolean() -> (res: !lua.value) { value = #dmc.I<1> }
+    traits [@NoSideEffects]
     config { fmt = "$value attr-dict" }
   Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
+    traits [@NoSideEffects]
     config { fmt = "$value attr-dict" }
 
   Op @table() -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "attr-dict" }
   Op @init_table(tbl: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
     config { fmt = "$tbl attr-dict" }
   Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$tbl `[` $key `]` attr-dict" }
   Op @table_set(tbl: !lua.value, key: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
     config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
 
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
+    traits [@NoSideEffects]
     config { fmt = "$value attr-dict" }
 
   // Value operations
@@ -69,41 +82,50 @@ Dialect @lua {
       "^">
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
+    traits [@NoSideEffects]
     config { fmt = "$lhs $op $rhs attr-dict" }
 
   Alias @UnaryOp -> #dmc.AnyOf<
       "not", "#", "-", "~">
   Op @unary(val: !lua.value) -> (res: !lua.value)
     { op = #lua.UnaryOp }
+    traits [@NoSideEffects]
     config { fmt = "$op $val attr-dict" }
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
     { ivar = #dmc.String } (region: Sized<1>)
+    traits [@NoSideEffects]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
   Op @generic_for(f: !lua.value, s: !lua.value, var: !lua.value) -> ()
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
     config { fmt = "$params `in` $f `,` $s `,` $var `do` $region attr-dict" }
   Op @function_def() -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
+    traits [@NoSideEffects]
     config { fmt = "$params $region attr-dict" }
   Op @function_def_capture(captures: !dmc.Variadic<!lua.value>) -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
-    traits [@SameVariadicOperandSizes]
+    traits [@SameVariadicOperandSizes, @NoSideEffects]
     config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
   Op @cond_if(cond: !lua.value) -> () (first: Sized<1>, second: Sized<1>)
+    traits [@NoSideEffects]
     config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @loop_while() -> () (eval: Any, region: Any)
+    traits [@NoSideEffects]
     config { fmt = "$eval `do` $region attr-dict" }
-  Op @repeat() -> () (region: Sized<1>) config { fmt = "$region attr-dict" }
+  Op @repeat() -> () (region: Sized<1>)
+    traits [@NoSideEffects]
+    config { fmt = "$region attr-dict" }
   Op @until() -> () (eval: Sized<1>)
     traits [@IsTerminator]
     config { fmt = "$eval attr-dict" }
   Op @end() -> ()
     traits [@IsTerminator]
     config { fmt = "attr-dict" }
-  Op @ret(pack: !lua.value_pack) -> ()
-    traits [@IsTerminator]
-    config { fmt = "$pack attr-dict" }
+  Op @ret(vals: !dmc.Variadic<!lua.value>,
+          tail: !dmc.Variadic<!lua.value_pack>) -> ()
+    traits [@IsTerminator, @SizedOperandSegments]
+    config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
   Op @cond(cond: !lua.value) -> ()
     traits [@IsTerminator]
     config { fmt = "$cond attr-dict" }
@@ -112,10 +134,12 @@ Dialect @lua {
 Dialect @luaopt {
   Alias @table_prealloc -> 4
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
+    traits [@NoSideEffects]
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
 
   Op @capture_self(val: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
 }
 
 Dialect @luac {

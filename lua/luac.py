@@ -25,8 +25,8 @@ lua, luaopt, luac, luallvm = get_dialects()
 
 _test = True
 
-def makeConcat(b, vals, tail, loc):
-    concat = b.create(lua.concat, vals=vals, tail=tail, loc=loc)
+def makeConcat(b, vals, tail, loc, concatLike=lua.concat):
+    concat = b.create(concatLike, vals=vals, tail=tail, loc=loc)
     concat.setAttr("operand_segment_sizes", DenseIntElementsAttr(
         VectorType([2], I64Type(), loc), [len(vals), len(tail)]))
     return concat
@@ -88,14 +88,16 @@ class Generator:
         self.builder.insertAtEnd(self.curBlock)
 
     def handleRetStat(self, ctx, retstat):
+        vals = []
+        tail = []
         if retstat and retstat.explist():
-            return self.explist(retstat.explist())
-        return makeConcat(self.builder, [], [], self.getEndLoc(ctx)).pack()
+            vals, tail = self.getValsAndTail(retstat.explist())
+        makeConcat(self.builder, vals, tail, self.getEndLoc(ctx),
+                   concatLike=lua.ret)
 
     def handleCondRetstat(self, ctx, retstat):
         if retstat:
-            self.builder.create(lua.ret, pack=self.handleRetStat(ctx, retstat),
-                                loc=self.getStartLoc(retstat))
+            self.handleRetStat(ctx, retstat)
         else:
             self.builder.create(lua.end, loc=self.getEndLoc(ctx))
 
@@ -192,7 +194,7 @@ class Generator:
             varList.append(self.var(var))
         return varList
 
-    def explist(self, ctx:LuaParser.ExplistContext):
+    def getValsAndTail(self, ctx):
         vals = []
         for i in range(0, len(ctx.exp())):
             vals.append(self.exp(ctx.exp(i),
@@ -201,6 +203,10 @@ class Generator:
         if len(vals) > 0 and vals[-1].type == lua.pack():
             tail = [vals[-1]]
             vals = vals[1:-1]
+        return vals, tail
+
+    def explist(self, ctx:LuaParser.ExplistContext):
+        vals, tail = self.getValsAndTail(ctx)
         return makeConcat(self.builder, vals, tail, self.getStartLoc(ctx)).pack()
 
     def nameAndArgs(self, ctx:LuaParser.NameAndArgsContext):
@@ -402,8 +408,7 @@ class Generator:
         self.pushBlock(fcnDef.region().addEntryBlock([lua.val()] * len(params)))
         self.block(ctx.funcbody().block())
         retstat = ctx.funcbody().block().retstat()
-        retPack = self.handleRetStat(ctx, ctx.funcbody().block().retstat())
-        self.builder.create(lua.ret, pack=retPack, loc=loc)
+        self.handleRetStat(ctx, ctx.funcbody().block().retstat())
         self.popBlock()
         return fcnDef.fcn()
 
@@ -614,10 +619,7 @@ class AllocVisitor:
                 not op.val().hasOneUse() or
                 op.tgt().definingOp.parentOp != op.val().definingOp.parentOp):
             return
-        self.scope.set_local(lua.alloc(op.tgt().definingOp).var(),
-                             op.val())
-        self.builder.erase(op)
-        self.removed.add(op)
+        self.scope.set_local(lua.alloc(op.tgt().definingOp).var(), op.res())
 
 def explicitCapture(op:lua.function_def, rewriter:Builder):
     captures = set()
@@ -674,19 +676,28 @@ def assignTableSet(op:lua.assign, rewriter:Builder):
     rewriter.erase(tableGet)
     return False
 
+def elideAssign(op, rewriter):
+    if (not isa(op.tgt().definingOp, lua.alloc) or
+            not op.val().hasOneUse() or
+            op.tgt().definingOp.parentOp != op.val().definingOp.parentOp):
+        rewriter.create(lua.copy, tgt=op.tgt(), val=op.val(), loc=op.loc)
+        rewriter.replace(op, [op.tgt()])
+    else:
+        rewriter.replace(op, [op.val()])
+    return True
+
 def varAllocPass(main:FuncOp):
     # Non-trivial passes
     AllocVisitor().visitAll(main)
 
     applyOptPatterns(main, [Pattern(lua.function_def, explicitCapture)])
-
-    ## Trivial passes as patterns
     applyOptPatterns(main, [
         Pattern(lua.unpack, elideConcatAndUnpack, [lua.nil]),
         Pattern(lua.concat, elideConcatPack),
         Pattern(lua.alloc, raiseBuiltins, [lua.builtin]),
         Pattern(lua.assign, assignTableSet),
     ])
+    applyOptPatterns(main, [Pattern(lua.assign, elideAssign)])
 
 ################################################################################
 # IR: Dialect Conversion to SCF
@@ -1322,7 +1333,6 @@ def main():
     module, main = generator.chunk(parser.chunk())
     verify(module)
     varAllocPass(main)
-    applyLICM(module)
     if not _test:
         verify(module)
         cfExpand(module, main)

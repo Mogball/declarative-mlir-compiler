@@ -65,6 +65,7 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
       IsTerminator(), IsCommutative(), IsIsolatedFromAbove(),
       MemoryAlloc(), MemoryFree(), MemoryRead(), MemoryWrite(),
       Alloc(Attribute), Free(Attribute), ReadFrom(Attribute), WriteTo(Attribute),
+      NoSideEffects(),
 
       OperandsAreFloatLike(), OperandsAreSignlessIntegerLike(),
       ResultsAreBoolLike(), ResultsAreFloatLike(),
