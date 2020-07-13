@@ -45,7 +45,8 @@ Dialect @lua {
   Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
     config { fmt = "$value attr-dict" }
 
-  Op @table() -> (res: !lua.value) traits [@Alloc<"res">] config { fmt = "attr-dict" }
+  Op @table() -> (res: !lua.value)
+    config { fmt = "attr-dict" }
   Op @init_table(tbl: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
     config { fmt = "$tbl attr-dict" }
@@ -56,7 +57,7 @@ Dialect @lua {
     config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
 
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
-    traits [@Alloc<"res">] config { fmt = "$value attr-dict" }
+    config { fmt = "$value attr-dict" }
 
   // Value operations
   Alias @BinaryOp -> #dmc.AnyOf<
@@ -68,23 +69,19 @@ Dialect @lua {
       "^">
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "$lhs $op $rhs attr-dict" }
 
   Alias @UnaryOp -> #dmc.AnyOf<
       "not", "#", "-", "~">
   Op @unary(val: !lua.value) -> (res: !lua.value)
     { op = #lua.UnaryOp }
-    traits [@ReadFrom<"val">, @Alloc<"res">]
     config { fmt = "$op $val attr-dict" }
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
     { ivar = #dmc.String } (region: Sized<1>)
-    traits [@ReadFrom<["lower", "upper", "step"]>]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
   Op @generic_for(f: !lua.value, s: !lua.value, var: !lua.value) -> ()
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
-    traits [@ReadFrom<["f", "s", "var"]>]
     config { fmt = "$params `in` $f `,` $s `,` $var `do` $region attr-dict" }
   Op @function_def() -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
@@ -94,13 +91,16 @@ Dialect @lua {
     traits [@SameVariadicOperandSizes]
     config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
   Op @cond_if(cond: !lua.value) -> () (first: Sized<1>, second: Sized<1>)
-    traits [@ReadFrom<"cond">] config { fmt = "$cond `then` $first `else` $second attr-dict" }
+    config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @loop_while() -> () (eval: Any, region: Any)
     config { fmt = "$eval `do` $region attr-dict" }
   Op @repeat() -> () (region: Sized<1>) config { fmt = "$region attr-dict" }
-  Op @until() -> () (eval: Sized<1>) traits [@IsTerminator]
+  Op @until() -> () (eval: Sized<1>)
+    traits [@IsTerminator]
     config { fmt = "$eval attr-dict" }
-  Op @end() -> () traits [@IsTerminator] config { fmt = "attr-dict" }
+  Op @end() -> ()
+    traits [@IsTerminator]
+    config { fmt = "attr-dict" }
   Op @ret(pack: !lua.value_pack) -> ()
     traits [@IsTerminator]
     config { fmt = "$pack attr-dict" }
@@ -145,46 +145,35 @@ Dialect @luac {
 
   /// Binary operations
   Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @sub(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @pow(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @strcat(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @ne(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @gt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<["lhs", "rhs"]>]
     config { fmt = "`(` operands `)` attr-dict" }
 
   /// Unary operations
   Op @bool_not(val: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
+    config { fmt = "$val attr-dict" }
   Op @list_size(val: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
+    config { fmt = "$val attr-dict" }
   Op @neg(val: !lua.value) -> (res: !lua.value)
-    traits [@ReadFrom<"val">] config { fmt = "$val attr-dict" }
+    config { fmt = "$val attr-dict" }
 
   /// Misc library functions
   Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
@@ -199,9 +188,10 @@ Dialect @luac {
   Alias @capture_pack -> !dmc.Isa<@lua::@capture> { builder = "luac.capture()" }
 
   Op @alloc() -> (res: !lua.value)
-    traits [@Alloc<"res">] config { fmt = "attr-dict" }
+    config { fmt = "attr-dict" }
   Op @alloc_gc(val: !luac.value_ref) -> ()
-    traits [@WriteTo<"val">] config { fmt = "$val attr-dict" }
+    traits [@WriteTo<"val">]
+    config { fmt = "$val attr-dict" }
 
   Op @get_type(val: !lua.value) -> (ty: !luac.type_enum)
     config { fmt = "`type` `(` $val `)` attr-dict" }
@@ -256,7 +246,7 @@ Dialect @luac {
   Op @global_string() -> () { sym = #dmc.String, value = #dmc.String }
     traits [@MemoryWrite] config { fmt = "symbol($sym) `=` $value attr-dict" }
   Op @load_string() -> (res: !lua.value) { global_sym = #dmc.String }
-    traits [@Alloc<"res">] config { fmt = "symbol($global_sym) attr-dict" }
+    config { fmt = "symbol($global_sym) attr-dict" }
 }
 
 Dialect @luallvm {
