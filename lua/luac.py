@@ -208,7 +208,7 @@ class Generator:
         tail = []
         if len(vals) > 0 and vals[-1].type == lua.pack():
             tail = [vals[-1]]
-            vals = vals[1:-1]
+            vals = vals[0:-1]
         return vals, tail
 
     def explist(self, ctx:LuaParser.ExplistContext):
