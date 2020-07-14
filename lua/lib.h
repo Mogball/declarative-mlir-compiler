@@ -34,12 +34,12 @@ typedef void *lua_opaque_table_t;
 typedef void *lua_opaque_string_t;
 
 typedef union Complex {
+  lua_opaque_table_t ptable;
+  lua_opaque_string_t pstring;
   struct {
     lua_fcn_t fcn_addr;
     TCapture capture;
   };
-  lua_opaque_table_t ptable;
-  lua_opaque_string_t pstring;
 } TComplex;
 
 typedef struct Object {
@@ -53,8 +53,12 @@ typedef struct Object {
   };
 } TObject;
 
+
+/*******************************************************************************
+ * Simple Value Manipulation
+ ******************************************************************************/
+
 TObject lua_alloc(void);
-void lua_alloc_gc(TObject *ptr);
 
 int32_t lua_get_type(TObject val);
 void lua_set_type(TObject *ptr, int32_t ty);
@@ -74,6 +78,10 @@ void lua_set_capture_pack(TObject val, TCapture capture);
 uint64_t lua_get_value_union(TObject val);
 void lua_set_value_union(TObject *ptr, uint64_t u);
 
+/*******************************************************************************
+ * Pack Manipulation
+ ******************************************************************************/
+
 TCapture lua_new_capture(int32_t size);
 void lua_add_capture(TCapture capture, TObject *ptr, int32_t idx);
 
@@ -85,10 +93,16 @@ void lua_pack_insert_all(TPack pack, TPack tail, int32_t idx);
 TObject lua_pack_get(TPack pack, int32_t idx);
 int32_t lua_pack_get_size(TPack pack);
 
-void lua_init_table(TObject tbl);
+/*******************************************************************************
+ * Tables and Strings
+ ******************************************************************************/
+
+TObject lua_new_table(void);
 void lua_table_set(TObject tbl, TObject key, TObject val);
 TObject lua_table_get(TObject tbl, TObject key);
 void lua_table_set(TObject tbl, TObject key, TObject val);
+
+TObject lua_list_size(TObject tbl);
 TObject lua_load_string(const char *data, uint64_t len);
 
 #ifdef __cplusplus

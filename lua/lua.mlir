@@ -163,56 +163,73 @@ Dialect @luac {
   // userdata, thread unimplemented
 
   Op @wrap_bool(b: !luac.bool) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$b attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$num attr-dict" }
   Op @make_fcn(addr: !luac.pack_fcn, capture: !lua.capture_pack) -> (fcn: !lua.value)
+    traits [@NoSideEffects]
 
   /// Binary operations
   Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @sub(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @pow(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @strcat(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @ne(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @gt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "`(` operands `)` attr-dict" }
 
   /// Unary operations
   Op @bool_not(val: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
   Op @list_size(val: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
   Op @neg(val: !lua.value) -> (res: !lua.value)
+    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
 
   /// Misc library functions
   Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
+    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
 
   /// TObject -> TObject *
   Op @get_ref(val: !lua.value) -> (ref: !luac.value_ref)
+    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
 
+  /// Simple value Manipulation
   Op @alloc() -> (res: !lua.value)
     config { fmt = "attr-dict" }
-  Op @alloc_gc(val: !luac.value_ref) -> ()
-    traits [@WriteTo<"val">]
-    config { fmt = "$val attr-dict" }
 
   Op @get_type(val: !lua.value) -> (ty: !luac.type_enum)
     config { fmt = "`type` `(` $val `)` attr-dict" }
@@ -263,6 +280,9 @@ Dialect @luac {
     traits [@WriteTo<"pack">]
   Op @pack_get(pack: !lua.value_pack, idx: i32) -> (res: !lua.value)
   Op @pack_get_size(pack: !lua.value_pack) -> (size: i32)
+
+  Op @new_table() -> (res: !lua.value)
+    traits [@NoSideEffects]
 
   Op @global_string() -> () { sym = #dmc.String, value = #dmc.String }
     traits [@MemoryWrite] config { fmt = "symbol($sym) `=` $value attr-dict" }

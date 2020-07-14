@@ -849,25 +849,6 @@ def handleCondTerm(term:Operation, after:Block, rewriter:Builder):
         rewriter.create(BranchOp, dest=after, loc=term.loc)
     elif isa(term, lua.ret):
         ret = lua.ret(term)
-        concat = makeConcat(rewriter, list(ret.vals()), list(ret.tail()), term.loc)
-        rewriter.create(ReturnOp, operands=[concat.pack()], loc=term.loc)
-    else:
-        raise ValueError("expected lua.ret or lua.end as terminator")
-    rewriter.erase(term)
-
-def lowerCondIf(op:lua.cond_if, rewriter:Builder):
-    boolVal = rewriter.create(luac.convert_bool_like, val=op.cond(), loc=op.loc).b()
-    # Add the conditional blocks [before, first, second, after]
-    before = op.block
-    after = before.split(op)
-    first = Block()
-    second = Block()
-    second.insertBefore(after)
-    first.insertBefore(second)
-    # cond_br
-    rewriter.insertAtEnd(before)
-    rewriter.create(CondBranchOp, loc=op.loc, cond=boolVal, trueDest=first,
-                    falseDest=second)
     # trueDest
     copyInto(first, op.first().getBlock(0))
     handleCondTerm(first.getTerminator(), after, rewriter)
@@ -974,21 +955,27 @@ def applyOpts(module):
         Pattern(lua.table_get, tableGetPrealloc),
         Pattern(lua.table_set, tableSetPrealloc),
     ])
+    applyCSE(module, licmCanHoist)
 
 ################################################################################
 # IR: Dialect Conversion to StandardOps
 ################################################################################
 
-def getWrapperFor(numberTy, opCls):
-    def wrapFcn(op:lua.number, rewriter:Builder):
-        if op.value().type != numberTy:
-            return False
-        const = rewriter.create(ConstantOp, value=op.value(), loc=op.loc)
-        wrap = rewriter.create(opCls, num=const.result(), loc=op.loc)
-        rewriter.replace(op, [wrap.res()])
-        return True
+def lowerAlloc(op:lua.alloc, rewriter:Builder):
+    nil = rewriter.create(lua.nil, loc=op.loc)
+    rewriter.replace(op, [nil.res()])
+    return True
 
-    return wrapFcn
+def luaNumberWrap(op, rewriter):
+    num = rewriter.create(ConstantOp, value=op.value(), loc=op.loc).result()
+    val = rewriter.create(luac.wrap_real, num=num, loc=op.loc).res()
+    rewriter.replace(op, [val])
+    return True
+
+def expandTable(op:lua.table, rewriter:Builder):
+    tbl = rewriter.create(luac.new_table, loc=op.loc).res()
+    rewriter.replace(op, [tbl])
+    return True
 
 def getExpanderFor(opStr, binOpCls):
     def expandFcn(op:lua.binary, rewriter:Builder):
@@ -1011,56 +998,27 @@ def getUnaryExpander(opStr, unOpCls):
 
     return expandFcn
 
-def allocAndSet(setOp):
-    def matchFcn(op, rewriter:Builder):
-        alloc = rewriter.create(luac.alloc, loc=op.loc)
-        const = rewriter.create(ConstantOp, value=luac.type_num(), loc=op.loc)
-        rewriter.create(setOp, tgt=alloc.res(), num=op.num(), loc=op.loc)
-        rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
-                        loc=op.loc)
-        rewriter.replace(op, [alloc.res()])
-        return True
-
-    return matchFcn
-
-def setToNil(op:lua.nil, rewriter:Builder):
-    alloc = rewriter.create(luac.alloc, loc=op.loc)
-    const = rewriter.create(ConstantOp, value=luac.type_nil(), loc=op.loc)
-    rewriter.create(luac.set_type, tgt=alloc.res(), ty=const.result(),
-                    loc=op.loc)
-    rewriter.replace(op, [alloc.res()])
-    return True
-
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
-    fixedSz = sum(1 if val.type == lua.val() else 0 for val in op.vals())
-    const = rewriter.create(ConstantOp, value=I64Attr(fixedSz), loc=op.loc)
-    szVar = const.result()
-    for val in op.vals():
-        if val.type == lua.pack():
-            getSz = rewriter.create(luac.pack_get_size, pack=val, loc=op.loc)
-            addI = rewriter.create(AddIOp, lhs=szVar, rhs=getSz.sz(),
-                                   ty=IntegerType(64), loc=op.loc)
-            szVar = addI.result()
-    if isa(op.pack().getOpUses()[0], ReturnOp):
-        pack = rewriter.create(luac.new_ret_pack, rsv=szVar, loc=op.loc).pack()
-    else:
-        pack = rewriter.create(luac.new_pack, rsv=szVar, loc=op.loc).pack()
-    for val in op.vals():
-        if val.type == lua.ref():
-            rewriter.create(luac.pack_push, pack=pack, val=val, loc=op.loc)
-        else:
-            rewriter.create(luac.pack_push_all, pack=pack, vals=val, loc=op.loc)
+    getter = (luac.get_ret_pack if isa(op.getOpUses()[0], ReturnOp) else
+              luac.get_arg_pack)
+    szVar = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
+                            loc=op.loc).result()
+    tail = None if len(op.tail()) == 0 else op.tail()[0]
+    if tail:
+        tailSz = rewriter.create(luac.pack_get_size, pack=tail,
+                                 loc=op.loc).size()
+        szVar = rewriter.create(AddIOp, lhs=szVar, rhs=tailSz,
+                                loc=op.loc).result()
+    pack = rewriter.create(getter, size=szVar, loc=op.loc).pack()
+    for i in range(0, len(op.vals())):
+        idx = rewriter.create(ConstantOp, value=I32Attr(i), loc=op.loc).result()
+        rewriter.create(luac.pack_insert, pack=pack, val=op.vals()[i], idx=idx,
+                        loc=op.loc)
+    if tail:
+        rewriter.create(luac.pack_insert_all, pack=pack, tail=tail,
+                        idx=I32Attr(len(op.vals())), loc=op.loc)
     rewriter.replace(op, [pack])
-    return True
-
-def expandTable(op:lua.table, rewriter:Builder):
-    tbl = rewriter.create(luac.alloc, loc=op.loc).res()
-    tblTy = rewriter.create(ConstantOp, value=luac.type_tbl(), loc=op.loc)
-    rewriter.create(luac.set_type, tgt=tbl, ty=tblTy.result(), loc=op.loc)
-    rewriter.create(luac.alloc_gc, tgt=tbl, loc=op.loc)
-    rewriter.create(lua.init_table, tbl=tbl, loc=op.loc)
-    rewriter.replace(op, [tbl])
     return True
 
 def expandUnpack(op:lua.unpack, rewriter:Builder):
@@ -1090,11 +1048,6 @@ def expandCallSelf(op:lua.call, rewriter:Builder):
     call = rewriter.create(CallOp, callee=selfFunc,
                            operands=[pack, op.args()], loc=op.loc)
     rewriter.replace(op, call.results())
-    return True
-
-def lowerAlloc(op:lua.alloc, rewriter:Builder):
-    nil = rewriter.create(lua.nil, loc=op.loc)
-    rewriter.replace(op, [nil.res()])
     return True
 
 def expandAssign(op:lua.assign, rewriter:Builder):
@@ -1140,10 +1093,9 @@ def lowerToLuac(module:ModuleOp):
     target.addLegalOp(ModuleOp)
 
     patterns = [
-        Pattern(lua.alloc, lowerAlloc, [lua.nil]),
+        Pattern(lua.alloc, lowerAlloc),
 
-        Pattern(lua.number, getWrapperFor(luac.real(), luac.wrap_real),
-                [ConstantOp, luac.wrap_real]),
+        Pattern(lua.number, luaNumberWrap),
         Pattern(lua.table, expandTable),
 
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
@@ -1162,13 +1114,8 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
         Pattern(lua.unary, getUnaryExpander("-", luac.neg), [luac.neg]),
 
-        Pattern(luac.wrap_real, allocAndSet(luac.set_double_val),
-                [luac.alloc, luac.set_double_val, luac.set_type, ConstantOp]),
-        Pattern(lua.nil, setToNil, [luac.alloc, luac.set_type]),
+        Pattern(lua.concat, expandConcat)
 
-        Pattern(lua.concat_ref, expandConcatRef, [luac.new_pack, luac.pack_push_ref]),
-        Pattern(lua.concat, expandConcat, [luac.new_pack, luac.pack_push,
-                                           luac.pack_push_all, luac.pack_get_size]),
         Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one]),
         Pattern(lua.unpack_rewind, expandUnpackRewind, [luac.pack_pull_one,
                                                         luac.pack_rewind]),
@@ -1297,7 +1244,6 @@ def luaToLLVM(module):
         convert(luac.convert_bool_like, "lua_convert_bool_like"),
 
         convertLibc(luac.alloc, "lua_alloc"),
-        convertLibc(luac.alloc_gc, "lua_alloc_gc"),
         convertLibc(luac.get_type, "lua_get_type"),
         convertLibc(luac.set_type, "lua_set_type"),
         convertLibc(luac.get_bool_val, "lua_get_bool_val"),
@@ -1354,10 +1300,11 @@ def main():
     verify(module)
     varAllocPass(module, main)
     verify(module)
+    cfExpand(module, main)
+    verify(module)
+    applyOpts(module)
+    verify(module)
     if not _test:
-        cfExpand(module, main)
-        verify(module)
-        applyOpts(module)
         lowerToLuac(module)
 
         lib = parseSourceFile("lib.mlir")

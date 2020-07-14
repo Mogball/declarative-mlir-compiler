@@ -11,8 +11,17 @@ TObject lua_alloc(void) {
   return ret;
 }
 
-void lua_alloc_gc(TObject *ptr) {
-  ptr->gc = malloc(sizeof(TComplex));
+TObject lua_nil(void) {
+  TObject ret;
+  ret.type = NIL;
+  return ret;
+}
+
+TObject lua_wrap_real(double num) {
+  TObject ret;
+  ret.type = NUM;
+  ret.num = num;
+  return ret;
 }
 
 /*******************************************************************************
@@ -101,9 +110,7 @@ void lua_pack_insert_all(TPack pack, TPack tail, int32_t idx) {
 }
 TObject lua_pack_get(TPack pack, int32_t idx) {
   if (idx >= pack.size) {
-    TObject ret;
-    ret.type = NIL;
-    return ret;
+    return lua_nil();
   }
   return pack.objs[idx];
 }
@@ -115,26 +122,34 @@ int32_t lua_pack_get_size(TPack pack) {
  * Tables
  ******************************************************************************/
 
-extern void lua_init_table_impl(TObject tbl);
-extern void lua_table_set_impl(TObject tbl, TObject key, TObject val);
-extern TObject lua_table_get_impl(TObject tbl, TObject key);
-void lua_init_table(TObject tbl) {
-  lua_init_table_impl(tbl);
-}
-void lua_table_set(TObject tbl, TObject key, TObject val) {
-  lua_table_set_impl(tbl, key, val);
-}
-TObject lua_table_get(TObject tbl, TObject key) {
-  return lua_table_get_impl(tbl, key);
+extern void *lua_new_table_impl(void);
+TObject lua_new_table(void) {
+  TObject ret;
+  ret.type = TBL;
+  ret.gc = malloc(sizeof(TComplex));
+  ret.gc->ptable = lua_new_table_impl();
+  return ret;
 }
 
-extern void lua_table_set_prealloc_impl(TObject tbl, int64_t iv, TObject val);
-extern TObject lua_table_get_prealloc_impl(TObject tbl, int64_t iv);
+extern void lua_table_set_impl(void *impl, TObject key, TObject val);
+extern TObject lua_table_get_impl(void *impl, TObject key);
+extern int64_t lua_list_size_impl(void *impl);
+
+void lua_table_set(TObject tbl, TObject key, TObject val) {
+  lua_table_set_impl(tbl.gc->ptable, key, val);
+}
+TObject lua_table_get(TObject tbl, TObject key) {
+  return lua_table_get_impl(tbl.gc->ptable, key);
+}
+
+extern void lua_table_set_prealloc_impl(void *impl, int64_t iv, TObject val);
+extern TObject lua_table_get_prealloc_impl(void *impl, int64_t iv);
+
 void lua_table_set_prealloc(TObject tbl, int64_t iv, TObject val) {
-  lua_table_set_prealloc_impl(tbl, iv, val);
+  lua_table_set_prealloc_impl(tbl.gc->ptable, iv, val);
 }
 TObject lua_table_get_prealloc(TObject tbl, int64_t iv) {
-  return lua_table_get_prealloc_impl(tbl, iv);
+  return lua_table_get_prealloc_impl(tbl.gc->ptable, iv);
 }
 
 /*******************************************************************************
