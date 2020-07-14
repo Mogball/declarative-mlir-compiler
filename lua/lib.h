@@ -59,6 +59,7 @@ typedef struct Object {
  ******************************************************************************/
 
 TObject lua_alloc(void);
+void lua_copy(TObject *ptr, TObject val);
 
 int32_t lua_get_type(TObject val);
 void lua_set_type(TObject *ptr, int32_t ty);

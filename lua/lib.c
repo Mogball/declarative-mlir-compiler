@@ -11,6 +11,10 @@ TObject lua_alloc(void) {
   return ret;
 }
 
+void lua_copy(TObject *ptr, TObject val) {
+  *ptr = val;
+}
+
 TObject lua_nil(void) {
   TObject ret;
   ret.type = NIL;

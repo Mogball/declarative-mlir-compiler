@@ -124,9 +124,8 @@ class Generator:
         # Process the block
         self.block(ctx.block())
         assert ctx.block().retstat() == None, "unexpected return statement"
-        empty = makeConcat(self.builder, [], [], self.getEndLoc(ctx))
-        self.builder.create(ReturnOp, operands=[empty.pack()],
-                            loc=self.getEndLoc(ctx))
+        makeConcat(self.builder, [], [], self.getEndLoc(ctx),
+                   concatLike=lua.ret)
 
         # Return the module
         assert verify(module), "module failed to verify"
@@ -632,13 +631,23 @@ def explicitCapture(op:lua.function_def, rewriter:Builder):
     captures = set()
     def collectCaptures(o):
         for val in o.getOperands():
-            if val.definingOp and not op.isProperAncestor(val.definingOp):
+            if ((val.definingOp and not op.isProperAncestor(val.definingOp)) or (
+                 hasattr(val.owner, "parent") and
+                 val.owner.parent.isProperAncestor(op.region()))):
                 captures.add(val)
     walkInOrder(op, collectCaptures)
     captures = list(captures)
     fcnDef = rewriter.create(lua.function_def_capture, captures=captures,
                              params=op.params(), loc=op.loc)
-    fcnDef.region().takeBody(op.region())
+    prev = op.region().getBlock(0)
+    entry = fcnDef.region().addEntryBlock(
+        [lua.val()] * (len(captures) + prev.getNumArguments()))
+    bvm = BlockAndValueMapping()
+    for i in range(0, len(captures)):
+        bvm[captures[i]] = entry.getArgument(i)
+    for i in range(0, prev.getNumArguments()):
+        bvm[prev.getArgument(i)] = entry.getArgument(len(captures) + i)
+    copyInto(entry, op.region().getBlock(0), None, bvm)
     rewriter.replace(op, [fcnDef.fcn()])
     return True
 
@@ -688,9 +697,7 @@ def assignTableSet(op:lua.assign, rewriter:Builder):
     return False
 
 def isCaptured(val):
-    for use in val.getOpUses():
-        if isa(use, lua.function_def_capture):
-            return True
+    return any(isa(use, lua.function_def_capture) for use in val.getOpUses())
 
 def elideAssign(op, rewriter):
     if (not isa(op.tgt().definingOp, lua.alloc) or
@@ -736,6 +743,25 @@ def copyInto(newBlk, oldBlk, termCls=None, bvm=None):
     for oldOp in oldBlk:
         if not termCls or not isa(oldOp, termCls):
             newBlk.append(oldOp.clone(bvm))
+
+def argPackFunctionDef(op, rewriter):
+    packFcn = rewriter.create(luaopt.pack_func, captures=list(op.captures()),
+                              loc=op.loc)
+    entry = packFcn.region().addEntryBlock([lua.capture(), lua.pack()])
+    rewriter.insertAtStart(entry)
+    caps = rewriter.create(lua.get_captures, capture=entry.getArgument(0),
+                           vals=[lua.val()] * len(op.captures()), loc=op.loc)
+    args = rewriter.create(lua.unpack, pack=entry.getArgument(1),
+                           vals=[lua.val()] * len(op.params()), loc=op.loc)
+    bvm = BlockAndValueMapping()
+    prev = op.region().getBlock(0)
+    for i in range(0, len(op.captures())):
+        bvm[prev.getArgument(i)] = caps.vals()[i]
+    for i in range(0, len(op.params())):
+        bvm[prev.getArgument(len(op.captures()) + i)] = args.vals()[i]
+    copyInto(entry, prev, None, bvm)
+    rewriter.replace(op, [packFcn.fcn()])
+    return True
 
 def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
     step = rewriter.create(luac.get_double_val, val=op.step(), loc=op.loc).num()
@@ -797,58 +823,29 @@ def capturesSelf(op, cap):
             return True
     return False
 
-anon_name_counter = 0
-def lowerFunctionDef(module:ModuleOp):
-    def lowerFcn(op:lua.function_def_capture, rewriter:Builder):
-        captures = list(op.captures())
-        caps = rewriter.create(lua.make_capture, vals=captures,
-                               loc=op.loc).capture()
-
-        global anon_name_counter
-        name = "lua_anon_fcn_" + str(anon_name_counter)
-        anon_name_counter += 1
-        func = FuncOp(name, luac.pack_fcn(), op.loc)
-        module.append(func)
-        block = func.getBody().addEntryBlock([lua.capture(), lua.pack()])
-        rewriter.insertAtStart(block)
-        capPack = rewriter.create(lua.get_captures, capture=block.getArgument(0),
-                                 vals=[lua.val()] * len(captures), loc=op.loc)
-        argPack = rewriter.create(lua.unpack, pack=block.getArgument(1),
-                                  vals=[lua.val()] * len(op.params()), loc=op.loc)
-
-        bvm = BlockAndValueMapping()
-        for i in range(0, len(captures)):
-            if capturesSelf(op, captures[i]):
-                bvm[captures[i]] = rewriter.create(luaopt.capture_self,
-                        val=capPack.vals()[i], loc=op.loc).res()
-            else:
-                bvm[captures[i]] = capPack.vals()[i]
-        for i in range(0, len(op.params())):
-            bvm[op.region().getBlock(0).getArgument(i)] = argPack.vals()[i]
-        fcnBlk = op.region().getBlock(0)
-        copyInto(block, fcnBlk, lua.ret, bvm)
-
-        ret = lua.ret(fcnBlk.getTerminator().clone(bvm))
-        rewriter.insertAtEnd(block)
-        concat = makeConcat(rewriter, list(ret.vals()), list(ret.tail()), op.loc)
-        rewriter.create(ReturnOp, operands=[concat.pack()], loc=op.loc)
-        rewriter.insertBefore(op)
-
-        fcnAddr = rewriter.create(ConstantOp, value=FlatSymbolRefAttr(name),
-                                  ty=luac.pack_fcn(), loc=op.loc).result()
-        fcn = rewriter.create(luac.make_fcn, addr=fcnAddr, capture=caps,
-                              loc=op.loc).fcn()
-        rewriter.replace(op, [fcn])
-        return True
-
-    return lowerFcn
-
 def handleCondTerm(term:Operation, after:Block, rewriter:Builder):
-    rewriter.insertBefore(term)
     if isa(term, lua.end):
+        rewriter.insertBefore(term)
         rewriter.create(BranchOp, dest=after, loc=term.loc)
+        rewriter.erase(term)
     elif isa(term, lua.ret):
-        ret = lua.ret(term)
+        return
+    else:
+        raise ValueError("expected lua.ret or lua.end as terminator")
+
+def lowerCondIf(op:lua.cond_if, rewriter:Builder):
+    boolVal = rewriter.create(luac.convert_bool_like, val=op.cond(), loc=op.loc).b()
+    # Add the conditional blocks [before, first, second, after]
+    before = op.block
+    after = before.split(op)
+    first = Block()
+    second = Block()
+    second.insertBefore(after)
+    first.insertBefore(second)
+    # cond_br
+    rewriter.insertAtEnd(before)
+    rewriter.create(CondBranchOp, loc=op.loc, cond=boolVal, trueDest=first,
+                    falseDest=second)
     # trueDest
     copyInto(first, op.first().getBlock(0))
     handleCondTerm(first.getTerminator(), after, rewriter)
@@ -910,15 +907,69 @@ def lowerRepeatUntil(op:lua.until, rewriter:Builder):
     rewriter.erase(repeat)
     return True
 
+def getFcnDef(val):
+    if isa(val.definingOp, luaopt.pack_func):
+        return luaopt.pack_func(val.definingOp)
+    if isa(val.definingOp, lua.alloc):
+        for use in val.getOpUses():
+            if isa(use, lua.copy):
+                return getFcnDef(lua.assign(use).val())
+    if isa(val.definingOp, lua.get_captures):
+        cap = lua.get_captures(val.definingOp).capture()
+        return luaopt.pack_func(cap.owner.parent.parentOp)
+    return None
+
+def knownCallUnpack(op, rewriter):
+    if not isa(op.pack().definingOp, lua.call): return False
+    fcnVal = lua.call(op.pack().definingOp).fcn()
+    fcnDef = getFcnDef(fcnVal)
+    if not fcnDef: return False
+    minSz = None
+    for bb in fcnDef.region():
+        term = bb.getTerminator()
+        if not isa(term, lua.ret): continue
+        nVals = len(lua.ret(term).vals())
+        minSz = min(minSz, nVals) if minSz != None else nVals
+    assert minSz != None
+    if minSz < len(op.vals()): return False
+    vals = rewriter.create(luaopt.unpack_unsafe, pack=op.pack(),
+                           vals=[lua.val()] * len(op.vals()), loc=op.loc).vals()
+    rewriter.replace(op, vals)
+    return True
+
+anon_name_counter = 0
+def lowerFunctionDef(module):
+    def lowerFcn(op, rewriter):
+        caps = rewriter.create(lua.make_capture, vals=list(op.captures()),
+                               loc=op.loc).capture()
+
+        global anon_name_counter
+        name = "lua_anon_fcn_" + str(anon_name_counter)
+        anon_name_counter += 1
+        func = FuncOp(name, luac.pack_fcn(), op.loc)
+        module.append(func)
+        func.getBody().takeBody(op.region())
+        fcnAddr = rewriter.create(ConstantOp, value=FlatSymbolRefAttr(name),
+                                  ty=luac.pack_fcn(), loc=op.loc).result()
+        fcn = rewriter.create(luac.make_fcn, addr=fcnAddr, capture=caps,
+                              loc=op.loc).fcn()
+        rewriter.replace(op, [fcn])
+        return True
+    return lowerFcn
+
 def cfExpand(module:ModuleOp, main:FuncOp):
+    applyOptPatterns(module, [Pattern(lua.function_def_capture,
+                                      argPackFunctionDef)])
     applyOptPatterns(module, [
         Pattern(lua.numeric_for, lowerNumericFor),
         Pattern(lua.generic_for, lowerGenericFor),
-        Pattern(lua.function_def_capture, lowerFunctionDef(module)),
-        Pattern(lua.cond_if, lowerCondIf),
         Pattern(lua.loop_while, lowerLoopWhile),
         Pattern(lua.until, lowerRepeatUntil),
+        Pattern(lua.cond_if, lowerCondIf),
     ])
+    applyOptPatterns(module, [Pattern(lua.unpack, knownCallUnpack)])
+    applyOptPatterns(module, [Pattern(luaopt.pack_func,
+                                      lowerFunctionDef(module))])
 
 ################################################################################
 # IR: Optimizations
@@ -932,13 +983,15 @@ def preallocValid(op, rewriter):
     ivVal = int(raw)
     if ivVal != raw or ivVal <= 0 or ivVal > luaopt.table_prealloc().getInt():
         return None
-    return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1), loc=op.loc).result()
+    return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1),
+                           loc=op.loc).result()
 
 def tableGetPrealloc(op:lua.table_get, rewriter:Builder):
     iv = preallocValid(op, rewriter)
     if iv == None:
         return False
-    val = rewriter.create(luaopt.table_get_prealloc, tbl=op.tbl(), iv=iv, loc=op.loc).val()
+    val = rewriter.create(luaopt.table_get_prealloc, tbl=op.tbl(), iv=iv,
+                          loc=op.loc).val()
     rewriter.replace(op, [val])
     return True
 
@@ -946,7 +999,8 @@ def tableSetPrealloc(op:lua.table_set, rewriter:Builder):
     iv = preallocValid(op, rewriter)
     if iv == None:
         return False
-    rewriter.create(luaopt.table_set_prealloc, tbl=op.tbl(), iv=iv, val=op.val(), loc=op.loc)
+    rewriter.create(luaopt.table_set_prealloc, tbl=op.tbl(), iv=iv,
+                    val=op.val(), loc=op.loc)
     rewriter.erase(op)
     return True
 
@@ -972,11 +1026,6 @@ def luaNumberWrap(op, rewriter):
     rewriter.replace(op, [val])
     return True
 
-def expandTable(op:lua.table, rewriter:Builder):
-    tbl = rewriter.create(luac.new_table, loc=op.loc).res()
-    rewriter.replace(op, [tbl])
-    return True
-
 def getExpanderFor(opStr, binOpCls):
     def expandFcn(op:lua.binary, rewriter:Builder):
         if op.op().getValue() != opStr:
@@ -1000,15 +1049,15 @@ def getUnaryExpander(opStr, unOpCls):
 
 def expandConcat(op:lua.concat, rewriter:Builder):
     assert op.pack().hasOneUse(), "value pack can only be used once"
-    getter = (luac.get_ret_pack if isa(op.getOpUses()[0], ReturnOp) else
+    getter = (luac.get_ret_pack if isa(op.pack().getOpUses()[0], ReturnOp) else
               luac.get_arg_pack)
     szVar = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
                             loc=op.loc).result()
     tail = None if len(op.tail()) == 0 else op.tail()[0]
     if tail:
-        tailSz = rewriter.create(luac.pack_get_size, pack=tail,
+        tailSz = rewriter.create(luac.pack_get_size, pack=tail, size=I32Type(),
                                  loc=op.loc).size()
-        szVar = rewriter.create(AddIOp, lhs=szVar, rhs=tailSz,
+        szVar = rewriter.create(AddIOp, lhs=szVar, rhs=tailSz, ty=I32Type(),
                                 loc=op.loc).result()
     pack = rewriter.create(getter, size=szVar, loc=op.loc).pack()
     for i in range(0, len(op.vals())):
@@ -1016,46 +1065,35 @@ def expandConcat(op:lua.concat, rewriter:Builder):
         rewriter.create(luac.pack_insert, pack=pack, val=op.vals()[i], idx=idx,
                         loc=op.loc)
     if tail:
-        rewriter.create(luac.pack_insert_all, pack=pack, tail=tail,
-                        idx=I32Attr(len(op.vals())), loc=op.loc)
+        idx = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
+                              loc=op.loc).result()
+        rewriter.create(luac.pack_insert_all, pack=pack, tail=tail, idx=idx,
+                        loc=op.loc)
     rewriter.replace(op, [pack])
     return True
 
 def expandUnpack(op:lua.unpack, rewriter:Builder):
     newVals = []
-    for val in op.vals():
-        pull = rewriter.create(luac.pack_pull_one, pack=op.pack(), loc=op.loc)
-        newVals.append(pull.val())
+    for i in range(0, len(op.vals())):
+        idx = rewriter.create(ConstantOp, value=I32Attr(i), loc=op.loc).result()
+        val = rewriter.create(luac.pack_get, pack=op.pack(), idx=idx,
+                              loc=op.loc).res()
+        newVals.append(val)
     rewriter.replace(op, newVals)
     return True
 
 def expandCall(op:lua.call, rewriter:Builder):
-    if isa(op.fcn().definingOp, luaopt.capture_self):
-        return False
-    getAddr = rewriter.create(luac.get_fcn_addr, fcn=op.fcn(), loc=op.loc)
-    getPack = rewriter.create(luac.get_capture_pack, fcn=op.fcn(), loc=op.loc)
-    icall = rewriter.create(CallIndirectOp, callee=getAddr.fcn_addr(),
-                            operands=[getPack.pack(), op.args()], loc=op.loc)
+    getAddr = rewriter.create(luac.get_fcn_addr, val=op.fcn(), loc=op.loc)
+    getPack = rewriter.create(luac.get_capture_pack, val=op.fcn(), loc=op.loc)
+    icall = rewriter.create(CallIndirectOp, callee=getAddr.addr(),
+                            operands=[getPack.capture(), op.args()], loc=op.loc)
     rewriter.replace(op, icall.results())
     return True
 
-def expandCallSelf(op:lua.call, rewriter:Builder):
-    if not isa(op.fcn().definingOp, luaopt.capture_self):
-        return False
-    selfFunc = op.parentOp
-    assert isa(selfFunc, FuncOp)
-    pack = selfFunc.getBody().getBlock(0).getArgument(0)
-    call = rewriter.create(CallOp, callee=selfFunc,
-                           operands=[pack, op.args()], loc=op.loc)
-    rewriter.replace(op, call.results())
-    return True
-
-def expandAssign(op:lua.assign, rewriter:Builder):
-    getType = rewriter.create(luac.get_type, tgt=op.val(), loc=op.loc)
-    getU = rewriter.create(luac.get_value_union, tgt=op.val(), loc=op.loc)
-    rewriter.create(luac.set_type, tgt=op.tgt(), ty=getType.ty(), loc=op.loc)
-    rewriter.create(luac.set_value_union, tgt=op.tgt(), u=getU.u(), loc=op.loc)
-    rewriter.replace(op, [op.tgt()])
+def expandRet(op, rewriter):
+    pack = makeConcat(rewriter, list(op.vals()), list(op.tail()), op.loc).pack()
+    rewriter.create(ReturnOp, operands=[pack], loc=op.loc)
+    rewriter.erase(op)
     return True
 
 anon_string_counter = 0
@@ -1064,39 +1102,86 @@ def lowerGetString(module:ModuleOp):
         global anon_string_counter
         strName = StringAttr("lua_anon_string_" + str(anon_string_counter))
         anon_string_counter += 1
-        module.append(luac.global_string(loc=op.loc, sym=strName, value=op.value()))
-        loadStr = rewriter.create(luac.load_string, global_sym=strName, loc=op.loc)
+        module.append(luac.global_string(loc=op.loc, sym=strName,
+                                         value=op.value()))
+        loadStr = rewriter.create(luac.load_string, global_sym=strName,
+                                  loc=op.loc)
         rewriter.replace(op, [loadStr.res()])
         return True
 
     return lowerFcn
 
-def eraseCaptureSelf(op, rewriter):
-    rewriter.replace(op, [op.val()])
+def expandCopy(op, rewriter):
+    ref = rewriter.create(luac.get_ref, val=op.tgt(), loc=op.loc).ref()
+    rewriter.create(luac.copy, ptr=ref, val=op.val(), loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+def expandMakeCapture(op, rewriter):
+    sz = rewriter.create(ConstantOp, value=I32Attr(len(op.vals())),
+                         loc=op.loc).result()
+    cap = rewriter.create(luac.new_capture, size=sz, loc=op.loc).capture()
+    for i in range(0, len(op.vals())):
+        idx = rewriter.create(ConstantOp, value=I32Attr(i), loc=op.loc).result()
+        ref = rewriter.create(luac.get_ref, val=op.vals()[i], loc=op.loc).ref()
+        rewriter.create(luac.add_capture, capture=cap, ptr=ref, idx=idx,
+                        loc=op.loc)
+    rewriter.replace(op, [cap])
+    return True
+
+def expandGetCaptures(op, rewriter):
+    newVals = []
+    for i in range(0, len(op.vals())):
+        idx = rewriter.create(ConstantOp, value=I32Attr(i), loc=op.loc).result()
+        ref = rewriter.create(luac.get_capture, capture=op.capture(), idx=idx,
+                              loc=op.loc).ptr()
+        newVals.append(rewriter.create(luac.dec_ref, ptr=ref, loc=op.loc).val())
+    rewriter.replace(op, newVals)
+    return True
+
+def copyToPtr(op, rewriter):
+    if not isa(op.ptr().definingOp, luac.get_ref):
+        return False
+    getRef = luac.get_ref(op.ptr().definingOp)
+    if not isa(getRef.val().definingOp, luac.dec_ref):
+        return False
+    decRef = luac.dec_ret(getRef.val().definingOp)
+    rewriter.create(luac.copy, ptr=decRef.ptr(), val=op.val(), loc=op.loc)
+    rewriter.erase(op)
+    return True
+
+def knownBool(op, rewriter):
+    valid = [luac.eq, luac.ne, luac.lt, luac.le, luac.gt, luac.bool_and,
+             luac.bool_not]
+    if not any(isa(op.val().definingOp, opCls) for opCls in valid):
+        return False
+    b = rewriter.create(luac.get_bool_val, val=op.val(), loc=op.loc).b()
+    rewriter.replace(op, [b])
+    return True
+
+def raiseConstNumber(op, rewriter):
+    num = rewriter.create(lua.number, value=op.value(), loc=op.loc).res()
+    rewriter.replace(op, [num])
     return True
 
 def lowerToLuac(module:ModuleOp):
     target = ConversionTarget()
-
     target.addLegalDialect(luac)
     target.addLegalDialect(luaopt)
     target.addLegalDialect("std")
-    target.addLegalDialect("loop")
+    target.addLegalDialect("scf")
     target.addLegalOp(FuncOp)
-
-    target.addIllegalOp(luac.wrap_real)
-
+    target.addLegalOp(lua.table)
+    target.addLegalOp(lua.nil)
     target.addLegalOp(lua.builtin)
     target.addLegalOp(lua.table_get)
     target.addLegalOp(lua.table_set)
-    target.addLegalOp(lua.init_table)
+    target.addIllegalOp(luaopt.const_number)
     target.addLegalOp(ModuleOp)
-
     patterns = [
         Pattern(lua.alloc, lowerAlloc),
-
+        Pattern(luaopt.const_number, raiseConstNumber),
         Pattern(lua.number, luaNumberWrap),
-        Pattern(lua.table, expandTable),
 
         Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
         Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
@@ -1114,24 +1199,19 @@ def lowerToLuac(module:ModuleOp):
         Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
         Pattern(lua.unary, getUnaryExpander("-", luac.neg), [luac.neg]),
 
-        Pattern(lua.concat, expandConcat)
-
-        Pattern(lua.unpack, expandUnpack, [luac.pack_pull_one]),
-        Pattern(lua.unpack_rewind, expandUnpackRewind, [luac.pack_pull_one,
-                                                        luac.pack_rewind]),
-        Pattern(lua.call, expandCall, [luac.get_fcn_addr, CallIndirectOp,
-                                       luac.get_capture_pack]),
-        Pattern(lua.call, expandCallSelf, [CallOp, luac.get_capture_pack]),
-        Pattern(lua.assign, expandAssign, [luac.set_type, luac.set_value_union,
-                                           luac.get_type, luac.get_value_union]),
-        Pattern(lua.get_string, lowerGetString(module), [luac.global_string,
-                                                         luac.load_string])
+        Pattern(lua.concat, expandConcat),
+        Pattern(lua.unpack, expandUnpack),
+        Pattern(lua.copy, expandCopy),
+        Pattern(lua.make_capture, expandMakeCapture),
+        Pattern(lua.get_captures, expandGetCaptures),
+        Pattern(lua.call, expandCall),
+        Pattern(lua.get_string, lowerGetString(module)),
+        Pattern(lua.ret, expandRet),
     ]
-
     target.addLegalOp("module_terminator")
     applyFullConversion(module, patterns, target)
-
-    applyOptPatterns(module, [Pattern(luaopt.capture_self, eraseCaptureSelf)])
+    applyOptPatterns(module, [Pattern(luac.copy, copyToPtr)])
+    applyOptPatterns(module, [Pattern(luac.convert_bool_like, knownBool)])
 
 ################################################################################
 # IR: Dialect Conversion to LLVM IR
@@ -1304,8 +1384,9 @@ def main():
     verify(module)
     applyOpts(module)
     verify(module)
+    lowerToLuac(module)
+    verify(module)
     if not _test:
-        lowerToLuac(module)
 
         lib = parseSourceFile("lib.mlir")
         lowerToLuac(lib)

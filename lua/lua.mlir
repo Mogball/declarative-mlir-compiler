@@ -93,8 +93,8 @@ Dialect @lua {
     traits [@NoSideEffects]
     config { fmt = "$params $region attr-dict" }
   Op @function_def_capture(captures: !dmc.Variadic<!lua.value>) -> (fcn: !lua.value)
-    { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
-    traits [@SameVariadicOperandSizes, @NoSideEffects]
+    { params = #dmc.ArrayOf<#dmc.String> } (region: Any)
+    traits [@SameVariadicOperandSizes, @NoSideEffects, @IsIsolatedFromAbove]
     config { fmt = "`(` operands `)` `:` type(operands) $params $region attr-dict" }
   Op @cond_if(cond: !lua.value) -> () (first: Sized<1>, second: Sized<1>)
     traits [@NoSideEffects]
@@ -118,6 +118,8 @@ Dialect @lua {
   Op @cond(cond: !lua.value) -> ()
     traits [@IsTerminator]
     config { fmt = "$cond attr-dict" }
+  Op @cond_ret(pack: !lua.value_pack) -> ()
+    traits [@IsTerminator, @HasParent<"lua.function_def_capture">]
 
   /// Function capture
   Type @capture
@@ -135,11 +137,16 @@ Dialect @luaopt {
 
   Alias @table_prealloc -> 4
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
+    traits [@NoSideEffects]
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
 
-  Op @capture_self(val: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+  Op @unpack_unsafe(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
+    traits [@SameVariadicResultSizes, @NoSideEffects]
+
+  Op @pack_func(captures: !dmc.Variadic<!lua.value>) -> (fcn: !lua.value)
+    (region: Any)
+    traits [@NoSideEffects, @SameVariadicOperandSizes, @IsIsolatedFromAbove]
 }
 
 Dialect @luac {
@@ -148,7 +155,7 @@ Dialect @luac {
   Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @real -> f64 { builder = "F64Type()" }
   Alias @pack_fcn -> (!lua.capture, !lua.pack) -> !lua.pack
-    { builder = "FunctionType([lua.pack(), lua.pack()], [lua.pack()])" }
+    { builder = "FunctionType([lua.capture(), lua.pack()], [lua.pack()])" }
 
   Type @ref
   Alias @value_ref -> !dmc.Isa<@luac::@ref> { builder = "luac.ref()" }
@@ -163,73 +170,76 @@ Dialect @luac {
   // userdata, thread unimplemented
 
   Op @wrap_bool(b: !luac.bool) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$b attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$num attr-dict" }
   Op @make_fcn(addr: !luac.pack_fcn, capture: !lua.capture_pack) -> (fcn: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"fcn">]
 
   /// Binary operations
   Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @sub(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @mul(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @pow(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @strcat(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @eq(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @ne(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @lt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @gt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
   Op @bool_and(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
 
   /// Unary operations
   Op @bool_not(val: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$val attr-dict" }
   Op @list_size(val: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$val attr-dict" }
   Op @neg(val: !lua.value) -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$val attr-dict" }
 
   /// Misc library functions
   Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
-    traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
 
   /// TObject -> TObject *
   Op @get_ref(val: !lua.value) -> (ref: !luac.value_ref)
     traits [@NoSideEffects]
     config { fmt = "$val attr-dict" }
+  Op @dec_ref(ptr: !luac.value_ref) -> (val: !lua.value)
+    traits [@NoSideEffects]
 
   /// Simple value Manipulation
   Op @alloc() -> (res: !lua.value)
     config { fmt = "attr-dict" }
+  Op @copy(ptr: !luac.value_ref, val: !lua.value) -> ()
+    traits [@WriteTo<"ptr">]
 
   Op @get_type(val: !lua.value) -> (ty: !luac.type_enum)
     config { fmt = "`type` `(` $val `)` attr-dict" }
@@ -270,6 +280,8 @@ Dialect @luac {
   Op @new_capture(size: i32) -> (capture: !lua.capture_pack)
   Op @add_capture(capture: !lua.capture_pack, ptr: !luac.value_ref, idx: i32) -> ()
     traits [@WriteTo<"capture">]
+  Op @get_capture(capture: !lua.capture_pack, idx: i32) -> (ptr: !luac.value_ref)
+    traits [@NoSideEffects]
 
   Op @get_ret_pack(size: i32) -> (pack: !lua.value_pack)
   Op @get_arg_pack(size: i32) -> (pack: !lua.value_pack)

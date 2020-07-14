@@ -293,6 +293,11 @@ void exposeOps(module &m) {
           throw index_error{};
         return &*it;
       }, return_value_policy::reference_internal)
+      .def_property_readonly("parentRegion", &Region::getParentRegion,
+                             return_value_policy::reference)
+      .def_property_readonly("parentOp", &Region::getParentOp,
+                             return_value_policy::reference)
+      .def("isProperAncestor", &Region::isProperAncestor)
       .def("append", &Region::push_back)
       .def("push_front", &Region::push_front)
       .def("addEntryBlock", &regionAddEntryBlock)
@@ -315,6 +320,8 @@ void exposeOps(module &m) {
   class_<Block, std::unique_ptr<Block, nodelete>>(m, "Block")
       // Block must be given to a region or else this will leak
       .def(init([]() { return new Block; }), return_value_policy::reference)
+      .def_property_readonly("parent", &Block::getParent,
+                             return_value_policy::reference)
       .def("getNumArguments", &Block::getNumArguments)
       .def("getArgument", [](Block &block, unsigned i) {
         if (i >= block.getNumArguments())
