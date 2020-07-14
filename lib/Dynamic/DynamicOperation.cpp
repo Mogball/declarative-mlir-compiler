@@ -217,4 +217,11 @@ LogicalResult BaseOp::moveOutOfLoop(ArrayRef<Operation *> ops) {
   return success();
 }
 
+bool BaseOp::canBeHoisted(Operation *op) {
+  auto *impl = DynamicOperation::of(*this);
+  auto *trait = impl->getTrait<LoopLike>();
+  assert(trait);
+  return trait->canBeHoisted(impl, op);
+}
+
 } // end namespace dmc

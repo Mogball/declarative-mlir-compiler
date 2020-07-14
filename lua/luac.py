@@ -25,11 +25,12 @@ lua, luaopt, luac, luallvm = get_dialects()
 
 _test = True
 
-def notAssigned(op, val):
-    for use in val.getOpUses():
-        if isa(use, lua.copy) and lua.copy(use).tgt() == val:
-            return False
-    return True
+def neverWrittenTo(val):
+    return all(val not in getWriteEffectingValues(use) for use in val.getOpUses())
+
+def licmDefinedOutside(op, val): return True
+def licmCanHoist(op):
+    return all(neverWrittenTo(result) for result in op.getResults())
 
 def makeConcat(b, vals, tail, loc, concatLike=lua.concat):
     concat = b.create(concatLike, vals=vals, tail=tail, loc=loc)
@@ -703,7 +704,7 @@ def elideAssign(op, rewriter):
     return True
 
 def constNumber(op, rewriter):
-    if not notAssigned(op, op.res()):
+    if not neverWrittenTo(op.res()):
         return False
     const = rewriter.create(luaopt.const_number, value=op.value(), loc=op.loc)
     rewriter.replace(op, [const.res()])
@@ -721,11 +722,9 @@ def varAllocPass(module, main:FuncOp):
         Pattern(lua.assign, assignTableSet),
     ])
     applyOptPatterns(main, [Pattern(lua.assign, elideAssign)])
-
     applyOptPatterns(main, [Pattern(lua.number, constNumber)])
     applyLICM(module)
-    applyCSE(module)
-    applyLICM(module)
+    applyCSE(module, licmCanHoist)
 
 ################################################################################
 # IR: Dialect Conversion to SCF
@@ -1355,10 +1354,10 @@ def main():
     verify(module)
     varAllocPass(module, main)
     verify(module)
-    cfExpand(module, main)
-    verify(module)
-    applyOpts(module)
     if not _test:
+        cfExpand(module, main)
+        verify(module)
+        applyOpts(module)
         lowerToLuac(module)
 
         lib = parseSourceFile("lib.mlir")

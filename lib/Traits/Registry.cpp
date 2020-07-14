@@ -67,7 +67,7 @@ TraitRegistry::TraitRegistry(MLIRContext *ctx)
       Alloc(Attribute), Free(Attribute), ReadFrom(Attribute), WriteTo(Attribute),
       NoSideEffects(),
 
-      LoopLike(StringAttr, StringAttr),
+      LoopLike(StringAttr, StringAttr, StringAttr),
 
       OperandsAreFloatLike(), OperandsAreSignlessIntegerLike(),
       ResultsAreBoolLike(), ResultsAreFloatLike(),

@@ -235,15 +235,19 @@ public:
 class LoopLike : public DynamicTrait {
 public:
   static llvm::StringRef getName() { return "LoopLike"; }
-  explicit LoopLike(llvm::StringRef region, llvm::StringRef definedOutsideFcn)
-      : region{region}, definedOutsideFcn{definedOutsideFcn} {}
+  explicit LoopLike(llvm::StringRef region, llvm::StringRef definedOutsideFcn,
+                    llvm::StringRef canBeHoistedFcn)
+      : region{region},
+        definedOutsideFcn{definedOutsideFcn},
+        canBeHoistedFcn{canBeHoistedFcn} {}
 
   mlir::Region &getLoopRegion(DynamicOperation *impl, mlir::Operation *op);
   bool isDefinedOutside(DynamicOperation *impl, mlir::Operation *op,
                         mlir::Value value);
+  bool canBeHoisted(DynamicOperation *impl, mlir::Operation *op);
 
 private:
-  llvm::StringRef region, definedOutsideFcn;
+  llvm::StringRef region, definedOutsideFcn, canBeHoistedFcn;
 };
 
 /// TODO Some standard traits not rebound (complexity/API restrictions):

@@ -84,4 +84,8 @@ bool LoopLike::isDefinedOutside(DynamicOperation *impl, Operation *op,
       py::getMainScope()[definedOutsideFcn.str().c_str()](op, value).cast<bool>();
 }
 
+bool LoopLike::canBeHoisted(DynamicOperation *impl, Operation *op) {
+  return py::getMainScope()[canBeHoistedFcn.str().c_str()](op).cast<bool>();
+}
+
 } // end namespace dmc

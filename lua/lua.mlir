@@ -23,7 +23,6 @@ Dialect @lua {
     traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
-    traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
   Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
     traits [@WriteTo<"tgt">]
@@ -46,27 +45,21 @@ Dialect @lua {
 
   // Value getters
   Op @nil() -> (res: !lua.value)
-    traits [@Alloc<"res">]
     config { fmt = "attr-dict" }
   Op @boolean() -> (res: !lua.value) { value = #dmc.I<1> }
-    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
   Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
-    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
 
   Op @table() -> (res: !lua.value)
-    traits [@Alloc<"res">]
     config { fmt = "attr-dict" }
   Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
-    traits [@Alloc<"val">]
     config { fmt = "$tbl `[` $key `]` attr-dict" }
   Op @table_set(tbl: !lua.value, key: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
     config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
 
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
-    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
 
   // Value operations
@@ -79,23 +72,21 @@ Dialect @lua {
       "^">
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
-    traits [@Alloc<"res">]
     config { fmt = "$lhs $op $rhs attr-dict" }
 
   Alias @UnaryOp -> #dmc.AnyOf<
       "not", "#", "-", "~">
   Op @unary(val: !lua.value) -> (res: !lua.value)
     { op = #lua.UnaryOp }
-    traits [@Alloc<"res">]
     config { fmt = "$op $val attr-dict" }
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
     { ivar = #dmc.String } (region: Sized<1>)
-    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
+    traits [@NoSideEffects, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$ivar `in` `[` $lower `,` $upper `]` `by` $step `do` $region attr-dict" }
   Op @generic_for(f: !lua.value, s: !lua.value, var: !lua.value) -> ()
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
-    traits [@MemoryWrite, @LoopLike<"region", "notAssigned">]
+    traits [@MemoryWrite, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$params `in` $f `,` $s `,` $var `do` $region attr-dict" }
   Op @function_def() -> (fcn: !lua.value)
     { params = #dmc.ArrayOf<#dmc.String> } (region: Sized<1>)
@@ -109,13 +100,13 @@ Dialect @lua {
     traits [@NoSideEffects]
     config { fmt = "$cond `then` $first `else` $second attr-dict" }
   Op @loop_while() -> () (eval: Any, region: Any)
-    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
+    traits [@NoSideEffects, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$eval `do` $region attr-dict" }
   Op @repeat() -> () (region: Sized<1>)
-    traits [@NoSideEffects, @LoopLike<"region", "notAssigned">]
+    traits [@NoSideEffects, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$region attr-dict" }
   Op @until() -> () (eval: Sized<1>)
-    traits [@IsTerminator, @LoopLike<"region", "notAssigned">]
+    traits [@IsTerminator, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$eval attr-dict" }
   Op @end() -> ()
     traits [@IsTerminator]
@@ -144,7 +135,6 @@ Dialect @luaopt {
 
   Alias @table_prealloc -> 4
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
-    traits [@Alloc<"val">]
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
 

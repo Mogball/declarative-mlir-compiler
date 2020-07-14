@@ -189,9 +189,17 @@ bool applyLICM(ModuleOp module) {
   return succeeded(mgr.run(module));
 }
 
-bool applyCSE(ModuleOp module) {
+bool applyCSE(ModuleOp module, object callback) {
   PassManager mgr{getMLIRContext()};
-  mgr.addPass(mlir::createCSEPass());
+  std::unique_ptr<Pass> pass;
+  if (callback) {
+    pass = mlir::createCSEPass([callback](Operation *op) {
+      return callback(op).cast<bool>();
+    });
+  } else {
+    pass = mlir::createCSEPass();
+  }
+  mgr.addPass(std::move(pass));
   return succeeded(mgr.run(module));
 }
 
@@ -206,6 +214,21 @@ bool runAllOpts(ModuleOp module) {
   mgr.addPass(mlir::createLoopCoalescingPass());
   mgr.addPass(mlir::createSCCPPass());
   return succeeded(mgr.run(module));
+}
+
+std::vector<Value> getWrites(Operation *op) {
+  std::vector<Value> ret;
+  if (auto mem = dyn_cast<MemoryEffectOpInterface>(op)) {
+    SmallVector<SideEffects::EffectInstance<MemoryEffects::Effect>, 4> effects;
+    mem.getEffects(effects);
+    for (auto &effect : effects) {
+      if (auto value = effect.getValue();
+          value && MemoryEffects::Write::classof(effect.getEffect())) {
+        ret.push_back(value);
+      }
+    }
+  }
+  return ret;
 }
 
 void exposeBuilder(module &m) {
@@ -325,8 +348,10 @@ void exposeBuilder(module &m) {
     return new LLVMConversionTarget{*getMLIRContext()};
   });
   m.def("applyLICM", &applyLICM);
-  m.def("applyCSE", &applyCSE);
+  m.def("applyCSE", &applyCSE, "module"_a,
+        "canSimplify"_a = pybind11::cast<pybind11::none>(Py_None));
   m.def("runAllOpts", &runAllOpts);
+  m.def("getWriteEffectingValues", &getWrites);
 }
 
 } // end namespace py

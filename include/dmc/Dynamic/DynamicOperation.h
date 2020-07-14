@@ -156,6 +156,7 @@ public:
   mlir::Region &getLoopBody();
   bool isDefinedOutsideOfLoop(mlir::Value value);
   mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation *> ops);
+  bool canBeHoisted(mlir::Operation *op);
 
   // Custom isa<T>
   static bool classof(mlir::Operation *op);
