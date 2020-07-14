@@ -9,7 +9,7 @@ Dialect @lua {
 
   Op @concat(vals: !dmc.Variadic<!lua.value>,
              tail: !dmc.Variadic<!lua.value_pack>) -> (pack: !lua.value_pack)
-    traits [@SizedOperandSegments, @NoSideEffects]
+    traits [@SizedOperandSegments, @Alloc<"pack">]
     config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
   Op @unpack(pack: !lua.value_pack) -> (vals: !dmc.Variadic<!lua.value>)
     traits [@SameVariadicResultSizes, @NoSideEffects]
@@ -17,13 +17,13 @@ Dialect @lua {
 
   // Variable handling
   Op @alloc_local() -> (res: !lua.value) { var = #dmc.String }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
   Op @get_or_alloc() -> (res: !lua.value) { var = #dmc.String }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
   Op @alloc() -> (res: !lua.value) { var = #dmc.String }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$var attr-dict" }
   Op @assign(tgt: !lua.value, val: !lua.value) -> (res: !lua.value)
     traits [@WriteTo<"tgt">]
@@ -46,30 +46,27 @@ Dialect @lua {
 
   // Value getters
   Op @nil() -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "attr-dict" }
   Op @boolean() -> (res: !lua.value) { value = #dmc.I<1> }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
   Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
 
   Op @table() -> (res: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "attr-dict" }
-  Op @init_table(tbl: !lua.value) -> ()
-    traits [@WriteTo<"tbl">]
-    config { fmt = "$tbl attr-dict" }
   Op @table_get(tbl: !lua.value, key: !lua.value) -> (val: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"val">]
     config { fmt = "$tbl `[` $key `]` attr-dict" }
   Op @table_set(tbl: !lua.value, key: !lua.value, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
     config { fmt = "$tbl `[` $key `]` `=` $val attr-dict" }
 
   Op @get_string() -> (res: !lua.value) { value = #dmc.String }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$value attr-dict" }
 
   // Value operations
@@ -82,14 +79,14 @@ Dialect @lua {
       "^">
   Op @binary(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     { op = #lua.BinaryOp }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$lhs $op $rhs attr-dict" }
 
   Alias @UnaryOp -> #dmc.AnyOf<
       "not", "#", "-", "~">
   Op @unary(val: !lua.value) -> (res: !lua.value)
     { op = #lua.UnaryOp }
-    traits [@NoSideEffects]
+    traits [@Alloc<"res">]
     config { fmt = "$op $val attr-dict" }
 
   Op @numeric_for(lower: !lua.value, upper: !lua.value, step: !lua.value) -> ()
@@ -130,12 +127,24 @@ Dialect @lua {
   Op @cond(cond: !lua.value) -> ()
     traits [@IsTerminator]
     config { fmt = "$cond attr-dict" }
+
+  /// Function capture
+  Type @capture
+  Alias @capture_pack -> !dmc.Isa<@lua::@capture> { builder = "lua.capture()" }
+
+  Op @make_capture(vals: !dmc.Variadic<!lua.value>) -> (capture: !lua.capture_pack)
+    traits [@NoSideEffects, @SameVariadicOperandSizes]
+  Op @get_captures(capture: !lua.capture_pack) -> (vals: !dmc.Variadic<!lua.value>)
+    traits [@NoSideEffects, @SameVariadicResultSizes]
 }
 
 Dialect @luaopt {
+  Op @const_number() -> (res: !lua.value) { value = #dmc.F<64> }
+    traits [@NoSideEffects]
+
   Alias @table_prealloc -> 4
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
-    traits [@NoSideEffects]
+    traits [@Alloc<"val">]
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
     traits [@WriteTo<"tbl">]
 
@@ -148,7 +157,7 @@ Dialect @luac {
 
   Alias @bool -> i1 { builder = "IntegerType(1)" }
   Alias @real -> f64 { builder = "F64Type()" }
-  Alias @pack_fcn -> (!lua.pack, !lua.pack) -> !lua.pack
+  Alias @pack_fcn -> (!lua.capture, !lua.pack) -> !lua.pack
     { builder = "FunctionType([lua.pack(), lua.pack()], [lua.pack()])" }
 
   Type @ref
@@ -167,6 +176,7 @@ Dialect @luac {
     config { fmt = "$b attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
     config { fmt = "$num attr-dict" }
+  Op @make_fcn(addr: !luac.pack_fcn, capture: !lua.capture_pack) -> (fcn: !lua.value)
 
   /// Binary operations
   Op @add(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
@@ -208,10 +218,6 @@ Dialect @luac {
   Op @get_ref(val: !lua.value) -> (ref: !luac.value_ref)
     config { fmt = "$val attr-dict" }
 
-  /// Function capture
-  Type @capture
-  Alias @capture_pack -> !dmc.Isa<@lua::@capture> { builder = "luac.capture()" }
-
   Op @alloc() -> (res: !lua.value)
     config { fmt = "attr-dict" }
   Op @alloc_gc(val: !luac.value_ref) -> ()
@@ -242,9 +248,9 @@ Dialect @luac {
     traits [@WriteTo<"ptr">]
     config { fmt = "$ptr `=` $addr attr-dict" }
 
-  Op @get_capture_pack(val: !lua.value) -> (capture: !lua.value_pack)
+  Op @get_capture_pack(val: !lua.value) -> (capture: !lua.capture_pack)
     config { fmt = "$val `[` `]` attr-dict" }
-  Op @set_capture_pack(ptr: !luac.value_ref, capture: !luac.capture_pack) -> ()
+  Op @set_capture_pack(ptr: !luac.value_ref, capture: !lua.capture_pack) -> ()
     traits [@WriteTo<"ptr">]
     config { fmt = "$ptr `[` `]` `=` $capture attr-dict" }
 
@@ -254,8 +260,8 @@ Dialect @luac {
     traits [@WriteTo<"ptr">]
     config { fmt = "$ptr `=` $u attr-dict" }
 
-  Op @new_capture(size: i32) -> (capture: !luac.capture_pack)
-  Op @add_capture(capture: !luac.capture_pack, ptr: !luac.value_ref, idx: i32) -> ()
+  Op @new_capture(size: i32) -> (capture: !lua.capture_pack)
+  Op @add_capture(capture: !lua.capture_pack, ptr: !luac.value_ref, idx: i32) -> ()
     traits [@WriteTo<"capture">]
 
   Op @get_ret_pack(size: i32) -> (pack: !lua.value_pack)
