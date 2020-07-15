@@ -265,6 +265,11 @@ Dialect @luac {
     traits [@MemoryWrite] config { fmt = "symbol($sym) `=` $value attr-dict" }
   Op @load_string() -> (res: !lua.value) { global_sym = #dmc.String }
     config { fmt = "symbol($global_sym) attr-dict" }
+
+  Op @into_alloca(val: !lua.value) -> (res: !lua.value)
+    config { fmt = "$val attr-dict" }
+  Op @load_from(val: !lua.value) -> (res: !lua.value)
+    config { fmt = "$val attr-dict" }
 }
 
 Dialect @luallvm {

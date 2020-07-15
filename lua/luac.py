@@ -1206,7 +1206,7 @@ def lowerToLuac(module:ModuleOp):
     target.addLegalOp("module_terminator")
     applyFullConversion(module, patterns, target)
     applyOptPatterns(module, [Pattern(luac.convert_bool_like, knownBool)])
-    applyCSE(module, alwaysTrue)
+    #applyCSE(module, alwaysTrue)
 
 ################################################################################
 # IR: Dialect Conversion to LLVM IR
@@ -1449,6 +1449,23 @@ def convertGetCapture(op, b):
     b.replace(op, [capture])
     return True
 
+def convertIntoAlloca(op, b):
+    valT = allocaValue(b, op.loc)
+    valV = op.val()
+    copyValInto(b, valT, valV, op.loc)
+    b.replace(op, [valT])
+    return True
+
+def convertLoadFrom(op, b):
+    ty, u = loadTyAndU(b, op.val(), op.loc)
+    undef = b.create(LLVMUndefOp, ty=luallvm.value(), loc=op.loc).res()
+    v0 = b.create(LLVMInsertValueOp, res=luallvm.value(), container=undef,
+                  value=ty, pos=I64ArrayAttr([0]), loc=op.loc).res()
+    v1 = b.create(LLVMInsertValueOp, res=luallvm.value(), container=v0,
+                  value=u, pos=I64ArrayAttr([1]), loc=op.loc).res()
+    b.replace(op, [v1])
+    return True
+
 def firstLLVMLower(module):
     applyOptPatterns(module,
         [Pattern(luac.global_string, convertGlobalString)])
@@ -1470,6 +1487,8 @@ def firstLLVMLower(module):
         Pattern(luac.get_double_val, convertGetDoubleVal),
         Pattern(luac.get_fcn_addr, convertGetFcnAddr),
         Pattern(luac.get_capture_pack, convertGetCapture),
+        Pattern(luac.into_alloca, convertIntoAlloca),
+        Pattern(luac.load_from, convertLoadFrom),
     ])
 
 def convertToLibCall(module:ModuleOp, funcName:str):
@@ -1538,7 +1557,7 @@ def luaToLLVM(module):
     target = LLVMConversionTarget()
     lowerToLLVM(module, LLVMConversionTarget(), llvmPats, [
         lambda ty: luallvm.value() if ty == lua.val() else None,
-        lambda ty: luallvm.ref() if ty == lua.ref() else None,
+        #lambda ty: luallvm.ref() if ty == lua.ref() else None,
         lambda ty: luallvm.pack() if ty == lua.pack() else None,
         lambda ty: luallvm.capture() if ty == lua.capture() else None,
         lambda ty: luallvm.void_ptr() if ty == luac.void_ptr() else None,
@@ -1564,16 +1583,17 @@ def main():
     cfExpand(module, main)
     applyOpts(module)
     lowerToLuac(module)
-    firstLLVMLower(module)
+    #firstLLVMLower(module)
     verify(module)
+    #print(module)
 
     lib = parseSourceFile("lib.mlir")
     lowerToLuac(lib)
     lowerSCFToStandard(lib)
     firstLLVMLower(lib)
     luaToLLVM(lib)
-    verify(lib)
     print(lib)
+    verify(lib)
 
     if not _test:
 

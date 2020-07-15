@@ -198,6 +198,13 @@ void exposeModule(module &m, OpClass &cls) {
         return op.getName().str();
       });
 
+  class_<LLVM::UndefOp>(m, "LLVMUndefOp", cls)
+      .def(init([](Type ty, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::UndefOp>(loc, ty);
+      }), "ty"_a, "loc"_a)
+      .def("res", &LLVM::UndefOp::res);
+
   class_<LLVM::GlobalOp>(m, "LLVMGlobalOp", cls)
       .def(init([](Operation *op) { return cast<LLVM::GlobalOp>(op); }))
       .def(init(&globalOpCtor), "ty"_a, "isConstant"_a, "linkage"_a, "name"_a,

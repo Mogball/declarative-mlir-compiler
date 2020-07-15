@@ -27,7 +27,7 @@ typedef struct Pack {
   struct Object *objs;
 } TPack;
 
-typedef struct Object **TCapture;
+typedef struct Object *TCapture;
 
 typedef TPack (*lua_fcn_t)(TCapture, TPack);
 
