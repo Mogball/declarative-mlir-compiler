@@ -21,7 +21,7 @@ struct LuaHash {
     case NUM:
       return std::hash<double>{}(val.num);
     case STR:
-      return std::hash<std::string>{}(as_std_string(val));
+      return std::hash<std::string>{}(*((std::string *) val.impl));
     default:
       return std::hash<uint64_t>{}(val->u);
     }
@@ -38,7 +38,7 @@ struct LuaEq {
     case NUM:
       return lhs.num == rhs.num;
     case STR:
-      return as_std_string(lhs) == as_std_string(rhs);
+      return *((std::string *) lhs.impl) == *((std::string *) rhs.impl);
     default:
       return lhs.u = rhs.u;
     }
@@ -138,11 +138,6 @@ struct LuaTable {
 };
 
 } // end anonymous namespace
-
-std::string &as_std_string(TObject val) {
-  return *((std::string *) val.gc->pstring);
-}
-
 } // end namespace lua
 
 extern "C" {
@@ -184,9 +179,12 @@ bool lua_eq_impl(TObject lhs, TObject rhs) {
   return lua::LuaEq::compare(lhs, rhs);
 }
 
-void lua_strcat_impl(TObject *dest, TObject lhs, TObject rhs) {
-  dest->gc->pstring = new std::string{lua::as_std_string(lhs) +
-                                      lua::as_std_string(rhs)};
+TObject lua_strcat_impl(void* lhs, void *rhs) {
+  TObject ret;
+  ret.type = STR;
+  auto catted = *((std::string *) lhs) + *((std::string *) rhs);
+  ret.impl = new std::string{std::move(catted)};
+  return ret;
 }
 
 }

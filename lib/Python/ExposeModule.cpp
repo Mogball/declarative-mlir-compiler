@@ -190,7 +190,13 @@ void exposeModule(module &m, OpClass &cls) {
   class_<LLVM::LLVMFuncOp>(m, "LLVMFuncOp", cls)
       .def(init([](Operation *op) { return cast<LLVM::LLVMFuncOp>(op); }))
       .def_static("getName",
-                  []() { return LLVM::LLVMFuncOp::getOperationName().str(); });
+                  []() { return LLVM::LLVMFuncOp::getOperationName().str(); })
+      .def_property_readonly("external", [](LLVM::LLVMFuncOp op) {
+        return op.isExternal();
+      })
+      .def_property_readonly("name", [](LLVM::LLVMFuncOp op) {
+        return op.getName().str();
+      });
 
   class_<LLVM::GlobalOp>(m, "LLVMGlobalOp", cls)
       .def(init([](Operation *op) { return cast<LLVM::GlobalOp>(op); }))
@@ -200,8 +206,16 @@ void exposeModule(module &m, OpClass &cls) {
       .def_static("getName",
                   []() { return LLVM::GlobalOp::getOperationName().str(); });
 
+  class_<LLVM::AllocaOp>(m, "LLVMAllocaOp", cls)
+      .def(init([](Type res, Value arrSz, IntegerAttr align,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::AllocaOp>(loc, res, arrSz, align);
+      }), "res"_a, "arrSz"_a, "align"_a, "loc"_a)
+      .def("res", &LLVM::AllocaOp::res);
+
   class_<LLVM::GEPOp>(m, "LLVMGEPOp", cls)
-      .def(init([](LLVM::LLVMType res, Value base, ValueListRef indices,
+      .def(init([](Type res, Value base, ValueListRef indices,
                    Location loc) {
         OpBuilder b{getMLIRContext()};
         return b.create<LLVM::GEPOp>(loc, res, base, indices);
@@ -209,6 +223,26 @@ void exposeModule(module &m, OpClass &cls) {
       .def("res", &LLVM::GEPOp::res)
       .def_static("getName",
                   []() { return LLVM::GEPOp::getOperationName().str(); });
+
+  class_<LLVM::StoreOp>(m, "LLVMStoreOp", cls)
+      .def(init([](Value value, Value addr, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::StoreOp>(loc, value, addr);
+      }), "value"_a, "addr"_a, "loc"_a);
+
+  class_<LLVM::LoadOp>(m, "LLVMLoadOp", cls)
+      .def(init([](Type res, Value addr, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::LoadOp>(loc, res, addr);
+      }), "res"_a, "addr"_a, "loc"_a)
+      .def("res", &LLVM::LoadOp::res);
+
+  class_<LLVM::BitcastOp>(m, "LLVMBitcastOp", cls)
+      .def(init([](Type res, Value arg, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::BitcastOp>(loc, res, arg);
+      }), "res"_a, "arg"_a, "loc"_a)
+      .def("res", &LLVM::BitcastOp::res);
 
   class_<LLVM::AddressOfOp>(m, "LLVMAddressOfOp", cls)
       .def(init([](LLVM::GlobalOp global, Location loc) {
@@ -220,13 +254,43 @@ void exposeModule(module &m, OpClass &cls) {
                   []() { return LLVM::AddressOfOp::getOperationName().str(); });
 
   class_<LLVM::ConstantOp>(m, "LLVMConstantOp", cls)
-      .def(init([](LLVM::LLVMType res, Attribute value, Location loc) {
+      .def(init([](Type res, Attribute value, Location loc) {
         OpBuilder b{getMLIRContext()};
         return b.create<LLVM::ConstantOp>(loc, res, value);
       }), "res"_a, "value"_a, "loc"_a)
       .def("res", &LLVM::ConstantOp::res)
       .def_static("getName",
                   []() { return LLVM::ConstantOp::getOperationName().str(); });
+
+  class_<LLVM::ExtractValueOp>(m, "LLVMExtractValueOp", cls)
+      .def(init([](Type res, Value container, ArrayAttr pos,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::ExtractValueOp>(loc, res, container, pos);
+      }), "res"_a, "container"_a, "pos"_a, "loc"_a)
+      .def("res", &LLVM::ExtractValueOp::res);
+
+  class_<LLVM::ZExtOp>(m, "LLVMZExtOp", cls)
+      .def(init([](Type res, Value value, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::ZExtOp>(loc, res, value);
+      }), "res"_a, "value"_a, "loc"_a)
+      .def("res", &LLVM::ZExtOp::res);
+
+  class_<LLVM::TruncOp>(m, "LLVMTruncOp", cls)
+      .def(init([](Type res, Value value, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::TruncOp>(loc, res, value);
+      }), "res"_a, "value"_a, "loc"_a)
+      .def("res", &LLVM::TruncOp::res);
+
+  class_<LLVM::InsertValueOp>(m, "LLVMInsertValueOp", cls)
+      .def(init([](Type res, Value container, Value value,
+                   ArrayAttr pos, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::InsertValueOp>(loc, res, container, value, pos);
+      }), "res"_a, "container"_a, "value"_a, "pos"_a, "loc"_a)
+      .def("res", &LLVM::InsertValueOp::res);
 
   class_<LLVM::Linkage>(m, "LLVMLinkage")
       .def_static("External", []() { return LLVM::Linkage::External; })

@@ -157,16 +157,13 @@ Dialect @luac {
   Alias @pack_fcn -> (!lua.capture, !lua.pack) -> !lua.pack
     { builder = "FunctionType([lua.capture(), lua.pack()], [lua.pack()])" }
 
-  Type @ref
-  Alias @value_ref -> !dmc.Isa<@luac::@ref> { builder = "luac.ref()" }
-
-  Alias @type_enum -> i16 { builder = "IntegerType(16)" }
-  Alias @type_nil -> 0 : i16
-  Alias @type_bool -> 1 : i16
-  Alias @type_num -> 2 : i16
-  Alias @type_str -> 3 : i16
-  Alias @type_tbl -> 4 : i16
-  Alias @type_fcn -> 5 : i16
+  Alias @type_enum -> i32 { builder = "IntegerType(32)" }
+  Alias @type_nil -> 0 : i32
+  Alias @type_bool -> 1 : i32
+  Alias @type_num -> 2 : i32
+  Alias @type_str -> 3 : i32
+  Alias @type_tbl -> 4 : i32
+  Alias @type_fcn -> 5 : i32
   // userdata, thread unimplemented
 
   Op @wrap_bool(b: !luac.bool) -> (res: !lua.value)
@@ -225,62 +222,30 @@ Dialect @luac {
     config { fmt = "$val attr-dict" }
 
   /// Misc library functions
+  Type @void_ptr
+  Alias @impl_ptr -> !dmc.Isa<@luac::@void_ptr> { builder = "luac.void_ptr()" }
+  Op @get_impl(val: !lua.value) -> (impl: !luac.impl_ptr)
+    config { fmt = "$val attr-dict" }
+
   Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
     config { fmt = "$val attr-dict" }
 
-  /// TObject -> TObject *
-  Op @get_ref(val: !lua.value) -> (ref: !luac.value_ref)
-    traits [@NoSideEffects]
-    config { fmt = "$val attr-dict" }
-  Op @dec_ref(ptr: !luac.value_ref) -> (val: !lua.value)
-    traits [@NoSideEffects]
-
   /// Simple value Manipulation
-  Op @alloc() -> (res: !lua.value)
-    config { fmt = "attr-dict" }
-  Op @copy(ptr: !luac.value_ref, val: !lua.value) -> ()
-    traits [@WriteTo<"ptr">]
-
   Op @get_type(val: !lua.value) -> (ty: !luac.type_enum)
     config { fmt = "`type` `(` $val `)` attr-dict" }
-  Op @set_type(ptr: !luac.value_ref, ty: !luac.type_enum) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "`type` `(` $ptr `)` `=` $ty attr-dict" }
-
   Op @get_bool_val(val: !lua.value) -> (b: !luac.bool)
     config { fmt = "$val attr-dict" }
-  Op @set_bool_val(ptr: !luac.value_ref, b: !luac.bool) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "$ptr `=` $b attr-dict" }
-
   Op @get_double_val(val: !lua.value) -> (num: !luac.real)
     config { fmt = "$val attr-dict" }
-  Op @set_double_val(ptr: !luac.value_ref, num: !luac.real) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "$ptr `=` $num attr-dict" }
-
   Op @get_fcn_addr(val: !lua.value) -> (addr: !luac.pack_fcn)
     config { fmt = "$val attr-dict" }
-  Op @set_fcn_addr(ptr: !luac.value_ref, addr: !luac.pack_fcn) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "$ptr `=` $addr attr-dict" }
-
   Op @get_capture_pack(val: !lua.value) -> (capture: !lua.capture_pack)
     config { fmt = "$val `[` `]` attr-dict" }
-  Op @set_capture_pack(ptr: !luac.value_ref, capture: !lua.capture_pack) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "$ptr `[` `]` `=` $capture attr-dict" }
-
-  Op @get_value_union(val: !lua.value) -> (u: i64)
-    config { fmt = "$val attr-dict" }
-  Op @set_value_union(ptr: !luac.value_ref, u: i64) -> ()
-    traits [@WriteTo<"ptr">]
-    config { fmt = "$ptr `=` $u attr-dict" }
 
   Op @new_capture(size: i32) -> (capture: !lua.capture_pack)
-  Op @add_capture(capture: !lua.capture_pack, ptr: !luac.value_ref, idx: i32) -> ()
+  Op @add_capture(capture: !lua.capture_pack, val: !lua.value, idx: i32) -> ()
     traits [@WriteTo<"capture">]
-  Op @get_capture(capture: !lua.capture_pack, idx: i32) -> (ptr: !luac.value_ref)
+  Op @get_capture(capture: !lua.capture_pack, idx: i32) -> (val: !lua.value)
     traits [@NoSideEffects]
 
   Op @get_ret_pack(size: i32) -> (pack: !lua.value_pack)
@@ -291,10 +256,10 @@ Dialect @luac {
   Op @pack_insert_all(pack: !lua.value_pack, tail: !lua.value_pack, idx: i32) -> ()
     traits [@WriteTo<"pack">]
   Op @pack_get(pack: !lua.value_pack, idx: i32) -> (res: !lua.value)
+  Op @pack_get_unsafe(pack: !lua.value_pack, idx: i32) -> (res: !lua.value)
+    config { fmt = "$pack `[` $idx `]` attr-dict" }
   Op @pack_get_size(pack: !lua.value_pack) -> (size: i32)
-
-  Op @new_table() -> (res: !lua.value)
-    traits [@NoSideEffects]
+    config { fmt = "$pack attr-dict" }
 
   Op @global_string() -> () { sym = #dmc.String, value = #dmc.String }
     traits [@MemoryWrite] config { fmt = "symbol($sym) `=` $value attr-dict" }
@@ -303,10 +268,29 @@ Dialect @luac {
 }
 
 Dialect @luallvm {
-  Alias @value -> !llvm<"{ i32, { i64 } }">
-  Alias @ref -> !llvm<"{ i32, { i64 } }*">
-  Alias @pack -> !llvm<"{ i64, i64, { i32, { i64 } }** }*">
+  Alias @value -> !llvm<"{ i32, i64 }">
+  Alias @ref -> !llvm<"{ i32, i64 }*">
+  Alias @pack -> !llvm<"{ i32, { i32, i64 }* }">
+  Alias @capture -> !llvm<"{ i32, i64 }**">
+  Alias @capture_ptr -> !llvm<"{ i32, i64 }***">
+  Alias @void_ptr -> !llvm<"i8*"> { builder = "LLVMType.Int8Ptr()" }
+  Alias @fcn -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*">
+  Alias @fcn_ptr -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)**">
+  Alias @closure -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*, { i32, i64 }** }">
+  Alias @closure_ptr -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*, { i32, i64 }** }*">
 
-  Op @load_string(data: !llvm<"i8*">, length: !llvm.i64) -> (val: !luallvm.value)
-    config { fmt = "`(` operands `)` `:` functional-type(operands, results) attr-dict" }
+  Op @load_string(data: !llvm<"i8*">, length: !llvm.i64) -> (impl: !luallvm.void_ptr)
+  Op @new_table_impl() -> (impl: !luallvm.void_ptr)
+
+  Op @table_get_impl(impl: !luallvm.void_ptr,
+                     keyTy: i32, keyU: i64) -> (val: !luallvm.value)
+  Op @table_set_impl(impl: !luallvm.void_ptr, keyTy: i32, keyU: i64,
+                     valTy: i32, valU: i64) -> ()
+  Op @table_get_prealloc_impl(impl: !luallvm.void_ptr,
+                              iv: i64) -> (val: !luallvm.value)
+  Op @table_set_prealloc_impl(impl: !luallvm.void_ptr, iv: i64,
+                              valTy: i32, valU: i64) -> ()
+
+  Op @make_fcn_impl(addr: !luac.pack_fcn,
+                    capture: !luallvm.capture) -> (impl: !luallvm.void_ptr)
 }

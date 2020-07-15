@@ -112,6 +112,8 @@ void exposeType(module &m, TypeClass &type) {
 
   auto *llvmDialect = getMLIRContext()->getRegisteredDialect<LLVM::LLVMDialect>();
   class_<LLVM::LLVMType>(m, "LLVMType", type)
+      .def_static("Int1", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt1Ty(llvmDialect); })
       .def_static("Int8", [llvmDialect]()
                   { return LLVM::LLVMType::getInt8Ty(llvmDialect); })
       .def_static("ArrayOf", &LLVM::LLVMType::getArrayTy)
@@ -120,7 +122,10 @@ void exposeType(module &m, TypeClass &type) {
       .def_static("Int64", [llvmDialect]()
                   { return LLVM::LLVMType::getInt64Ty(llvmDialect); })
       .def_static("Int32", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt32Ty(llvmDialect); });
+                  { return LLVM::LLVMType::getInt32Ty(llvmDialect); })
+      .def_static("Double", [llvmDialect]()
+                  { return LLVM::LLVMType::getDoubleTy(llvmDialect); })
+      .def("ptr_to", &LLVM::LLVMType::getPointerTo, "addrSpace"_a = 0);
 
   implicitly_convertible_from_all<Type,
       FunctionType, OpaqueType,
@@ -130,7 +135,7 @@ void exposeType(module &m, TypeClass &type) {
       TensorType, RankedTensorType, UnrankedTensorType,
       BaseMemRefType, MemRefType, UnrankedMemRefType,
 
-      TupleType, DynamicType>(type);
+      TupleType, DynamicType, LLVM::LLVMType>(type);
 }
 
 } // end namespace py

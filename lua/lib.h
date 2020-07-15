@@ -30,17 +30,11 @@ typedef struct Pack {
 typedef struct Object **TCapture;
 
 typedef TPack (*lua_fcn_t)(TCapture, TPack);
-typedef void *lua_opaque_table_t;
-typedef void *lua_opaque_string_t;
 
-typedef union Complex {
-  lua_opaque_table_t ptable;
-  lua_opaque_string_t pstring;
-  struct {
-    lua_fcn_t fcn_addr;
-    TCapture capture;
-  };
-} TComplex;
+typedef struct Closure {
+  lua_fcn_t addr;
+  TCapture capture;
+} TClosure;
 
 typedef struct Object {
   int32_t type;
@@ -49,7 +43,7 @@ typedef struct Object {
 
     bool b;
     double num;
-    TComplex *gc;
+    void *impl;
   };
 } TObject;
 
@@ -57,6 +51,8 @@ typedef struct Object {
 /*******************************************************************************
  * Simple Value Manipulation
  ******************************************************************************/
+
+TObject lua_nil(void);
 
 TObject lua_alloc(void);
 void lua_copy(TObject *ptr, TObject val);

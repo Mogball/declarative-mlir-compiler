@@ -1,256 +1,273 @@
 module {
   // debugging
-  func @print_one(%val: !lua.ref) -> ()
+  func @print_one(%val: !lua.val) -> ()
 
-  func @luac_check_number_type(%lhs: !lua.ref, %rhs: !lua.ref) -> (!luac.bool, !luac.type_enum) {
+  func @luac_check_number_type(%lhs: !lua.val, %rhs: !lua.val) -> i1 {
     %num_type = constant #luac.type_num
     %lhs_type = luac.get_type type(%lhs)
     %rhs_type = luac.get_type type(%rhs)
 
     %lhs_ok = cmpi "eq", %lhs_type, %num_type : !luac.type_enum
     %rhs_ok = cmpi "eq", %rhs_type, %num_type : !luac.type_enum
-    %types_ok = and %lhs_ok, %rhs_ok : !luac.bool
+    %types_ok = and %lhs_ok, %rhs_ok : i1
 
-    return %types_ok, %num_type : !luac.bool, !luac.type_enum
+    return %types_ok : i1
   }
 
-  func @lua_add(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      luac.set_type type(%ret) = %num_type
+  func @lua_add(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_num = addf %lhs_num, %rhs_num : !luac.real
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_sub(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      luac.set_type type(%ret) = %num_type
+  func @lua_sub(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_num = subf %lhs_num, %rhs_num : !luac.real
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_mul(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      luac.set_type type(%ret) = %num_type
+  func @lua_mul(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_num = mulf %lhs_num, %rhs_num : !luac.real
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
   // double pow(double x, double y) from <math.h>
   func @pow(%x: f64, %y: f64) -> f64
-  func @lua_pow(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      luac.set_type type(%ret) = %num_type
+  func @lua_pow(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_num = call @pow(%lhs_num, %rhs_num) : (f64, f64) -> f64
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_neg(%val: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
+  func @lua_neg(%val: !lua.val) -> !lua.val {
     %num_type = constant #luac.type_num
     %val_type = luac.get_type type(%val)
     %type_ok = cmpi "eq", %num_type, %val_type : !luac.type_enum
-    loop.if %type_ok {
+    %ret = scf.if %type_ok -> !lua.val {
       %inv = constant -1.0 : !luac.real
       %num = luac.get_double_val %val
       %ret_num = mulf %inv, %num : !luac.real
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_lt(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      %bool_type = constant #luac.type_bool
-      luac.set_type type(%ret) = %bool_type
+  func @lua_lt(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_b = cmpf "olt", %lhs_num, %rhs_num : !luac.real
-      luac.set_bool_val %ret = %ret_b
+      %ret_v = luac.wrap_bool %ret_b
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_gt(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      %bool_type = constant #luac.type_bool
-      luac.set_type type(%ret) = %bool_type
+  func @lua_gt(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_b = cmpf "ogt", %lhs_num, %rhs_num : !luac.real
-      luac.set_bool_val %ret = %ret_b
+      %ret_v = luac.wrap_bool %ret_b
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_le(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-    %types_ok, %num_type = call @luac_check_number_type(%lhs, %rhs)
-        : (!lua.ref, !lua.ref) -> (!luac.bool, !luac.type_enum)
-    loop.if %types_ok {
-      %bool_type = constant #luac.type_bool
-      luac.set_type type(%ret) = %bool_type
+  func @lua_le(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %types_ok = call @luac_check_number_type(%lhs, %rhs)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
       %lhs_num = luac.get_double_val %lhs
       %rhs_num = luac.get_double_val %rhs
       %ret_b = cmpf "ole", %lhs_num, %rhs_num : !luac.real
-      luac.set_bool_val %ret = %ret_b
+      %ret_v = luac.wrap_bool %ret_b
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_bool_and(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %lhs_b = call @lua_convert_bool_like(%lhs) : (!lua.ref) -> !luac.bool
-    %rhs_b = call @lua_convert_bool_like(%rhs) : (!lua.ref) -> !luac.bool
+  func @lua_bool_and(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %lhs_b = call @lua_convert_bool_like(%lhs) : (!lua.val) -> i1
+    %rhs_b = call @lua_convert_bool_like(%rhs) : (!lua.val) -> i1
 
-    %ret = luac.alloc
-    %bool_type = constant #luac.type_bool
-    luac.set_type type(%ret) = %bool_type
-    %ret_b = and %lhs_b, %rhs_b : !luac.bool
-    luac.set_bool_val %ret = %ret_b
-
-    return %ret : !lua.ref
+    %ret_b = and %lhs_b, %rhs_b : i1
+    %ret = luac.wrap_bool %ret_b
+    return %ret : !lua.val
   }
 
-  func @lua_bool_not(%val: !lua.ref) -> !lua.ref {
-    %b = call @lua_convert_bool_like(%val) : (!lua.ref) -> !luac.bool
-    %const1 = constant 1 : !luac.bool
-    %not_b = xor %b, %const1 : !luac.bool
+  func @lua_bool_not(%val: !lua.val) -> !lua.val {
+    %b = call @lua_convert_bool_like(%val) : (!lua.val) -> i1
+    %const1 = constant 1 : i1
 
-    %ret = luac.alloc
-    %bool_type = constant #luac.type_bool
-    luac.set_type type(%ret) = %bool_type
-    luac.set_bool_val %ret = %not_b
-
-    return %ret : !lua.ref
+    %not_b = xor %b, %const1 : i1
+    %ret = luac.wrap_bool %not_b
+    return %ret : !lua.val
   }
 
-  func @lua_list_size_impl(%val: !lua.ref) -> i64
-  func @lua_list_size(%val: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-
+  func @lua_list_size_impl(%impl: !luac.void_ptr) -> i64
+  func @lua_list_size(%val: !lua.val) -> !lua.val {
     %table_type = constant #luac.type_tbl
     %type = luac.get_type type(%val)
     %type_ok = cmpi "eq", %type, %table_type : !luac.type_enum
 
-    loop.if %type_ok {
-      %sz = call @lua_list_size_impl(%val) : (!lua.ref) -> i64
+    %ret = scf.if %type_ok -> !lua.val {
+      %impl = luac.get_impl %val
+      %sz = call @lua_list_size_impl(%impl) : (!luac.void_ptr) -> i64
       %ret_num = sitofp %sz : i64 to !luac.real
-      %num_type = constant #luac.type_num
-      luac.set_type type(%ret) = %num_type
-      luac.set_double_val %ret = %ret_num
+      %ret_v = luac.wrap_real %ret_num
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_strcat_impl(%dest: !lua.ref, %lhs: !lua.ref, %rhs: !lua.ref) -> ()
-  func @lua_strcat(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %ret = lua.nil
-
+  func @lua_strcat_impl(%lhs: !luac.void_ptr,
+                        %rhs: !luac.void_ptr) -> !lua.val
+  func @lua_strcat(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
     %lhs_type = luac.get_type type(%lhs)
     %rhs_type = luac.get_type type(%rhs)
     %str_type = constant #luac.type_str
     %lhs_ok = cmpi "eq", %lhs_type, %str_type : !luac.type_enum
     %rhs_ok = cmpi "eq", %rhs_type, %str_type : !luac.type_enum
-    %types_ok = and %lhs_ok, %rhs_ok : !luac.bool
+    %types_ok = and %lhs_ok, %rhs_ok : i1
 
-    loop.if %types_ok {
-      luac.set_type type(%ret) = %str_type
-      luac.alloc_gc %ret
-      call @lua_strcat_impl(%ret, %lhs, %rhs) : (!lua.ref, !lua.ref, !lua.ref) -> ()
+    %ret = scf.if %types_ok -> !lua.val {
+      %lhs_impl = luac.get_impl %lhs
+      %rhs_impl = luac.get_impl %rhs
+      %ret_v = call @lua_strcat_impl(%lhs_impl, %rhs_impl)
+          : (!luac.void_ptr, !luac.void_ptr) -> !lua.val
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
     }
-
-    return %ret : !lua.ref
+    return %ret : !lua.val
   }
 
-  func @lua_eq_impl(%lhs: !lua.ref, %rhs: !lua.ref) -> !luac.bool
-  func @lua_eq(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
+  func @lua_eq_impl(%lhs: !lua.val, %rhs: !lua.val) -> i1
+  func @lua_eq(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
     %lhs_type = luac.get_type type(%lhs)
     %rhs_type = luac.get_type type(%rhs)
     %same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
 
-    %ret_bool = loop.if %same_type -> !luac.bool {
-      %result = call @lua_eq_impl(%lhs, %rhs) : (!lua.ref, !lua.ref) -> !luac.bool
-      loop.yield %result : !luac.bool
+    %ret_b = scf.if %same_type -> i1 {
+      %result = call @lua_eq_impl(%lhs, %rhs)
+          : (!lua.val, !lua.val) -> i1
+      scf.yield %result : i1
     } else {
-      %false = constant 0 : !luac.bool
-      loop.yield %false : !luac.bool
+      %false = constant 0 : i1
+      scf.yield %false : i1
     }
-    %ret = luac.alloc
-    %bool_type = constant #luac.type_bool
-    luac.set_type type(%ret) = %bool_type
-    luac.set_bool_val %ret = %ret_bool
-    return %ret : !lua.ref
+    %ret = luac.wrap_bool %ret_b
+    return %ret : !lua.val
   }
 
-  func @lua_ne(%lhs: !lua.ref, %rhs: !lua.ref) -> !lua.ref {
-    %are_eq = call @lua_eq(%lhs, %rhs) : (!lua.ref, !lua.ref) -> !lua.ref
+  func @lua_ne(%lhs: !lua.val, %rhs: !lua.val) -> !lua.val {
+    %are_eq = call @lua_eq(%lhs, %rhs) : (!lua.val, !lua.val) -> !lua.val
     %are_eq_b = luac.get_bool_val %are_eq
-    %const1 = constant 1 : !luac.bool
-    %are_ne_b = xor %are_eq_b, %const1 : !luac.bool
+    %const1 = constant 1 : i1
+    %are_ne_b = xor %are_eq_b, %const1 : i1
 
-    %ret = luac.alloc
-    %bool_type = constant #luac.type_bool
-    luac.set_type type(%ret) = %bool_type
-    luac.set_bool_val %ret = %are_ne_b
-    return %ret : !lua.ref
+    %ret = luac.wrap_bool %are_ne_b
+    return %ret : !lua.val
   }
 
-  func @lua_convert_bool_like(%val: !lua.ref) -> !luac.bool {
-    %nil_type = constant #luac.type_nil
-    %bool_type = constant #luac.type_bool
-
+  func @lua_convert_bool_like(%val: !lua.val) -> i1 {
     %type = luac.get_type type(%val)
+
+    %nil_type = constant #luac.type_nil
     %is_nil = cmpi "eq", %type, %nil_type : !luac.type_enum
 
-    %ret_b = loop.if %is_nil -> !luac.bool {
-      %false = constant 0 : !luac.bool
-      loop.yield %false : !luac.bool
+    %ret_b = scf.if %is_nil -> i1 {
+      %false = constant 0 : i1
+      scf.yield %false : i1
     } else {
+      %bool_type = constant #luac.type_bool
       %is_bool = cmpi "eq", %type, %bool_type : !luac.type_enum
-      %ret = loop.if %is_bool -> !luac.bool {
+      %ret = scf.if %is_bool -> i1 {
         %b = luac.get_bool_val %val
-        loop.yield %b : !luac.bool
+        scf.yield %b : i1
       } else {
-        %true = constant 1 : !luac.bool
-        loop.yield %true : !luac.bool
+        %true = constant 1 : i1
+        scf.yield %true : i1
       }
-      loop.yield %ret : !luac.bool
+      scf.yield %ret : i1
     }
 
-    return %ret_b : !luac.bool
+    return %ret_b : i1
+  }
+
+  func @lua_pack_get(%pack: !lua.pack, %idx: i32) -> !lua.val {
+    %sz = luac.pack_get_size %pack
+    %inside = cmpi "slt", %idx, %sz : i32
+    %ret = scf.if %inside -> !lua.val {
+      %ret_v = luac.pack_get_unsafe %pack[%idx]
+      scf.yield %ret_v : !lua.val
+    } else {
+      %ret_v = lua.nil
+      scf.yield %ret_v : !lua.val
+    }
+    return %ret : !lua.val
   }
 }
