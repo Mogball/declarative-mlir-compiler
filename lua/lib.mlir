@@ -262,8 +262,7 @@ module {
       scf.yield %retv : !lua.val
     }
 
-    %retv = luac.load_from %ret
-    return %retv : !lua.val
+    return %ret : !lua.val
   }
 
   func @lua_eq_impl(%lhs: !lua.val, %rhs: !lua.val) -> i1
@@ -290,7 +289,9 @@ module {
   }
 
   func @lua_ne(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
-    %are_eq = call @lua_eq(%lhsv, %rhsv) : (!lua.val, !lua.val) -> !lua.val
+    %are_eqv = call @lua_eq(%lhsv, %rhsv) : (!lua.val, !lua.val) -> !lua.val
+    %are_eq = luac.into_alloca %are_eqv
+
     %are_eq_b = luac.get_bool_val %are_eq
     %const1 = constant 1 : i1
     %are_ne_b = xor %are_eq_b, %const1 : i1
