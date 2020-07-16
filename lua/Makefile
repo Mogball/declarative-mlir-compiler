@@ -1,5 +1,5 @@
 CFLAGS=-O2 -g
-FILE=test.lua
+FILE=perf.lua
 
 main: main.o impl.o start.o builtins.o
 	clang++ main.o impl.o start.o builtins.o -o main $(CFLAGS) -flto

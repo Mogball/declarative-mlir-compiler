@@ -1247,11 +1247,6 @@ def allocaTyped(b, tyAttr, loc):
     b.create(luallvm.set_type_direct, ref=ref, type=ty, loc=loc)
     return ref
 
-def getTyAndU(b, ref, loc):
-    ty = b.create(luallvm.get_type_direct, ref=ref, loc=loc).type()
-    u = b.create(luallvm.get_u_direct, ref=ref, loc=loc).u()
-    return ty, u
-
 def loadRef(b, ref, loc):
     return b.create(LLVMLoadOp, res=luallvm.value(), addr=ref, loc=loc).res()
 
@@ -1582,7 +1577,8 @@ def convertLuacIntoAlloca(op, b):
     return True
 
 def convertLuacLoadFrom(op, b):
-    ty, u = getTyAndU(b, op.val(), op.loc)
+    ty = b.create(luallvm.get_type_direct, ref=op.val(), loc=op.loc).type()
+    u = b.create(luallvm.get_u_direct, ref=op.val(), loc=op.loc).u()
     undef = b.create(LLVMUndefOp, ty=luallvm.value(), loc=op.loc).res()
     v0 = b.create(LLVMInsertValueOp, res=luallvm.value(), container=undef,
                   value=ty, pos=I64ArrayAttr([0]), loc=op.loc).res()
