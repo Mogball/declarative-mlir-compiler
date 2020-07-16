@@ -753,7 +753,7 @@ def varAllocPass(module, main:FuncOp):
     ])
     applyOptPatterns(main, [Pattern(lua.assign, elideAssign)])
     applyOptPatterns(main, [Pattern(lua.number, constNumber)])
-    applyLICM(module)
+    #applyLICM(module)
     applyCSE(module, licmCanHoist)
 
 ################################################################################
@@ -1844,7 +1844,6 @@ def main():
     luaToLLVMThirdPass(module)
     print(module)
     verify(module)
-
 
     if not _test:
         verify(module)
