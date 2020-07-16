@@ -1304,19 +1304,17 @@ def convertLuaCopy(op, b):
 
 def convertLuaTableGet(op, b):
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    keyTy, keyU = getTyAndU(b, op.key(), op.loc)
-    val = b.create(luallvm.table_get_impl, impl=impl, keyTy=keyTy, keyU=keyU,
-                   loc=op.loc).val()
+    key = loadRef(b, op.key(), op.loc)
+    val = b.create(luallvm.table_get_impl, impl=impl, key=key, loc=op.loc).val()
     valPtr = b.create(luac.into_alloca, val=val, loc=op.loc).res()
     b.replace(op, [valPtr])
     return True
 
 def convertLuaTableSet(op, b):
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    keyTy, keyU = getTyAndU(b, op.key(), op.loc)
-    valTy, valU = getTyAndU(b, op.val(), op.loc)
-    b.create(luallvm.table_set_impl, impl=impl, keyTy=keyTy, keyU=keyU,
-             valTy=valTy, valU=valU, loc=op.loc)
+    key = loadRef(b, op.key(), op.loc)
+    val = loadRef(b, op.val(), op.loc)
+    b.create(luallvm.table_set_impl, impl=impl, key=key, val=val, loc=op.loc)
     b.erase(op)
     return True
 
@@ -1330,9 +1328,9 @@ def convertLuaoptTableGetPrealloc(op, b):
 
 def convertLuaoptTableSetPrealloc(op, b):
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    valTy, valU = getTyAndU(b, op.val(), op.loc)
-    b.create(luallvm.table_set_prealloc_impl, impl=impl, iv=op.iv(),
-             valTy=valTy, valU=valU, loc=op.loc)
+    val = loadRef(b, op.val(), op.loc)
+    b.create(luallvm.table_set_prealloc_impl, impl=impl, iv=op.iv(), val=val,
+             loc=op.loc)
     b.erase(op)
     return True
 

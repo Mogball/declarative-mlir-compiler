@@ -320,18 +320,15 @@ Dialect @luallvm {
                     capture: !luallvm.capture) -> (impl: !luallvm.impl)
     traits [@Alloc<"impl">] config { fmt = "`(` operands `)` attr-dict" }
 
-  Op @table_get_impl(impl: !luallvm.impl,
-                     keyTy: i32, keyU: i64) -> (val: !luallvm.value)
-    traits [@ReadFrom<"impl">] config { fmt = "$impl `[` $keyTy `,` $keyU `]` attr-dict" }
-  Op @table_set_impl(impl: !luallvm.impl, keyTy: i32, keyU: i64,
-                     valTy: i32, valU: i64) -> ()
-    traits [@WriteTo<"impl">] config { fmt = "$impl `[` $keyTy `,` $keyU `]` `=` $valTy `,` $valU attr-dict" }
-  Op @table_get_prealloc_impl(impl: !luallvm.impl,
-                              iv: i64) -> (val: !luallvm.value)
+  Op @table_get_impl(impl: !luallvm.impl, key: !luallvm.value) -> (val: !luallvm.value)
+    traits [@ReadFrom<"impl">] config { fmt = "$impl `[` $key `]` attr-dict" }
+  Op @table_set_impl(impl: !luallvm.impl, key: !luallvm.value, val: !luallvm.value) -> ()
+    traits [@WriteTo<"impl">] config { fmt = "$impl `[` $key `]` `=` $val attr-dict" }
+
+  Op @table_get_prealloc_impl(impl: !luallvm.impl, iv: i64) -> (val: !luallvm.value)
     traits [@ReadFrom<"impl">] config { fmt = "$impl `[` $iv `]` attr-dict" }
-  Op @table_set_prealloc_impl(impl: !luallvm.impl, iv: i64,
-                              valTy: i32, valU: i64) -> ()
-    traits [@WriteTo<"impl">] config { fmt = "$impl `[` $iv `]` `=` $valTy `,` $valU attr-dict" }
+  Op @table_set_prealloc_impl(impl: !luallvm.impl, iv: i64, val: !luallvm.value) -> ()
+    traits [@WriteTo<"impl">] config { fmt = "$impl `[` $iv `]` `=` $val attr-dict" }
 
   Alias @type_ptr -> !llvm<"i32*">          { builder = "LLVMType.Int32().ptr_to()" }
   Alias @u_ptr    -> !llvm<"i64*">          { builder = "LLVMType.Int64().ptr_to()" }

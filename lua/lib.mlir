@@ -360,10 +360,10 @@ module {
     return %ret : !lua.val
   }
 
-  func @lua_table_get_impl(!luallvm.impl, i32, i64) -> !luallvm.value
-  func @lua_table_set_impl(!luallvm.impl, i32, i64, i32, i64)
+  func @lua_table_get_impl(!luallvm.impl, !luallvm.value) -> !luallvm.value
+  func @lua_table_set_impl(!luallvm.impl, !luallvm.value, !luallvm.value)
   func @lua_table_get_prealloc_impl(!luallvm.impl, i64) -> !luallvm.value
-  func @lua_table_set_prealloc_impl(!luallvm.impl, i64, i32, i64)
+  func @lua_table_set_prealloc_impl(!luallvm.impl, i64, !luallvm.value)
   func @lua_make_fcn_impl(!luallvm.fcn, !luallvm.capture) -> !luallvm.impl
   func @lua_load_string_impl(!llvm<"i8*">, !llvm.i64) -> !luallvm.impl
   func @lua_new_table_impl() -> !luallvm.impl
