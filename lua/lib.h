@@ -39,7 +39,7 @@ typedef struct Closure {
 typedef struct Object {
   int32_t type;
   union {
-    uint64_t u;
+    int64_t u;
 
     bool b;
     double num;

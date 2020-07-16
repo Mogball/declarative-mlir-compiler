@@ -1,16 +1,16 @@
-CFLAGS=-O2
-FILE=loops.lua
+CFLAGS=-O2 -g
+FILE=perf.lua
 
 main: main.o impl.o start.o builtins.o
-	clang++ main.o impl.o start.o builtins.o -o main $(CFLAGS)
+	clang++ main.o impl.o start.o builtins.o -o main $(CFLAGS) -flto
 
-builtins.o: builtins.cpp
+builtins.o: builtins.cpp lib.h
 	clang++ -c -std=c++17 builtins.cpp -o builtins.o $(CFLAGS)
 
-start.o: main.c
+start.o: main.c lib.h
 	clang -c main.c -o start.o $(CFLAGS)
 
-impl.o: impl.cpp
+impl.o: impl.cpp lib.h
 	clang++ -c -std=c++17 impl.cpp -o impl.o $(CFLAGS)
 
 main.s: mainopt.ll
@@ -29,6 +29,6 @@ main.mlir: luac.py $(FILE)
 	python3 luac.py $(FILE) > main.mlir
 
 clean:
-	rm *.o
-	rm *.ll
-	rm main.mlir
+	rm -f *.o
+	rm -f *.ll
+	rm -f main.mlir

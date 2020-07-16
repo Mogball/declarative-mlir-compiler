@@ -6,6 +6,8 @@
 #include <array>
 #include <iostream>
 
+static_assert(sizeof(TObject) == 16, "expected TObject to be 16 bytes");
+
 extern "C" void print_one(TObject *val);
 
 namespace lua {
