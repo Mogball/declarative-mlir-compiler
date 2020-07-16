@@ -1228,7 +1228,6 @@ def lowerToLuac(module:ModuleOp):
     target.addLegalOp("module_terminator")
     applyFullConversion(module, patterns, target)
     applyOptPatterns(module, [Pattern(luac.convert_bool_like, knownBool)])
-    #applyCSE(module, alwaysTrue)
 
 ################################################################################
 # IR: Lua to LLVMIR Pass 1
@@ -1270,7 +1269,7 @@ def convertLuaTable(op, b):
 def convertLuacLoadString(op, b):
     ref = allocaTyped(b, luac.type_str(), op.loc)
     strData = b.create(luallvm.get_string_data, sym=op.global_sym(), loc=op.loc)
-    impl = b.create(luallvm.load_string, data=strData.data(),
+    impl = b.create(luallvm.load_string_impl, data=strData.data(),
                     length=strData.length(), loc=op.loc).impl()
     b.create(luallvm.set_impl_direct, ref=ref, impl=impl, loc=op.loc)
     b.replace(op, [ref])
@@ -1296,8 +1295,8 @@ def convertLuacWrapReal(op, b):
 
 def convertLuaCopy(op, b):
     ty, u = getTyAndU(b, op.val(), op.loc)
-    b.create(luallvm.set_type_direct, ref=op.tgt(), loc=op.loc)
-    b.create(luallvm.set_u_direct, ref=op.tgt(), loc=op.loc)
+    b.create(luallvm.set_type_direct, ref=op.tgt(), type=ty, loc=op.loc)
+    b.create(luallvm.set_u_direct, ref=op.tgt(), u=u, loc=op.loc)
     b.erase(op)
     return True
 
@@ -1368,13 +1367,61 @@ def convertLuacGetDoubleVal(op, b):
     b.replace(op, [double])
     return True
 
+def convertLuaBuiltin(op, b):
+    name = StringAttr("lua_builtin_" + op.var().getValue())
+    builtin = b.create(luallvm.load_builtin, builtin=name, loc=op.loc).val()
+    ref = b.create(luac.into_alloca, val=builtin, loc=op.loc).res()
+    b.replace(op, [ref])
+    return True
+
+malloc = None
+free = None
+realloc = None
+
+def convertLuacNewCapture(op, b):
+    # Assumes 64-bit pointers, sizeof(TObject *) == 8
+    ptrSz = b.create(ConstantOp, value=I32Attr(8), loc=op.loc).result()
+    memSz = b.create(MulIOp, ty=I32Type(), lhs=ptrSz, rhs=op.size(),
+                     loc=op.loc).result()
+    memSzI64 = b.create(IndexCastOp, source=memSz, type=IndexType(),
+                        loc=op.loc).result()
+    ptr = b.create(CallOp, callee=malloc, operands=[memSzI64],
+                   loc=op.loc).getResult(0)
+    capture = b.create(LLVMBitcastOp, res=luallvm.capture(), arg=ptr,
+                       loc=op.loc).res()
+    b.replace(op, [capture])
+    return True
+
+def convertLuacAddCapture(op, b):
+    elPtr = b.create(LLVMGEPOp, res=luallvm.capture(), base=op.capture(),
+                     indices=[op.idx()], loc=op.loc).res()
+    b.create(LLVMStoreOp, value=op.val(), addr=elPtr, loc=op.loc)
+    b.erase(op)
+    return True
+
+def convertLuacGetCapture(op, b):
+    elPtr = b.create(LLVMGEPOp, res=luallvm.capture(), base=op.capture(),
+                     indices=[op.idx()], loc=op.loc).res()
+    ref = b.create(LLVMLoadOp, res=luallvm.ref(), addr=elPtr, loc=op.loc).res()
+    b.replace(op, [ref])
+    return True
+
 def luaToLLVMFirstPass(module):
-    patterns = [
+    global malloc, free, realloc
+    malloc = FuncOp("malloc", FunctionType([IndexType()], [LLVMType.Int8Ptr()]))
+    free = FuncOp("free", FunctionType([LLVMType.Int8Ptr()]))
+    realloc = FuncOp("realloc", FunctionType([LLVMType.Int8Ptr(), IndexType()],
+                                             [LLVMType.Int8Ptr()]))
+    module.append(malloc)
+    module.append(free)
+    module.append(realloc)
+    applyOptPatterns(module, [
         Pattern(lua.nil, convertLuaNil),
         Pattern(lua.table, convertLuaTable),
         Pattern(luac.load_string, convertLuacLoadString),
         Pattern(luac.wrap_bool, convertLuacWrapBool),
         Pattern(luac.wrap_real, convertLuacWrapReal),
+        Pattern(lua.copy, convertLuaCopy),
         Pattern(lua.table_get, convertLuaTableGet),
         Pattern(lua.table_set, convertLuaTableSet),
         Pattern(luaopt.table_get_prealloc, convertLuaoptTableGetPrealloc),
@@ -1384,13 +1431,11 @@ def luaToLLVMFirstPass(module):
         Pattern(luac.get_type, convertLuacGetType),
         Pattern(luac.get_bool_val, convertLuacGetBoolVal),
         Pattern(luac.get_double_val, convertLuacGetDoubleVal),
-    ]
-    target = ConversionTarget()
-    target.addLegalDialects(["llvm", "std"])
-    target.addLegalDialect(luallvm)
-    target.addLegalOps(["func", "module", "module_terminator"])
-    target.addLegalOps([luac.into_alloca, luac.load_from])
-    applyFullConversion(module, patterns, target)
+        Pattern(lua.builtin, convertLuaBuiltin),
+        Pattern(luac.new_capture, convertLuacNewCapture),
+        Pattern(luac.add_capture, convertLuacAddCapture),
+        Pattern(luac.get_capture, convertLuacGetCapture),
+    ])
 
 ################################################################################
 # IR: Lua to LLVMIR Pass 2
@@ -1502,15 +1547,24 @@ def convertLuaLLVMSetImpl(op, b):
     b.erase(op)
     return True
 
+def convertLuacGlobalString(op:luac.global_string, rewriter:Builder):
+    i8Ty = LLVMType.Int8()
+    i8ArrTy = LLVMType.ArrayOf(i8Ty, len(op.value().getValue()))
+    rewriter.create(LLVMGlobalOp, ty=i8ArrTy, isConstant=False,
+                    linkage=LLVMLinkage.Internal(), name=op.sym().getValue(),
+                    value=op.value(), loc=op.loc)
+    rewriter.erase(op)
+    return True
+
 def convertLuaLLVMGetStringData(module):
     def convert(op, b):
         symbol = module.lookup(op.sym().getValue())
         assert symbol, "cannot find global string " + str(op.sym())
-        glob = LLVMGlobalOp(rawOp)
+        glob = LLVMGlobalOp(symbol)
         base = b.create(LLVMAddressOfOp, value=glob, loc=op.loc).res()
         zero = llvmI32Const(b, 0, op.loc)
-        ptr = b.crate(LLVMGEPOp, res=LLVMType.Int8Ptr(), base=base,
-                      indices=[zero, zero], loc=op.loc).res()
+        ptr = b.create(LLVMGEPOp, res=LLVMType.Int8Ptr(), base=base,
+                       indices=[zero, zero], loc=op.loc).res()
         sz = llvmI64Const(b, len(glob.value().getValue()), op.loc)
         b.replace(op, [ptr, sz])
         return True
@@ -1537,8 +1591,123 @@ def convertLuacLoadFrom(op, b):
     b.replace(op, [v1])
     return True
 
+def convertLuacGetPack(packPtr):
+    def convert(op, b):
+        base = b.create(LLVMAddressOfOp, value=packPtr, loc=op.loc).res()
+        basePtr = b.create(LLVMBitcastOp, res=LLVMType.Int8Ptr().ptr_to(),
+                           arg=base, loc=op.loc).res()
+        ptr = b.create(LLVMLoadOp, res=LLVMType.Int8Ptr(), addr=basePtr,
+                       loc=op.loc).res()
+        sz = b.create(IndexCastOp, source=op.size(), type=IndexType(),
+                      loc=op.loc).result()
+        newPtr = b.create(CallOp, callee=realloc, operands=[ptr, sz],
+                          loc=op.loc).getResult(0)
+        b.create(LLVMStoreOp, value=newPtr, addr=basePtr, loc=op.loc)
+        undef = b.create(LLVMUndefOp, ty=luallvm.pack(), loc=op.loc).res()
+        objs = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=newPtr,
+                        loc=op.loc).res()
+        v0 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=undef,
+                      value=op.size(), pos=I64ArrayAttr([0]), loc=op.loc).res()
+        v1 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=v0,
+                      value=objs, pos=I64ArrayAttr([1]), loc=op.loc).res()
+        b.replace(op, [v1])
+    return convert
+
+def convertLuacPackInsert(op, b):
+    objs = b.create(LLVMExtractValueOp, res=luallvm.ref(), container=op.pack(),
+                    pos=I64ArrayAttr([1]), loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=objs,
+                     indices=[op.idx()], loc=op.loc).res()
+    val = b.create(luac.load_from, val=op.val(), loc=op.loc).res()
+    b.create(LLVMStoreOp, value=val, addr=elPtr, loc=op.loc)
+    b.erase(op)
+    return True
+
+def convertLuacPackGetUnsafe(op, b):
+    objs = b.create(LLVMExtractValueOp, res=luallvm.ref(), container=op.pack(),
+                    pos=I64ArrayAttr([1]), loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=objs,
+                     indices=[op.idx()], loc=op.loc).res()
+    val = b.create(LLVMLoadOp, res=luallvm.value(), addr=elPtr, loc=op.loc).res()
+    ref = b.create(luac.into_alloca, val=val, loc=op.loc).res()
+    b.replace(op, [ref])
+    return True
+
+def convertLuacPackGetSize(op, b):
+    sz = b.create(LLVMExtractValueOp, res=LLVMType.Int32(), container=op.pack(),
+                  pos=I64ArrayAttr([0]), loc=op.loc).res()
+    b.replace(op, [sz])
+    return True
+
+def convertLuacGetFcnAddr(op, b):
+    impl = b.create(luallvm.get_impl_direct, ref=op.val(), loc=op.loc).impl()
+    cloPtr = b.create(LLVMBitcastOp, res=luallvm.closure_ptr(), arg=impl,
+                      loc=op.loc).res()
+    zero = llvmI32Const(b, 0, op.loc)
+    addrPtr = b.create(LLVMGEPOp, res=luallvm.fcn_ptr(), base=cloPtr,
+                       indices=[zero, zero], loc=op.loc).res()
+    addr = b.create(LLVMLoadOp, res=luallvm.fcn(), addr=addrPtr,
+                    loc=op.loc).res()
+    b.replace(op, [addr])
+    return True
+
+def convertLuacGetCapturePack(op, b):
+    impl = b.create(luallvm.get_impl_direct, ref=op.val(), loc=op.loc).impl()
+    cloPtr = b.create(LLVMBitcastOp, res=luallvm.closure_ptr(), arg=impl,
+                      loc=op.loc).res()
+    zero = llvmI32Const(b, 0, op.loc)
+    one = llvmI32Const(b, 1, op.loc)
+    capPtr = b.create(LLVMGEPOp, res=luallvm.capture_ptr(), base=cloPtr,
+                      indices=[zero, one], loc=op.loc).res()
+    cap = b.create(LLVMLoadOp, res=luallvm.capture(), addr=capPtr,
+                   loc=op.loc).res()
+    b.replace(op, [cap])
+    return True
+
+def addBuiltins(module, names):
+    for name in names:
+        builtin = LLVMGlobalOp(luallvm.value(), False, LLVMLinkage.External(),
+                               "lua_builtin_" + name, Attribute(), UnknownLoc())
+        module.append(builtin)
+
+def convertLuaLLVMLoadBuiltin(module):
+    def convert(op, b):
+        builtin = module.lookup(op.builtin().getValue())
+        assert builtin, "failed to find built-in " + str(op.builtin())
+        glob = LLVMGlobalOp(builtin)
+        ptr = b.create(LLVMAddressOfOp, value=glob, loc=op.loc).res()
+        val = b.create(LLVMLoadOp, res=luallvm.value(), addr=ptr,
+                       loc=op.loc).res()
+        b.replace(op, [val])
+    return convert
+
 def luaToLLVMSecondPass(module):
-    patterns = [
+    argPackPtr = LLVMGlobalOp(LLVMType.Int64(), False, LLVMLinkage.Internal(),
+                              "g_arg_pack_ptr", I64Attr(0), UnknownLoc())
+    retPackPtr = LLVMGlobalOp(LLVMType.Int64(), False, LLVMLinkage.Internal(),
+                              "g_ret_pack_ptr", I64Attr(0), UnknownLoc())
+    module.append(argPackPtr)
+    module.append(retPackPtr)
+    addBuiltins(module, list(lua_builtins))
+
+    applyOptPatterns(module, [
+        Pattern(luac.global_string, convertLuacGlobalString),
+        Pattern(luallvm.get_string_data, convertLuaLLVMGetStringData(module)),
+
+        Pattern(luac.get_arg_pack, convertLuacGetPack(argPackPtr)),
+        Pattern(luac.get_ret_pack, convertLuacGetPack(retPackPtr)),
+        Pattern(luac.pack_insert, convertLuacPackInsert),
+        Pattern(luac.pack_get_unsafe, convertLuacPackGetUnsafe),
+        Pattern(luac.pack_get_size, convertLuacPackGetSize),
+        Pattern(luac.get_fcn_addr, convertLuacGetFcnAddr),
+        Pattern(luac.get_capture_pack, convertLuacGetCapturePack),
+
+        Pattern(luallvm.load_builtin, convertLuaLLVMLoadBuiltin(module)),
+    ])
+    luaToLLVMLatePass(module)
+
+def luaToLLVMLatePass(module):
+    applyOptPatterns(module, [
         Pattern(luallvm.alloca_value, convertLuaLLVMAllocaValue),
         Pattern(luallvm.const_type, convertLuaLLVMConstType),
         Pattern(luallvm.get_type_direct, convertLuaLLVMGetTypeDirect),
@@ -1558,91 +1727,88 @@ def luaToLLVMSecondPass(module):
         Pattern(luallvm.get_impl, convertLuaLLVMGetImpl),
         Pattern(luallvm.set_impl, convertLuaLLVMSetImpl),
 
-        Pattern(luallvm.get_string_data, convertLuaLLVMGetStringData(module)),
-
         Pattern(luac.into_alloca, convertLuacIntoAlloca),
         Pattern(luac.load_from, convertLuacLoadFrom),
-    ]
-    target = ConversionTarget()
-    target.addLegalDialects(["llvm", "std"])
-    target.addLegalOps(["func", "module", "module_terminator"])
-    applyFullConversion(module, patterns, target)
+    ])
 
 ################################################################################
 # IR: Lua to LLVMIR Pass 3
 ################################################################################
 
-def convertToLibCall(module:ModuleOp, funcName:str):
-    def convertFcn(op:Operation, rewriter:Builder):
+def convertToLibCall(module:ModuleOp, funcName:str, needWrap):
+    def convertFcn(op:Operation, b:Builder):
         rawOp = module.lookup(funcName)
         assert rawOp, "cannot find lib.mlir function '" + funcName + "'"
-        call = rewriter.create(CallOp, callee=rawOp,
-                               operands=op.getOperands(), loc=op.loc)
-        results = call.getResults()
-        if len(results) == 0:
-            rewriter.erase(op)
+        if needWrap:
+            args = []
+            for arg in op.getOperands():
+                if arg.type == luallvm.ref() or arg.type == lua.val():
+                    wrap = b.create(luac.load_from, val=arg, loc=op.loc).res()
+                    args.append(wrap)
+                else:
+                    args.append(arg)
         else:
-            rewriter.replace(op, results)
-        return True
-
-    return convertFcn
-
-def convertToFunc(module:ModuleOp, funcName:str):
-    def convertFcn(op:Operation, rewriter:Builder):
-        rawOp = module.lookup(funcName)
-        assert rawOp, "cannot find libc function '" + funcName + "'"
-        llvmCall = rewriter.create(LLVMCallOp, func=LLVMFuncOp(rawOp),
-                                   operands=op.getOperands(), loc=op.loc)
-        results = llvmCall.getResults()
-        if len(results) == 0:
-            rewriter.erase(op)
+            args = op.getOperands()
+        call = b.create(CallOp, callee=rawOp, operands=args, loc=op.loc)
+        if needWrap:
+            results = []
+            for res in call.getResults():
+                if res.type == luallvm.value() or res.type == lua.val():
+                    wrap = b.create(luac.into_alloca, val=res, loc=op.loc).res()
+                    results.append(wrap)
+                else:
+                    results.append(res)
         else:
-            rewriter.replace(op, results)
-        return True
+            results = call.getResults()
 
+        if len(results) == 0:
+            b.erase(op)
+        else:
+            b.replace(op, results)
+        return True
     return convertFcn
 
 def luaToLLVMThirdPass(module):
     def convert(opCls, funcName:str):
-        return Pattern(opCls, convertToLibCall(module, funcName), [CallOp])
+        return Pattern(opCls, convertToLibCall(module, funcName, False))
+    def convertWrap(opCls, funcName:str):
+        return Pattern(opCls, convertToLibCall(module, funcName, True))
 
-    def convertLibc(opCls, funcName:str):
-        return Pattern(opCls, convertToFunc(module, funcName), [LLVMCallOp])
+    applyOptPatterns(module, [
+        convertWrap(luac.add, "lua_add"),
+        convertWrap(luac.sub, "lua_sub"),
+        convertWrap(luac.mul, "lua_mul"),
+        convertWrap(luac.pow, "lua_pow"),
+        convertWrap(luac.lt, "lua_lt"),
+        convertWrap(luac.le, "lua_le"),
+        convertWrap(luac.gt, "lua_gt"),
+        convertWrap(luac.eq, "lua_eq"),
+        convertWrap(luac.ne, "lua_ne"),
+        convertWrap(luac.bool_and, "lua_bool_and"),
+        convertWrap(luac.bool_not, "lua_bool_not"),
+        convertWrap(luac.list_size, "lua_list_size"),
+        convertWrap(luac.neg, "lua_neg"),
+        convertWrap(luac.strcat, "lua_strcat"),
+        convertWrap(luac.convert_bool_like, "lua_convert_bool_like"),
+        convertWrap(luac.pack_insert_all, "lua_pack_insert_all"),
+        convertWrap(luac.pack_get, "lua_pack_get"),
 
-    def builtin(varName:str):
-        def builtinReplace(op:lua.builtin, rewriter:Builder):
-            if op.var().getValue() != varName:
-                return False
-            return convertToFunc(module, "lua_builtin_" + varName)(op, rewriter)
-        return Pattern(lua.builtin, builtinReplace, [LLVMCallOp])
-
-    llvmPats = [
-        convert(luac.add, "lua_add"),
-        convert(luac.sub, "lua_sub"),
-        convert(luac.mul, "lua_mul"),
-        convert(luac.pow, "lua_pow"),
-        convert(luac.lt, "lua_lt"),
-        convert(luac.le, "lua_le"),
-        convert(luac.gt, "lua_gt"),
-        convert(luac.eq, "lua_eq"),
-        convert(luac.ne, "lua_ne"),
-        convert(luac.bool_and, "lua_bool_and"),
-        convert(luac.bool_not, "lua_bool_not"),
-        convert(luac.list_size, "lua_list_size"),
-        convert(luac.neg, "lua_neg"),
-        convert(luac.strcat, "lua_strcat"),
-        convert(luac.convert_bool_like, "lua_convert_bool_like"),
-        builtin("print"), builtin("string"), builtin("io"), builtin("table"),
-        builtin("math"),
-    ]
+        convert(luallvm.table_get_impl, "lua_table_get_impl"),
+        convert(luallvm.table_set_impl, "lua_table_set_impl"),
+        convert(luallvm.table_get_prealloc_impl, "lua_table_get_prealloc_impl"),
+        convert(luallvm.table_set_prealloc_impl, "lua_table_set_prealloc_impl"),
+        convert(luallvm.make_fcn_impl, "lua_make_fcn_impl"),
+        convert(luallvm.load_string_impl, "lua_load_string_impl"),
+        convert(luallvm.new_table_impl, "lua_new_table_impl"),
+    ])
+    luaToLLVMLatePass(module)
     target = LLVMConversionTarget()
-    lowerToLLVM(module, LLVMConversionTarget(), llvmPats, [
+    lowerToLLVM(module, LLVMConversionTarget(), [], [
         lambda ty: luallvm.value() if ty == lua.val() else None,
         lambda ty: luallvm.pack() if ty == lua.pack() else None,
         lambda ty: luallvm.capture() if ty == lua.capture() else None,
         lambda ty: luallvm.impl() if ty == luac.void_ptr() else None,
     ])
-
 
 def main():
     if len(sys.argv) != 2:
@@ -1662,24 +1828,21 @@ def main():
     varAllocPass(module, main)
     cfExpand(module, main)
     applyOpts(module)
-    lowerToLuac(module)
-    verify(module)
 
     lib = parseSourceFile("lib.mlir")
-    lowerToLuac(lib)
-    lowerSCFToStandard(lib)
-    verify(lib)
+    for func in lib.getOps(FuncOp):
+            module.append(func.clone())
 
-    luaToLLVMFirstPass(lib)
-    luaToLLVMSecondPass(lib)
-    luaToLLVMThirdPass(lib)
-    verify(lib)
-    print(lib)
+    lowerToLuac(module)
+    lowerSCFToStandard(module)
+    luaToLLVMFirstPass(module)
+    luaToLLVMSecondPass(module)
+    luaToLLVMThirdPass(module)
+    print(module)
+    verify(module)
+
 
     if not _test:
-
-        for func in lib.getOps(FuncOp):
-                module.append(func.clone())
         verify(module)
 
         os.system("clang -S -emit-llvm lib.c -o lib.ll -O1")

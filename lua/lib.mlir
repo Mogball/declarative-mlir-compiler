@@ -329,16 +329,42 @@ module {
     return %ret_b : i1
   }
 
-  //func @lua_pack_get(%pack: !lua.pack, %idx: i32) -> !lua.val {
-  //  %sz = luac.pack_get_size %pack
-  //  %inside = cmpi "slt", %idx, %sz : i32
-  //  %ret = scf.if %inside -> !lua.val {
-  //    %ret_v = luac.pack_get_unsafe %pack[%idx]
-  //    scf.yield %ret_v : !lua.val
-  //  } else {
-  //    %ret_v = lua.nil
-  //    scf.yield %ret_v : !lua.val
-  //  }
-  //  return %ret : !lua.val
-  //}
+  func @lua_pack_insert_all(%pack: !lua.pack, %tail: !lua.pack, %idx: i32) {
+    %zero = constant 0 : index
+    %step = constant 1 : index
+
+    %tailSz = luac.pack_get_size %tail
+    %upper = index_cast %tailSz : i32 to index
+    scf.for %i = %zero to %upper step %step {
+      %tailIdx = index_cast %i : index to i32
+      %obj = luac.pack_get_unsafe %tail[%tailIdx]
+      %packIdx = addi %idx, %tailIdx : i32
+      luac.pack_insert %pack[%packIdx] = %obj
+    }
+    return
+  }
+
+  func @lua_pack_get(%pack: !lua.pack, %idx: i32) -> !lua.val {
+    %sz = luac.pack_get_size %pack
+    %inside = cmpi "slt", %idx, %sz : i32
+
+    %ret = scf.if %inside -> !lua.val {
+      %ret_v = luac.pack_get_unsafe %pack[%idx]
+      %retv = luac.load_from %ret_v
+      scf.yield %retv : !lua.val
+    } else {
+      %ret_v = lua.nil
+      %retv = luac.load_from %ret_v
+      scf.yield %retv : !lua.val
+    }
+    return %ret : !lua.val
+  }
+
+  func @lua_table_get_impl(!luallvm.impl, i32, i64) -> !luallvm.value
+  func @lua_table_set_impl(!luallvm.impl, i32, i64, i32, i64)
+  func @lua_table_get_prealloc_impl(!luallvm.impl, i64) -> !luallvm.value
+  func @lua_table_set_prealloc_impl(!luallvm.impl, i64, i32, i64)
+  func @lua_make_fcn_impl(!luallvm.fcn, !luallvm.capture) -> !luallvm.impl
+  func @lua_load_string_impl(!llvm<"i8*">, !llvm.i64) -> !luallvm.impl
+  func @lua_new_table_impl() -> !luallvm.impl
 }

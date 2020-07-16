@@ -45,11 +45,10 @@ AddIOp addICtor(Value lhs, Value rhs, Type ty, Location loc) {
   return b.create<AddIOp>(loc, ty, lhs, rhs);
 }
 
-LLVM::GlobalOp globalOpCtor(LLVM::LLVMType ty, bool isConstant,
-                            LLVM::Linkage linkage, std::string name,
-                            Attribute value, Location loc) {
+LLVM::GlobalOp globalOpCtor(Type ty, bool isConstant, LLVM::Linkage linkage,
+                            std::string name, Attribute value, Location loc) {
   OpBuilder b{getMLIRContext()};
-  return b.create<LLVM::GlobalOp>(loc, ty, isConstant,
+  return b.create<LLVM::GlobalOp>(loc, ty.cast<LLVM::LLVMType>(), isConstant,
                                   static_cast<LLVM::Linkage>(linkage), name,
                                   value);
 }
@@ -152,6 +151,24 @@ void exposeModule(module &m, OpClass &cls) {
       .def("lhs", &AddFOp::lhs)
       .def("rhs", &AddFOp::rhs)
       .def("result", &AddFOp::getResult);
+
+  class_<MulFOp>(m, "MulFOp", cls)
+      .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<MulFOp>(loc, ty, lhs, rhs);
+      }), "ty"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("lhs", &MulFOp::lhs)
+      .def("rhs", &MulFOp::rhs)
+      .def("result", &MulFOp::getResult);
+
+  class_<MulIOp>(m, "MulIOp", cls)
+      .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<MulIOp>(loc, ty, lhs, rhs);
+      }), "ty"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("lhs", &MulIOp::lhs)
+      .def("rhs", &MulIOp::rhs)
+      .def("result", &MulIOp::getResult);
 
   class_<IndexCastOp>(m, "IndexCastOp", cls)
       .def(init([](Value source, Type type, Location loc) {

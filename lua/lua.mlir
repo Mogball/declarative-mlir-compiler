@@ -248,11 +248,12 @@ Dialect @luac {
   Op @get_capture(capture: !lua.capture_pack, idx: i32) -> (val: !lua.value)
     traits [@NoSideEffects]
 
-  Op @get_ret_pack(size: i32) -> (pack: !lua.value_pack)
   Op @get_arg_pack(size: i32) -> (pack: !lua.value_pack)
+  Op @get_ret_pack(size: i32) -> (pack: !lua.value_pack)
 
   Op @pack_insert(pack: !lua.value_pack, val: !lua.value, idx: i32) -> ()
     traits [@WriteTo<"pack">]
+    config { fmt = "$pack `[` $idx `]` `=` $val attr-dict" }
   Op @pack_insert_all(pack: !lua.value_pack, tail: !lua.value_pack, idx: i32) -> ()
     traits [@WriteTo<"pack">]
   Op @pack_get(pack: !lua.value_pack, idx: i32) -> (res: !lua.value)
@@ -282,15 +283,17 @@ Dialect @luallvm {
 
   Alias @pack     -> !llvm<"{ i32, { i32, i64 }* }">  { builder = "LLVMType.Struct([LLVMType.Int32(), luallvm.ref()])" }
   Alias @capture  -> !llvm<"{ i32, i64 }**">          { builder = "luallvm.ref().ptr_to()" }
-  Alias @fcn      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*">  { builder = "LLVMType.Func(luallvm.pack(), [luallvm.capture(), luallvm.pack()])" }
-  Alias @closure  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*, { i32, i64 }** }">  { builder = "LLVMType.Struct([luallvm.fcn(), luallvm.capture()])" }
+  Alias @fcn      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*">  { builder = "LLVMType.Func(luallvm.pack(), [luallvm.capture(), luallvm.pack()])" }
+  Alias @closure  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*, { i32, i64 }** }">  { builder = "LLVMType.Struct([luallvm.fcn(), luallvm.capture()])" }
 
-  Alias @closure_ptr  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)*, { i32, i64 }** }*">
+  Alias @closure_ptr  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*, { i32, i64 }** }*">
   Alias @capture_ptr  -> !llvm<"{ i32, i64 }***">
-  Alias @fcn_ptr      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, i32, { i32, i64 }*)**">
+  Alias @fcn_ptr      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })**">
 
   Op @alloca_value() -> (ref: !luallvm.ref)
     traits [@Alloc<"ref">] config { fmt = "attr-dict" }
+  Op @load_builtin() -> (val: !luallvm.value) { builtin = #dmc.String }
+    traits [@NoSideEffects] config { fmt = "symbol($builtin) attr-dict" }
 
   Op @const_type() -> (type: !luallvm.type) { value = #dmc.I<32> }
     traits [@NoSideEffects] config { fmt = "$value attr-dict" }
@@ -311,9 +314,9 @@ Dialect @luallvm {
     traits [@Alloc<"impl">] config { fmt = "attr-dict" }
   Op @get_string_data() -> (data: !llvm<"i8*">, length: !llvm.i64) { sym = #dmc.String }
     traits [@NoSideEffects] config { fmt = "symbol($sym) attr-dict" }
-  Op @load_string(data: !llvm<"i8*">, length: !llvm.i64) -> (impl: !luallvm.impl)
+  Op @load_string_impl(data: !llvm<"i8*">, length: !llvm.i64) -> (impl: !luallvm.impl)
     traits [@Alloc<"impl">] config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
-  Op @make_fcn_impl(addr: !luac.pack_fcn,
+  Op @make_fcn_impl(addr: !luallvm.fcn,
                     capture: !luallvm.capture) -> (impl: !luallvm.impl)
     traits [@Alloc<"impl">] config { fmt = "`(` operands `)` attr-dict" }
 
