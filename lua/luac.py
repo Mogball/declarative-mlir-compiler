@@ -1598,7 +1598,11 @@ def convertLuacGetPack(packPtr):
                            arg=base, loc=op.loc).res()
         ptr = b.create(LLVMLoadOp, res=LLVMType.Int8Ptr(), addr=basePtr,
                        loc=op.loc).res()
-        sz = b.create(IndexCastOp, source=op.size(), type=IndexType(),
+        # TObject is 12 bytes (16?)
+        objSize = b.create(ConstantOp, value=I32Attr(16), loc=op.loc).result()
+        memSz = b.create(MulIOp, ty=I32Type(), lhs=op.size(), rhs=objSize,
+                         loc=op.loc).result()
+        sz = b.create(IndexCastOp, source=memSz, type=IndexType(),
                       loc=op.loc).result()
         newPtr = b.create(CallOp, callee=realloc, operands=[ptr, sz],
                           loc=op.loc).getResult(0)

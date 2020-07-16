@@ -1,4 +1,6 @@
-tbl = {}
-a = 4
-tbl[a] = 10
-print(tbl[4])
+function print_me(a, b)
+  print(a)
+  print(b)
+end
+
+print_me(2, 55)

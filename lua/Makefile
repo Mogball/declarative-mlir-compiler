@@ -1,4 +1,5 @@
-CFLAGS=-g -O2
+CFLAGS=-O2
+FILE=perf.lua
 
 main: main.o impl.o start.o builtins.o
 	clang++ main.o impl.o start.o builtins.o -o main $(CFLAGS)
@@ -21,5 +22,5 @@ mainopt.ll: main.ll
 main.ll: main.mlir
 	mlir-translate -mlir-to-llvmir main.mlir -o main.ll
 
-main.mlir: luac.py perf.lua
-	python3 luac.py perf.lua > main.mlir
+main.mlir: luac.py $(FILE)
+	python3 luac.py $(FILE) > main.mlir
