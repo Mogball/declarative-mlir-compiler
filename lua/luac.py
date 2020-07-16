@@ -1565,6 +1565,9 @@ def convertLuaLLVMGetStringData(module):
         return True
     return convert
 
+# Why luac.into_alloca and luac.load_from must be broken down to element by
+# element copy [i32, i64] instead of bulk copy { i32, i64 } to prevent strange
+# errors is beyond me.
 def convertLuacIntoAlloca(op, b):
     ref = b.create(luallvm.alloca_value, loc=op.loc).ref()
     ty = b.create(LLVMExtractValueOp, res=luallvm.type(), container=op.val(),
