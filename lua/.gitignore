@@ -8,3 +8,4 @@ main.mlir
 libnone.mlir
 test-markov
 test-perf
+a.out

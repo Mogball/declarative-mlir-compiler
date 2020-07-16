@@ -6,8 +6,6 @@
 #include <random>
 #include <cmath>
 
-extern "C" void print_one(TObject *);
-
 namespace lua {
 namespace {
 
@@ -18,20 +16,20 @@ void formatPrint(std::ostream &os) {
 }
 
 template <typename FormatFcn>
-void print_impl(FormatFcn formatOutput, TPack *pack) {
-  while (pack->idx != pack->size) {
-    auto *val = lua_pack_pull_one(pack);
-    switch (lua_get_type(val)) {
+void print_impl(FormatFcn formatOutput, TPack pack) {
+  for (int32_t i = 0; i < pack.size; ++i) {
+    TObject val = pack.objs[i];
+    switch (val.type) {
     case NIL:
       // ignore last nil
-      if (pack->idx != pack->size) {
+      if (i < pack.size - 1) {
         formatOutput(std::cout);
         std::cout << "nil";
       }
       break;
     case BOOL:
       formatOutput(std::cout);
-      if (lua_get_bool_val(val)) {
+      if (val.b) {
         std::cout << "true";
       } else {
         std::cout << "false";
@@ -39,46 +37,37 @@ void print_impl(FormatFcn formatOutput, TPack *pack) {
       break;
     case NUM:
       formatOutput(std::cout);
-      if (auto iv = (int64_t) val->num; iv == val->num) {
+      if (auto iv = (int64_t) val.num; iv == val.num) {
         std::cout << iv;
       } else {
-        std::cout << val->num;
+        std::cout << val.num;
       }
       break;
     case STR:
       formatOutput(std::cout);
-      std::cout << lua::as_std_string(val);
+      std::cout << *((std::string *) val.impl);
       break;
     case TBL:
       std::cout << "table: ";
       formatOutput(std::cout);
-      std::cout << std::hex << val->gc->ptable;
+      std::cout << std::hex << val.impl;
       break;
     case FCN:
-      std::cout << "function: 0x";
-      for (unsigned i = 0; i < sizeof(lua_fcn_t); ++i) {
-        if (i == sizeof(lua_fcn_t) - 1) {
-          formatOutput(std::cout);
-        }
-        std::cout << std::hex << (int)((unsigned char *) &val->gc->fcn_addr)[i];
-      }
+      std::cout << "function: ";
+      formatOutput(std::cout);
+      std::cout << std::hex << val.impl;
       break;
     }
   }
 }
 
-TPack *fcn_builtin_print(TPack *, TPack *pack) {
+TPack fcn_builtin_print(TCapture, TPack pack) {
   print_impl(&formatPrint, pack);
   std::cout << std::endl;
-
-  auto *ret = lua_new_ret_pack(1);
-  auto *nil = lua_alloc();
-  lua_set_type(nil, NIL);
-  lua_pack_push(ret, nil);
-  return ret;
+  return TPack{0, nullptr};
 }
 
-int64_t correct_str_offset(std::string &textStr, int64_t offset) {
+/*int64_t correct_str_offset(std::string &textStr, int64_t offset) {
   if (offset > 0) {
     --offset;
     if (offset >= textStr.size()) {
@@ -250,18 +239,16 @@ TPack *fcn_builtin_math_random(TPack *, TPack *pack) {
   auto *ret = lua_new_ret_pack(1);
   lua_pack_push(ret, r);
   return ret;
-}
+}*/
 
-TObject *construct_builtin_print(void) {
-  TObject *print = lua_alloc();
-  lua_set_type(print, FCN);
-  lua_alloc_gc(print);
-  lua_set_fcn_addr(print, &fcn_builtin_print);
-  lua_set_capture_pack(print, nullptr);
+TObject construct_builtin_print(void) {
+  TObject print;
+  print.type = FCN;
+  print.impl = new TClosure{&fcn_builtin_print, nullptr};
   return print;
 }
 
-TObject *construct_builtin_string(void) {
+/*TObject *construct_builtin_string(void) {
   TObject *string = lua_alloc();
   lua_set_type(string, TBL);
   lua_alloc_gc(string);
@@ -345,26 +332,26 @@ TObject *construct_builtin_math(void) {
     lua_table_set(math, key, random);
   }
   return math;
-}
+}*/
 
 } // end anonymous namespace
 } // end namespace lua
 
 extern "C" {
 
-TObject *builtin_print = lua::construct_builtin_print();
-TObject *builtin_string = lua::construct_builtin_string();
-TObject *builtin_table = lua::construct_builtin_table();
-TObject *builtin_io = lua::construct_builtin_io();
-TObject *builtin_random = lua::construct_builtin_math();
-TObject *builtin_math = lua::construct_builtin_math();
+TObject lua_builtin_print = lua::construct_builtin_print();
+//TObject lua_builtin_string = lua::construct_builtin_string();
+//TObject lua_builtin_table = lua::construct_builtin_table();
+//TObject lua_builtin_io = lua::construct_builtin_io();
+//TObject lua_builtin_random = lua::construct_builtin_math();
+//TObject lua_builtin_math = lua::construct_builtin_math();
 
 // special debugging function
-void print_one(TObject *val) {
+/*void print_one(TObject *val) {
   auto *pack = lua_new_pack(1);
   lua_pack_push(pack, val);
   lua::print_impl(lua::formatNoop, pack);
   std::cout << std::endl;
-}
+}*/
 
 }
