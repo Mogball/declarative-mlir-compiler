@@ -1252,6 +1252,9 @@ def getTyAndU(b, ref, loc):
     u = b.create(luallvm.get_u_direct, ref=ref, loc=loc).u()
     return ty, u
 
+def loadRef(b, ref, loc):
+    return b.create(LLVMLoadOp, res=luallvm.value(), addr=ref, loc=loc).res()
+
 def convertLuaNil(op, b):
     ref = allocaTyped(b, luac.type_nil(), op.loc)
     zeroI64 = llvmI64Const(b, 0, op.loc)
@@ -1294,9 +1297,8 @@ def convertLuacWrapReal(op, b):
     return True
 
 def convertLuaCopy(op, b):
-    ty, u = getTyAndU(b, op.val(), op.loc)
-    b.create(luallvm.set_type_direct, ref=op.tgt(), type=ty, loc=op.loc)
-    b.create(luallvm.set_u_direct, ref=op.tgt(), u=u, loc=op.loc)
+    val = loadRef(b, op.val(), op.loc)
+    b.create(LLVMStoreOp, value=val, addr=op.tgt(), loc=op.loc)
     b.erase(op)
     return True
 

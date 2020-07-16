@@ -22,7 +22,7 @@ function ItemCheck(tree)
 end
 
 local mindepth = 4
-local maxdepth = 18
+local maxdepth = 17
 
 local stretchdepth = maxdepth + 1
 local stretchtree = BottomUpTree(0, stretchdepth)
