@@ -125,6 +125,19 @@ void exposeType(module &m, TypeClass &type) {
                   { return LLVM::LLVMType::getInt32Ty(llvmDialect); })
       .def_static("Double", [llvmDialect]()
                   { return LLVM::LLVMType::getDoubleTy(llvmDialect); })
+      .def_static("Struct", [llvmDialect](std::vector<Type> tys) {
+        std::vector<LLVM::LLVMType> llvmTys;
+        llvm::transform(tys, std::back_inserter(llvmTys),
+                        [](Type ty) { return ty.cast<LLVM::LLVMType>(); });
+        return LLVM::LLVMType::getStructTy(llvmDialect, llvmTys);
+      })
+      .def_static("Func", [](Type res, std::vector<Type> args) {
+        std::vector<LLVM::LLVMType> llvmArgs;
+        llvm::transform(args, std::back_inserter(llvmArgs),
+                        [](Type ty) { return ty.cast<LLVM::LLVMType>(); });
+        return LLVM::LLVMType::getFunctionTy(res.cast<LLVM::LLVMType>(),
+                                             llvmArgs, /*isVarArg=*/false);
+      })
       .def("ptr_to", &LLVM::LLVMType::getPointerTo, "addrSpace"_a = 0);
 
   implicitly_convertible_from_all<Type,

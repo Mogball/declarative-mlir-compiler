@@ -319,6 +319,22 @@ void exposeBuilder(module &m) {
         target.setOpAction(opName,
                            ConversionTarget::LegalizationAction::Legal);
       })
+      .def("addLegalOps", [](ConversionTarget &target,
+                            std::vector<std::string> names) {
+        for (auto &name : names) {
+          OperationName opName{name, getMLIRContext()};
+          target.setOpAction(opName,
+                             ConversionTarget::LegalizationAction::Legal);
+        }
+      })
+      .def("addLegalOps", [](ConversionTarget  &target, list clsList) {
+        for (auto cls : clsList) {
+          auto name = cls.attr("getName")().cast<std::string>();
+          OperationName opName{name, getMLIRContext()};
+          target.setOpAction(opName,
+                             ConversionTarget::LegalizationAction::Legal);
+        }
+      })
       .def("addIllegalOp", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("getName")().cast<std::string>();
         OperationName opName{name, getMLIRContext()};
@@ -331,6 +347,11 @@ void exposeBuilder(module &m) {
       .def("addLegalDialect", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("name").cast<std::string>();
         target.addLegalDialect(name);
+      })
+      .def("addLegalDialects", [](ConversionTarget &target,
+                                  std::vector<std::string> names) {
+        for (auto &name : names)
+          target.addLegalDialect(name);
       })
       .def("addIllegalDialect", [](ConversionTarget &target, std::string name) {
         target.addIllegalDialect(name);
