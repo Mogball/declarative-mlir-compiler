@@ -191,6 +191,28 @@ module {
     return %ret : !lua.val
   }
 
+  func @lua_ge(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
+    %lhs = luac.into_alloca %lhsv
+    %rhs = luac.into_alloca %rhsv
+
+    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
+        : (!lua.val, !lua.val) -> i1
+    %ret = scf.if %types_ok -> !lua.val {
+      %lhs_num = luac.get_double_val %lhs
+      %rhs_num = luac.get_double_val %rhs
+      %ret_b = cmpf "oge", %lhs_num, %rhs_num : !luac.real
+      %ret_v = luac.wrap_bool %ret_b
+      %retv = luac.load_from %ret_v
+      scf.yield %retv : !lua.val
+    } else {
+      %ret_v = lua.nil
+      %retv = luac.load_from %ret_v
+      scf.yield %retv : !lua.val
+    }
+
+    return %ret : !lua.val
+  }
+
   func @lua_bool_and(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
     %lhs_b = call @lua_convert_bool_like(%lhsv) : (!lua.val) -> i1
     %rhs_b = call @lua_convert_bool_like(%rhsv) : (!lua.val) -> i1

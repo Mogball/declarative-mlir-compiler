@@ -74,6 +74,10 @@ class Generator:
         endTok = self.stream.get(b)
         return FileLineColLoc(self.filename, endTok.line, endTok.column)
 
+    def handleBool(self, loc, val):
+        b = self.builder.create(lua.boolean, value=I1Attr(val), loc=loc)
+        return b.res()
+
     def handleBinaryOp(self, expCtx, opCtx):
         loc = self.getStartLoc(opCtx)
         lhsVal = self.exp(expCtx.exp(0))
@@ -198,7 +202,7 @@ class Generator:
         elif ctx.namedfunctiondef():
             self.namedfunctiondef(ctx.namedfunctiondef())
         elif ctx.localnamedfunctiondef():
-            raise NotImplementedError("localnamedfunctiondef not implemented")
+            self.localnamedfunctiondef(ctx.localnamedfunctiondef())
         elif ctx.localvarlist():
             self.localvarlist(ctx.localvarlist())
         elif ctx.getText() == ";":
@@ -278,9 +282,9 @@ class Generator:
         if ctx.nilvalue():
             return self.nilvalue(ctx.nilvalue())
         elif ctx.falsevalue():
-            raise NotImplementedError("falsevalue not implemented")
+            return self.falsevalue(ctx.falsevalue())
         elif ctx.truevalue():
-            raise NotImplementedError("truevalue not implemented")
+            return self.truevalue(ctx.truevalue())
         elif ctx.number():
             return self.number(ctx.number())
         elif ctx.string():
@@ -322,6 +326,12 @@ class Generator:
     def nilvalue(self, ctx:LuaParser.NilvalueContext):
         nil = self.builder.create(lua.nil, loc=self.getStartLoc(ctx))
         return nil.res()
+
+    def falsevalue(self, ctx):
+        return self.handleBool(self.getStartLoc(ctx), 0)
+
+    def truevalue(self, ctx):
+        return self.handleBool(self.getStartLoc(ctx), 1)
 
     def number(self, ctx:LuaParser.NumberContext):
         if ctx.INT():
@@ -437,6 +447,13 @@ class Generator:
         self.handleRetStat(ctx, ctx.funcbody().block().retstat())
         self.popBlock()
         return fcnDef.fcn()
+
+    def localnamedfunctiondef(self, ctx):
+        fcn = self.functiondef(ctx)
+        var = self.builder.create(lua.alloc_local, loc=self.getStartLoc(ctx),
+                                  var=StringAttr(ctx.NAME().getText())).res()
+        self.builder.create(lua.assign, tgt=var, val=fcn,
+                            loc=self.getStartLoc(ctx))
 
     def namedfunctiondef(self, ctx:LuaParser.NamedfunctiondefContext):
         # same as functiondef except with assignment to named variable
@@ -1043,6 +1060,12 @@ def lowerAlloc(op:lua.alloc, rewriter:Builder):
     rewriter.replace(op, [nil.res()])
     return True
 
+def luaBooleanWrap(op, b):
+    const = b.create(ConstantOp, value=op.value(), loc=op.loc).result()
+    val = b.create(luac.wrap_bool, b=const, loc=op.loc).res()
+    b.replace(op, [val])
+    return True
+
 def luaNumberWrap(op, rewriter):
     num = rewriter.create(ConstantOp, value=op.value(), loc=op.loc).result()
     val = rewriter.create(luac.wrap_real, num=num, loc=op.loc).res()
@@ -1198,22 +1221,24 @@ def lowerToLuac(module:ModuleOp):
     patterns = [
         Pattern(lua.alloc, lowerAlloc),
         Pattern(luaopt.const_number, raiseConstNumber),
+        Pattern(lua.boolean, luaBooleanWrap),
         Pattern(lua.number, luaNumberWrap),
 
-        Pattern(lua.binary, getExpanderFor("+", luac.add), [luac.add]),
-        Pattern(lua.binary, getExpanderFor("-", luac.sub), [luac.sub]),
-        Pattern(lua.binary, getExpanderFor("*", luac.mul), [luac.mul]),
-        Pattern(lua.binary, getExpanderFor("^", luac.pow), [luac.pow]),
-        Pattern(lua.binary, getExpanderFor("..", luac.strcat), [luac.strcat]),
-        Pattern(lua.binary, getExpanderFor("<", luac.lt), [luac.lt]),
-        Pattern(lua.binary, getExpanderFor(">", luac.gt), [luac.gt]),
-        Pattern(lua.binary, getExpanderFor("<=", luac.le), [luac.le]),
-        Pattern(lua.binary, getExpanderFor("==", luac.eq), [luac.eq]),
-        Pattern(lua.binary, getExpanderFor("~=", luac.ne), [luac.ne]),
-        Pattern(lua.binary, getExpanderFor("and", luac.bool_and), [luac.bool_and]),
+        Pattern(lua.binary, getExpanderFor("+", luac.add)),
+        Pattern(lua.binary, getExpanderFor("-", luac.sub)),
+        Pattern(lua.binary, getExpanderFor("*", luac.mul)),
+        Pattern(lua.binary, getExpanderFor("^", luac.pow)),
+        Pattern(lua.binary, getExpanderFor("..", luac.strcat)),
+        Pattern(lua.binary, getExpanderFor("<", luac.lt)),
+        Pattern(lua.binary, getExpanderFor(">", luac.gt)),
+        Pattern(lua.binary, getExpanderFor("<=", luac.le)),
+        Pattern(lua.binary, getExpanderFor(">=", luac.ge)),
+        Pattern(lua.binary, getExpanderFor("==", luac.eq)),
+        Pattern(lua.binary, getExpanderFor("~=", luac.ne)),
+        Pattern(lua.binary, getExpanderFor("and", luac.bool_and)),
 
-        Pattern(lua.unary, getUnaryExpander("not", luac.bool_not), [luac.bool_not]),
-        Pattern(lua.unary, getUnaryExpander("#", luac.list_size), [luac.list_size]),
+        Pattern(lua.unary, getUnaryExpander("not", luac.bool_not)),
+        Pattern(lua.unary, getUnaryExpander("#", luac.list_size)),
         Pattern(lua.unary, getUnaryExpander("-", luac.neg), [luac.neg]),
 
         Pattern(lua.concat, expandConcat),
@@ -1798,6 +1823,7 @@ def luaToLLVMThirdPass(module):
         convertWrap(luac.pow, "lua_pow"),
         convertWrap(luac.lt, "lua_lt"),
         convertWrap(luac.le, "lua_le"),
+        convertWrap(luac.ge, "lua_ge"),
         convertWrap(luac.gt, "lua_gt"),
         convertWrap(luac.eq, "lua_eq"),
         convertWrap(luac.ne, "lua_ne"),

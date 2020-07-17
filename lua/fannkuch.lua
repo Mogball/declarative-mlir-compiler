@@ -58,7 +58,7 @@ local function fannkuch(n)
   until false
 end
 
-local n = 8
+local n = 5
 local sum, flips = fannkuch(n)
 print(sum)
 print("Pfannkuchen(", n, ") = ", flips)

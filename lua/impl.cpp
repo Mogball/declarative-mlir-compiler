@@ -68,7 +68,7 @@ struct LuaTable {
     }
     iv -= PREALLOC;
     if (trailing.size() <= iv) {
-      trailing.resize(iv * 2);
+      trailing.resize(1 + iv * 2);
     }
     return trailing[iv];
   }
@@ -102,7 +102,7 @@ struct LuaTable {
     }
     iv -= PREALLOC;
     if (trailing.size() <= iv) {
-      trailing.resize(iv * 2);
+      trailing.resize(1 + iv * 2);
     }
     trailing[iv] = val;
   }

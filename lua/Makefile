@@ -1,5 +1,5 @@
-CFLAGS=-O2 -g
-FILE=perf.lua
+CFLAGS=-O1 -g
+FILE=fannkuch.lua
 
 main: main.o impl.o builtins.o
 	clang++ main.o impl.o builtins.o -o main $(CFLAGS) -flto

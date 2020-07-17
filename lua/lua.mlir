@@ -203,6 +203,9 @@ Dialect @luac {
   Op @le(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
+  Op @ge(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
+    traits [@Alloc<"res">]
+    config { fmt = "`(` operands `)` attr-dict" }
   Op @gt(lhs: !lua.value, rhs: !lua.value) -> (res: !lua.value)
     traits [@Alloc<"res">]
     config { fmt = "`(` operands `)` attr-dict" }
