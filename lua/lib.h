@@ -17,7 +17,8 @@ enum {
   NUM,
   STR,
   TBL,
-  FCN
+  FCN,
+  INT = 10
 };
 
 struct Object;

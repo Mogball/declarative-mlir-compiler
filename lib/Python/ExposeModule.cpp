@@ -161,6 +161,23 @@ void exposeModule(module &m, OpClass &cls) {
       .def("rhs", &MulFOp::rhs)
       .def("result", &MulFOp::getResult);
 
+  class_<AndOp>(m, "AndOp", cls)
+      .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<AndOp>(loc, ty, lhs, rhs);
+      }), "ty"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("lhs", &AndOp::lhs)
+      .def("rhs", &AndOp::rhs)
+      .def("result", &AndOp::getResult);
+
+  class_<CmpIOp>(m, "CmpIOp", cls)
+      .def(init([](Type res, CmpIPredicate pred, Value lhs, Value rhs,
+                   Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<CmpIOp>(loc, res, pred, lhs, rhs);
+      }), "res"_a, "pred"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("result", &CmpIOp::getResult);
+
   class_<MulIOp>(m, "MulIOp", cls)
       .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
         OpBuilder b{getMLIRContext()};
@@ -326,6 +343,10 @@ void exposeModule(module &m, OpClass &cls) {
   class_<LLVM::Linkage>(m, "LLVMLinkage")
       .def_static("External", []() { return LLVM::Linkage::External; })
       .def_static("Internal", []() { return LLVM::Linkage::Internal; });
+
+  class_<CmpIPredicate>(m, "CmpIPredicate")
+      .def_static("eq", []() { return CmpIPredicate::eq; })
+      .def_static("ne", []() { return CmpIPredicate::ne; });
 
   class_<scf::ForOp>(m, "ForOp", cls)
       .def(init([](Value lowerBound, Value upperBound, Value step,

@@ -1,8 +1,8 @@
-CFLAGS=-Ofast -g
+CFLAGS=-Ofast -g -flto
 FILE=fannkuch.lua
 
 main: main.o impl.o builtins.o
-	clang++ main.o impl.o builtins.o -o main $(CFLAGS) -flto
+	clang++ main.o impl.o builtins.o -o main $(CFLAGS)
 
 builtins.o: builtins.cpp lib.h
 	clang++ -c -std=c++17 builtins.cpp -o builtins.o $(CFLAGS)
@@ -22,7 +22,7 @@ mainopt.ll: main.ll
 main.ll: main.mlir
 	mlir-translate -mlir-to-llvmir main.mlir -o main.ll
 
-main.mlir: luac.py $(FILE)
+main.mlir: luac.py $(FILE) lua.mlir lib.mlir
 	python3 luac.py $(FILE) > main.mlir
 
 clean:

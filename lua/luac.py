@@ -333,9 +333,9 @@ class Generator:
 
     def number(self, ctx:LuaParser.NumberContext):
         if ctx.INT():
-            attr = F64Attr(int(ctx.INT().getText()))
+            attr = I64Attr(int(ctx.INT().getText()))
         elif ctx.HEX():
-            attr = F64Attr(int(ctx.HEX().getText(), 16))
+            attr = I64Attr(int(ctx.HEX().getText(), 16))
         elif ctx.FLOAT():
             attr = F64Attr(float(ctx.FLOAT().getText()()))
         elif ctx.HEX_FLOAT():
@@ -405,7 +405,7 @@ class Generator:
         lower = self.exp(ctx.exp(0))
         upper = self.exp(ctx.exp(1))
         if len(ctx.exp()) == 2:
-            num = self.builder.create(lua.number, value=F64Attr(1), loc=loc)
+            num = self.builder.create(lua.number, value=I64Attr(1), loc=loc)
             step = num.res()
         else:
             step = self.exp(ctx.exp(2))
@@ -802,9 +802,9 @@ def argPackFunctionDef(op, rewriter):
     return True
 
 def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
-    step = rewriter.create(luac.get_double_val, val=op.step(), loc=op.loc).num()
-    lower = rewriter.create(luac.get_double_val, val=op.lower(), loc=op.loc)
-    i = rewriter.create(luac.wrap_real, num=lower.num(), loc=op.loc).res()
+    step = rewriter.create(luac.get_int_val, val=op.step(), loc=op.loc).num()
+    lower = rewriter.create(luac.get_int_val, val=op.lower(), loc=op.loc)
+    i = rewriter.create(luac.wrap_int, num=lower.num(), loc=op.loc).res()
     loopWhile = rewriter.create(lua.loop_while, loc=op.loc)
     rewriter.insertAtStart(loopWhile.eval().addEntryBlock([]))
     le = rewriter.create(luac.le, lhs=i, rhs=op.upper(), loc=op.loc)
@@ -816,9 +816,9 @@ def lowerNumericFor(op:lua.numeric_for, rewriter:Builder):
              None, bvm)
 
     rewriter.insertBefore(loopWhile.region().getBlock(0).getTerminator())
-    iv = rewriter.create(luac.get_double_val, val=i, loc=op.loc).num()
-    newI = rewriter.create(AddFOp, lhs=iv, rhs=step, ty=F64Type(), loc=op.loc).result()
-    var = rewriter.create(luac.wrap_real, num=newI, loc=op.loc).res()
+    iv = rewriter.create(luac.get_int_val, val=i, loc=op.loc).num()
+    newI = rewriter.create(AddIOp, lhs=iv, rhs=step, ty=I64Type(), loc=op.loc).result()
+    var = rewriter.create(luac.wrap_int, num=newI, loc=op.loc).res()
     rewriter.create(lua.copy, tgt=i, val=var, loc=op.loc)
     rewriter.erase(op)
     return True
@@ -1017,10 +1017,16 @@ def preallocValid(op, rewriter):
     numOp = op.key().definingOp
     if not isa(numOp, luaopt.const_number):
         return None
-    raw = luaopt.const_number(numOp).value().getValue()
+    value = luaopt.const_number(numOp).value()
+    if hasattr(value, "getValue"):
+        raw = value.getValue()
+    else:
+        raw = value.getInt()
     ivVal = int(raw)
     if ivVal != raw or ivVal <= 0 or ivVal > luaopt.table_prealloc().getInt():
         return None
+    #return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1),
+    #                       loc=op.loc).result()
     return rewriter.create(ConstantOp, value=I64Attr(ivVal - 1),
                            loc=op.loc).result()
 
@@ -1066,7 +1072,10 @@ def luaBooleanWrap(op, b):
 
 def luaNumberWrap(op, rewriter):
     num = rewriter.create(ConstantOp, value=op.value(), loc=op.loc).result()
-    val = rewriter.create(luac.wrap_real, num=num, loc=op.loc).res()
+    if num.type == F64Type():
+        val = rewriter.create(luac.wrap_real, num=num, loc=op.loc).res()
+    else:
+        val = rewriter.create(luac.wrap_int, num=num, loc=op.loc).res()
     rewriter.replace(op, [val])
     return True
 
@@ -1316,6 +1325,12 @@ def convertLuacWrapBool(op, b):
     b.replace(op, [ref])
     return True
 
+def convertLuacWrapInt(op, b):
+    ref = allocaTyped(b, luallvm.type_int(), op.loc)
+    b.create(luallvm.set_u_direct, ref=ref, u=op.num(), loc=op.loc)
+    b.replace(op, [ref])
+    return True
+
 def convertLuacWrapReal(op, b):
     ref = allocaTyped(b, luac.type_num(), op.loc)
     # Bitcast double to i64
@@ -1334,34 +1349,77 @@ def convertLuaCopy(op, b):
     return True
 
 def convertLuaTableGet(op, b):
+    keyU = b.create(luallvm.get_u_direct, ref=op.key(), loc=op.loc).u()
+    negOne = llvmI64Const(b, -1, op.loc)
+    iv = b.create(AddIOp, ty=I64Type(), lhs=keyU, rhs=negOne, loc=op.loc).result()
+
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    key = loadRef(b, op.key(), op.loc)
-    val = b.create(luallvm.table_get_impl, impl=impl, key=key, loc=op.loc).val()
+    arrPtr = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=impl,
+                      loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=arrPtr,
+                     indices=[iv], loc=op.loc).res()
+    val = loadRef(b, elPtr, op.loc)
+
+    #impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
+    #key = loadRef(b, op.key(), op.loc)
+    #val = b.create(luallvm.table_get_impl, impl=impl, key=key, loc=op.loc).val()
+
     valPtr = b.create(luac.into_alloca, val=val, loc=op.loc).res()
     b.replace(op, [valPtr])
     return True
 
 def convertLuaTableSet(op, b):
+    keyU = b.create(luallvm.get_u_direct, ref=op.key(), loc=op.loc).u()
+    negOne = llvmI64Const(b, -1, op.loc)
+    iv = b.create(AddIOp, ty=I64Type(), lhs=keyU, rhs=negOne, loc=op.loc).result()
+
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    key = loadRef(b, op.key(), op.loc)
-    val = loadRef(b, op.val(), op.loc)
-    b.create(luallvm.table_set_impl, impl=impl, key=key, val=val, loc=op.loc)
+    arrPtr = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=impl,
+                      loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=arrPtr,
+                     indices=[iv], loc=op.loc).res()
+    ty, u = unpackTyAndU(b, op.val(), op.loc)
+    b.create(luallvm.set_type_direct, ref=elPtr, type=ty, loc=op.loc)
+    b.create(luallvm.set_u_direct, ref=elPtr, u=u, loc=op.loc)
+
+    #impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
+    #key = loadRef(b, op.key(), op.loc)
+    #val = loadRef(b, op.val(), op.loc)
+    #b.create(luallvm.table_set_impl, impl=impl, key=key, val=val, loc=op.loc)
+
     b.erase(op)
     return True
 
 def convertLuaoptTableGetPrealloc(op, b):
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    val = b.create(luallvm.table_get_prealloc_impl, impl=impl, iv=op.iv(),
-                   loc=op.loc).val()
+    arrPtr = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=impl,
+                      loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=arrPtr,
+                     indices=[op.iv()], loc=op.loc).res()
+    val = loadRef(b, elPtr, op.loc)
+
+    #impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
+    #val = b.create(luallvm.table_get_prealloc_impl, impl=impl, iv=op.iv(),
+    #               loc=op.loc).val()
+
     valPtr = b.create(luac.into_alloca, val=val, loc=op.loc).res()
     b.replace(op, [valPtr])
     return True
 
 def convertLuaoptTableSetPrealloc(op, b):
     impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
-    val = loadRef(b, op.val(), op.loc)
-    b.create(luallvm.table_set_prealloc_impl, impl=impl, iv=op.iv(), val=val,
-             loc=op.loc)
+    arrPtr = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=impl,
+                      loc=op.loc).res()
+    elPtr = b.create(LLVMGEPOp, res=luallvm.ref(), base=arrPtr,
+                     indices=[op.iv()], loc=op.loc).res()
+    ty, u = unpackTyAndU(b, op.val(), op.loc)
+    b.create(luallvm.set_type_direct, ref=elPtr, type=ty, loc=op.loc)
+    b.create(luallvm.set_u_direct, ref=elPtr, u=u, loc=op.loc)
+
+    #impl = b.create(luallvm.get_impl_direct, ref=op.tbl(), loc=op.loc).impl()
+    #val = loadRef(b, op.val(), op.loc)
+    #b.create(luallvm.table_set_prealloc_impl, impl=impl, iv=op.iv(), val=val,
+    #         loc=op.loc)
     b.erase(op)
     return True
 
@@ -1388,6 +1446,11 @@ def convertLuacGetBoolVal(op, b):
     # Truncate from i64 back to i1
     bVal = b.create(LLVMTruncOp, res=LLVMType.Int1(), value=u, loc=op.loc).res()
     b.replace(op, [bVal])
+    return True
+
+def convertLuacGetIntVal(op, b):
+    u = b.create(luallvm.get_u_direct, ref=op.val(), loc=op.loc).u()
+    b.replace(op, [u])
     return True
 
 def convertLuacGetDoubleVal(op, b):
@@ -1448,6 +1511,7 @@ def luaToLLVMFirstPass(module):
         Pattern(lua.table, convertLuaTable),
         Pattern(luac.load_string, convertLuacLoadString),
         Pattern(luac.wrap_bool, convertLuacWrapBool),
+        Pattern(luac.wrap_int, convertLuacWrapInt),
         Pattern(luac.wrap_real, convertLuacWrapReal),
         Pattern(lua.copy, convertLuaCopy),
         Pattern(lua.table_get, convertLuaTableGet),
@@ -1458,6 +1522,7 @@ def luaToLLVMFirstPass(module):
         Pattern(luac.get_impl, convertLuacGetImpl),
         Pattern(luac.get_type, convertLuacGetType),
         Pattern(luac.get_bool_val, convertLuacGetBoolVal),
+        Pattern(luac.get_int_val, convertLuacGetIntVal),
         Pattern(luac.get_double_val, convertLuacGetDoubleVal),
         Pattern(lua.builtin, convertLuaBuiltin),
         Pattern(luac.new_capture, convertLuacNewCapture),
@@ -1613,9 +1678,7 @@ def convertLuacIntoAlloca(op, b):
     return True
 
 def convertLuacLoadFrom(op, b):
-    ty, u = unpackTyAndU(b, op.val(), op.loc)
-    val = packTyAndU(b, ty, u, op.loc)
-    b.replace(op, [val])
+    b.replace(op, [loadRef(b, op.val(), op.loc)])
     return True
 
 def convertLuacPackInsert(op, b):

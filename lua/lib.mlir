@@ -21,20 +21,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_num = addf %lhs_num, %rhs_num : !luac.real
-      %ret_v = luac.wrap_real %ret_num
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_num = addi %lhs_num, %rhs_num : i64
+      %ret_v = luac.wrap_int %ret_num
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -42,20 +33,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_num = subf %lhs_num, %rhs_num : !luac.real
-      %ret_v = luac.wrap_real %ret_num
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_num = subi %lhs_num, %rhs_num : i64
+      %ret_v = luac.wrap_int %ret_num
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -63,65 +45,37 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_num = mulf %lhs_num, %rhs_num : !luac.real
-      %ret_v = luac.wrap_real %ret_num
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_num = muli %lhs_num, %rhs_num : i64
+      %ret_v = luac.wrap_int %ret_num
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
   // double pow(double x, double y) from <math.h>
   func @pow(%x: f64, %y: f64) -> f64
+  func @ipow(%x: i64, %y : i64) -> i64
   func @lua_pow(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_num = call @pow(%lhs_num, %rhs_num) : (f64, f64) -> f64
-      %ret_v = luac.wrap_real %ret_num
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_num = call @ipow(%lhs_num, %rhs_num) : (i64, i64) -> i64
+      %ret_v = luac.wrap_int %ret_num
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
   func @lua_neg(%valv: !lua.val) -> !lua.val {
     %val = luac.into_alloca %valv
 
-    %num_type = constant #luac.type_num
-    %val_type = luac.get_type type(%val)
-    %type_ok = cmpi "eq", %num_type, %val_type : !luac.type_enum
-    %ret = scf.if %type_ok -> !lua.val {
-      %inv = constant -1.0 : !luac.real
-      %num = luac.get_double_val %val
-      %ret_num = mulf %inv, %num : !luac.real
-      %ret_v = luac.wrap_real %ret_num
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
-
+      %inv = constant -1 : i64
+      %num = luac.get_int_val %val
+      %ret_num = muli %inv, %num : i64
+      %ret_v = luac.wrap_int %ret_num
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -129,21 +83,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_b = cmpf "olt", %lhs_num, %rhs_num : !luac.real
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_b = cmpi "slt", %lhs_num, %rhs_num : i64
       %ret_v = luac.wrap_bool %ret_b
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
-
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -151,21 +95,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_b = cmpf "ogt", %lhs_num, %rhs_num : !luac.real
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_b = cmpi "sgt", %lhs_num, %rhs_num : i64
       %ret_v = luac.wrap_bool %ret_b
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
-
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -173,21 +107,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_b = cmpf "ole", %lhs_num, %rhs_num : !luac.real
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_b = cmpi "sle", %lhs_num, %rhs_num : i64
       %ret_v = luac.wrap_bool %ret_b
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
-
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -195,21 +119,11 @@ module {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
 
-    %types_ok = call @luac_check_number_type(%lhsv, %rhsv)
-        : (!lua.val, !lua.val) -> i1
-    %ret = scf.if %types_ok -> !lua.val {
-      %lhs_num = luac.get_double_val %lhs
-      %rhs_num = luac.get_double_val %rhs
-      %ret_b = cmpf "oge", %lhs_num, %rhs_num : !luac.real
+      %lhs_num = luac.get_int_val %lhs
+      %rhs_num = luac.get_int_val %rhs
+      %ret_b = cmpi "sge", %lhs_num, %rhs_num : i64
       %ret_v = luac.wrap_bool %ret_b
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    } else {
-      %ret_v = lua.nil
-      %retv = luac.load_from %ret_v
-      scf.yield %retv : !lua.val
-    }
-
+      %ret = luac.load_from %ret_v
     return %ret : !lua.val
   }
 
@@ -246,8 +160,7 @@ module {
     %ret = scf.if %type_ok -> !lua.val {
       %impl = luac.get_impl %val
       %sz = call @lua_list_size_impl(%impl) : (!luac.void_ptr) -> i64
-      %ret_num = sitofp %sz : i64 to !luac.real
-      %ret_v = luac.wrap_real %ret_num
+      %ret_v = luac.wrap_int %sz
       %retv = luac.load_from %ret_v
       scf.yield %retv : !lua.val
     } else {
@@ -291,62 +204,79 @@ module {
   func @lua_eq(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
     %lhs = luac.into_alloca %lhsv
     %rhs = luac.into_alloca %rhsv
-
-    %lhs_type = luac.get_type type(%lhs)
-    %rhs_type = luac.get_type type(%rhs)
-    %same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
-
-    %ret_b = scf.if %same_type -> i1 {
-      %result = call @lua_eq_impl(%lhsv, %rhsv)
-          : (!lua.val, !lua.val) -> i1
-      scf.yield %result : i1
-    } else {
-      %false = constant 0 : i1
-      scf.yield %false : i1
-    }
-    %ret = luac.wrap_bool %ret_b
-
+    %lhs_num = luac.get_int_val %lhs
+    %rhs_num = luac.get_int_val %rhs
+    %b = cmpi "eq", %lhs_num, %rhs_num : i64
+    %ret = luac.wrap_bool %b
     %retv = luac.load_from %ret
     return %retv : !lua.val
+    //%lhs = luac.into_alloca %lhsv
+    //%rhs = luac.into_alloca %rhsv
+
+    //%lhs_type = luac.get_type type(%lhs)
+    //%rhs_type = luac.get_type type(%rhs)
+    //%same_type = cmpi "eq", %lhs_type, %rhs_type : !luac.type_enum
+
+    //%ret_b = scf.if %same_type -> i1 {
+    //  %result = call @lua_eq_impl(%lhsv, %rhsv)
+    //      : (!lua.val, !lua.val) -> i1
+    //  scf.yield %result : i1
+    //} else {
+    //  %false = constant 0 : i1
+    //  scf.yield %false : i1
+    //}
+    //%ret = luac.wrap_bool %ret_b
+
+    //%retv = luac.load_from %ret
+    //return %retv : !lua.val
   }
 
   func @lua_ne(%lhsv: !lua.val, %rhsv: !lua.val) -> !lua.val {
-    %are_eqv = call @lua_eq(%lhsv, %rhsv) : (!lua.val, !lua.val) -> !lua.val
-    %are_eq = luac.into_alloca %are_eqv
-
-    %are_eq_b = luac.get_bool_val %are_eq
-    %const1 = constant 1 : i1
-    %are_ne_b = xor %are_eq_b, %const1 : i1
-
-    %ret = luac.wrap_bool %are_ne_b
-
+    %lhs = luac.into_alloca %lhsv
+    %rhs = luac.into_alloca %rhsv
+    %lhs_num = luac.get_int_val %lhs
+    %rhs_num = luac.get_int_val %rhs
+    %b = cmpi "ne", %lhs_num, %rhs_num : i64
+    %ret = luac.wrap_bool %b
     %retv = luac.load_from %ret
     return %retv : !lua.val
+    //%are_eqv = call @lua_eq(%lhsv, %rhsv) : (!lua.val, !lua.val) -> !lua.val
+    //%are_eq = luac.into_alloca %are_eqv
+
+    //%are_eq_b = luac.get_bool_val %are_eq
+    //%const1 = constant 1 : i1
+    //%are_ne_b = xor %are_eq_b, %const1 : i1
+
+    //%ret = luac.wrap_bool %are_ne_b
+
+    //%retv = luac.load_from %ret
+    //return %retv : !lua.val
   }
 
   func @lua_convert_bool_like(%valv: !lua.val) -> i1 {
     %val = luac.into_alloca %valv
 
-    %type = luac.get_type type(%val)
+    %ret_b = luac.get_bool_val %val
+    //%type = luac.get_type type(%val)
 
-    %nil_type = constant #luac.type_nil
-    %is_nil = cmpi "eq", %type, %nil_type : !luac.type_enum
+    //%nil_type = constant #luac.type_nil
+    //%is_nil = cmpi "eq", %type, %nil_type : !luac.type_enum
 
-    %ret_b = scf.if %is_nil -> i1 {
-      %false = constant 0 : i1
-      scf.yield %false : i1
-    } else {
-      %bool_type = constant #luac.type_bool
-      %is_bool = cmpi "eq", %type, %bool_type : !luac.type_enum
-      %ret = scf.if %is_bool -> i1 {
-        %b = luac.get_bool_val %val
-        scf.yield %b : i1
-      } else {
-        %true = constant 1 : i1
-        scf.yield %true : i1
-      }
-      scf.yield %ret : i1
-    }
+    //%ret_b = scf.if %is_nil -> i1 {
+    //  %false = constant 0 : i1
+    //  scf.yield %false : i1
+    //} else {
+    //  %bool_type = constant #luac.type_bool
+    //  %is_bool = cmpi "eq", %type, %bool_type : !luac.type_enum
+    //  %ret = scf.if %is_bool -> i1 {
+    //    %b = luac.get_bool_val %val
+    //    scf.yield %b : i1
+    //  } else {
+    //    %true = constant 1 : i1
+    //    scf.yield %true : i1
+    //  }
+    //  scf.yield %ret : i1
+    //}
 
     return %ret_b : i1
   }

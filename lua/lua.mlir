@@ -48,7 +48,7 @@ Dialect @lua {
     config { fmt = "attr-dict" }
   Op @boolean() -> (res: !lua.value) { value = #dmc.I<1> }
     config { fmt = "$value attr-dict" }
-  Op @number() -> (res: !lua.value) { value = #dmc.F<64> }
+  Op @number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.F<64>, #dmc.I<64>> }
     config { fmt = "$value attr-dict" }
 
   Op @table() -> (res: !lua.value)
@@ -132,10 +132,10 @@ Dialect @lua {
 }
 
 Dialect @luaopt {
-  Op @const_number() -> (res: !lua.value) { value = #dmc.F<64> }
+  Op @const_number() -> (res: !lua.value) { value = #dmc.AnyOf<#dmc.F<64>, #dmc.I<64>> }
     traits [@NoSideEffects]
 
-  Alias @table_prealloc -> 4
+  Alias @table_prealloc -> 16
   Op @table_get_prealloc(tbl: !lua.value, iv: i64) -> (val: !lua.value)
     traits [@NoSideEffects]
   Op @table_set_prealloc(tbl: !lua.value, iv: i64, val: !lua.value) -> ()
@@ -169,6 +169,9 @@ Dialect @luac {
   Op @wrap_bool(b: !luac.bool) -> (res: !lua.value)
     traits [@Alloc<"res">]
     config { fmt = "$b attr-dict" }
+  Op @wrap_int(num: i64) -> (res: !lua.value)
+    traits [@Alloc<"res">]
+    config { fmt = "$num attr-dict" }
   Op @wrap_real(num: !luac.real) -> (res: !lua.value)
     traits [@Alloc<"res">]
     config { fmt = "$num attr-dict" }
@@ -232,11 +235,15 @@ Dialect @luac {
 
   Op @convert_bool_like(val: !lua.value) -> (b: !luac.bool)
     config { fmt = "$val attr-dict" }
+  Op @is_int(val: !lua.value) -> (b: !luac.bool)
+    config { fmt = "$val attr-dict" }
 
   /// Simple value Manipulation
   Op @get_type(val: !lua.value) -> (ty: !luac.type_enum)
     config { fmt = "`type` `(` $val `)` attr-dict" }
   Op @get_bool_val(val: !lua.value) -> (b: !luac.bool)
+    config { fmt = "$val attr-dict" }
+  Op @get_int_val(val: !lua.value) -> (num: i64)
     config { fmt = "$val attr-dict" }
   Op @get_double_val(val: !lua.value) -> (num: !luac.real)
     config { fmt = "$val attr-dict" }
@@ -283,6 +290,10 @@ Dialect @luallvm {
   Alias @type     -> !llvm.i32              { builder = "LLVMType.Int32()" }
   Alias @u        -> !llvm.i64              { builder = "LLVMType.Int64()" }
   Alias @impl     -> !llvm<"i8*">           { builder = "LLVMType.Int8Ptr()" }
+
+  Alias @noflag    -> 7 : i32
+  Alias @type_int  -> 10 : i32
+  Alias @flag      -> 8 : i32
 
   Alias @pack     -> !llvm<"{ i32, { i32, i64 }* }">  { builder = "LLVMType.Struct([LLVMType.Int32(), luallvm.ref()])" }
   Alias @capture  -> !llvm<"{ i32, i64 }**">          { builder = "luallvm.ref().ptr_to()" }

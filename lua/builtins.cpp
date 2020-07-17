@@ -37,11 +37,7 @@ void print_impl(FormatFcn formatOutput, TPack pack) {
       break;
     case NUM:
       formatOutput(std::cout);
-      if (auto iv = (int64_t) val.num; iv == val.num) {
-        std::cout << iv;
-      } else {
-        std::cout << val.num;
-      }
+      std::cout << val.num;
       break;
     case STR:
       formatOutput(std::cout);
@@ -56,6 +52,10 @@ void print_impl(FormatFcn formatOutput, TPack pack) {
       std::cout << "function: ";
       formatOutput(std::cout);
       std::cout << std::hex << val.impl;
+      break;
+    case INT:
+      formatOutput(std::cout);
+      std::cout << val.u;
       break;
     }
   }
