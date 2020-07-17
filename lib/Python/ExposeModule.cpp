@@ -238,6 +238,13 @@ void exposeModule(module &m, OpClass &cls) {
       }), "res"_a, "arrSz"_a, "align"_a, "loc"_a)
       .def("res", &LLVM::AllocaOp::res);
 
+  class_<LLVM::PtrToIntOp>(m, "LLVMPtrToIntOp", cls)
+      .def(init([](Type res, Value arg, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<LLVM::PtrToIntOp>(loc, res, arg);
+      }), "res"_a, "arg"_a, "loc"_a)
+      .def("res", &LLVM::PtrToIntOp::res);
+
   class_<LLVM::GEPOp>(m, "LLVMGEPOp", cls)
       .def(init([](Type res, Value base, ValueListRef indices,
                    Location loc) {

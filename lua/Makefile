@@ -1,14 +1,11 @@
 CFLAGS=-O2 -g
 FILE=perf.lua
 
-main: main.o impl.o start.o builtins.o
-	clang++ main.o impl.o start.o builtins.o -o main $(CFLAGS) -flto
+main: main.o impl.o builtins.o
+	clang++ main.o impl.o builtins.o -o main $(CFLAGS) -flto
 
 builtins.o: builtins.cpp lib.h
 	clang++ -c -std=c++17 builtins.cpp -o builtins.o $(CFLAGS)
-
-start.o: main.c lib.h
-	clang -c main.c -o start.o $(CFLAGS)
 
 impl.o: impl.cpp lib.h
 	clang++ -c -std=c++17 impl.cpp -o impl.o $(CFLAGS)

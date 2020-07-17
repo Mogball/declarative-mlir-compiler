@@ -1370,7 +1370,6 @@ def convertLuaBuiltin(op, b):
     return True
 
 malloc = None
-free = None
 realloc = None
 
 def convertLuacNewCapture(op, b):
@@ -1402,13 +1401,11 @@ def convertLuacGetCapture(op, b):
     return True
 
 def luaToLLVMFirstPass(module):
-    global malloc, free, realloc
+    global malloc, realloc
     malloc = FuncOp("malloc", FunctionType([IndexType()], [LLVMType.Int8Ptr()]))
-    free = FuncOp("free", FunctionType([LLVMType.Int8Ptr()]))
     realloc = FuncOp("realloc", FunctionType([LLVMType.Int8Ptr(), IndexType()],
                                              [LLVMType.Int8Ptr()]))
     module.append(malloc)
-    module.append(free)
     module.append(realloc)
     applyOptPatterns(module, [
         Pattern(lua.nil, convertLuaNil),
@@ -1590,32 +1587,6 @@ def convertLuacLoadFrom(op, b):
     b.replace(op, [v1])
     return True
 
-def convertLuacGetPack(packPtr):
-    def convert(op, b):
-        base = b.create(LLVMAddressOfOp, value=packPtr, loc=op.loc).res()
-        basePtr = b.create(LLVMBitcastOp, res=LLVMType.Int8Ptr().ptr_to(),
-                           arg=base, loc=op.loc).res()
-        ptr = b.create(LLVMLoadOp, res=LLVMType.Int8Ptr(), addr=basePtr,
-                       loc=op.loc).res()
-        # TObject is 12 bytes (16?)
-        objSize = b.create(ConstantOp, value=I32Attr(16), loc=op.loc).result()
-        memSz = b.create(MulIOp, ty=I32Type(), lhs=op.size(), rhs=objSize,
-                         loc=op.loc).result()
-        sz = b.create(IndexCastOp, source=memSz, type=IndexType(),
-                      loc=op.loc).result()
-        newPtr = b.create(CallOp, callee=realloc, operands=[ptr, sz],
-                          loc=op.loc).getResult(0)
-        b.create(LLVMStoreOp, value=newPtr, addr=basePtr, loc=op.loc)
-        undef = b.create(LLVMUndefOp, ty=luallvm.pack(), loc=op.loc).res()
-        objs = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=newPtr,
-                        loc=op.loc).res()
-        v0 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=undef,
-                      value=op.size(), pos=I64ArrayAttr([0]), loc=op.loc).res()
-        v1 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=v0,
-                      value=objs, pos=I64ArrayAttr([1]), loc=op.loc).res()
-        b.replace(op, [v1])
-    return convert
-
 def convertLuacPackInsert(op, b):
     objs = b.create(LLVMExtractValueOp, res=luallvm.ref(), container=op.pack(),
                     pos=I64ArrayAttr([1]), loc=op.loc).res()
@@ -1684,6 +1655,48 @@ def convertLuaLLVMLoadBuiltin(module):
         b.replace(op, [val])
     return convert
 
+def convertLuacGetPack(packPtr):
+    def convert(op, b):
+        base = b.create(LLVMAddressOfOp, value=packPtr, loc=op.loc).res()
+        basePtr = b.create(LLVMBitcastOp, res=LLVMType.Int8Ptr().ptr_to(),
+                           arg=base, loc=op.loc).res()
+        ptr = b.create(LLVMLoadOp, res=LLVMType.Int8Ptr(), addr=basePtr,
+                       loc=op.loc).res()
+        undef = b.create(LLVMUndefOp, ty=luallvm.pack(), loc=op.loc).res()
+        objs = b.create(LLVMBitcastOp, res=luallvm.ref(), arg=ptr,
+                        loc=op.loc).res()
+        v0 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=undef,
+                      value=op.size(), pos=I64ArrayAttr([0]), loc=op.loc).res()
+        v1 = b.create(LLVMInsertValueOp, res=luallvm.pack(), container=v0,
+                      value=objs, pos=I64ArrayAttr([1]), loc=op.loc).res()
+        b.replace(op, [v1])
+    return convert
+
+def prepMain(module, argPackPtr, retPackPtr):
+    b = Builder()
+    main = FuncOp("main", FunctionType([], [I32Type()]))
+    b.insertAtStart(main.getBody().addEntryBlock([]))
+    def giveMem(name, packPtr):
+        mem = LLVMGlobalOp(LLVMType.ArrayOf(luallvm.value(), 16), False,
+                           LLVMLinkage.Internal(), name, Attribute(),
+                           UnknownLoc())
+        module.append(mem)
+        base = b.create(LLVMAddressOfOp, value=mem, loc=main.loc).res()
+        zero = llvmI32Const(b, 0, main.loc)
+        ptr = b.create(LLVMGEPOp, res=luallvm.ref(), base=base,
+                       indices=[zero, zero], loc=main.loc).res()
+        memPtr = b.create(LLVMPtrToIntOp, res=LLVMType.Int64(), arg=ptr,
+                          loc=main.loc).res()
+        tgt = b.create(LLVMAddressOfOp, value=packPtr, loc=main.loc).res()
+        b.create(LLVMStoreOp, value=memPtr, addr=tgt, loc=main.loc)
+    giveMem("g_arg_pack_mem", argPackPtr)
+    giveMem("g_ret_pack_mem", retPackPtr)
+    luaMain = module.lookup("lua_main")
+    b.create(CallOp, callee=luaMain, operands=[], loc=main.loc)
+    ok = b.create(ConstantOp, value=I32Attr(0), loc=main.loc).result()
+    b.create(ReturnOp, operands=[ok], loc=main.loc)
+    module.append(main)
+
 def luaToLLVMSecondPass(module):
     argPackPtr = LLVMGlobalOp(LLVMType.Int64(), False, LLVMLinkage.Internal(),
                               "g_arg_pack_ptr", I64Attr(0), UnknownLoc())
@@ -1691,6 +1704,7 @@ def luaToLLVMSecondPass(module):
                               "g_ret_pack_ptr", I64Attr(0), UnknownLoc())
     module.append(argPackPtr)
     module.append(retPackPtr)
+    prepMain(module, argPackPtr, retPackPtr)
     addBuiltins(module, list(lua_builtins))
 
     applyOptPatterns(module, [

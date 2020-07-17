@@ -116,7 +116,9 @@ void exposeType(module &m, TypeClass &type) {
                   { return LLVM::LLVMType::getInt1Ty(llvmDialect); })
       .def_static("Int8", [llvmDialect]()
                   { return LLVM::LLVMType::getInt8Ty(llvmDialect); })
-      .def_static("ArrayOf", &LLVM::LLVMType::getArrayTy)
+      .def_static("ArrayOf", [](Type ty, unsigned sz) {
+        return LLVM::LLVMType::getArrayTy(ty.cast<LLVM::LLVMType>(), sz);
+      })
       .def_static("Int8Ptr", [llvmDialect]()
                   { return LLVM::LLVMType::getInt8PtrTy(llvmDialect); })
       .def_static("Int64", [llvmDialect]()
