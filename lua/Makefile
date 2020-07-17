@@ -1,4 +1,4 @@
-CFLAGS=-O1 -g
+CFLAGS=-O2 -g
 FILE=fannkuch.lua
 
 main: main.o impl.o builtins.o

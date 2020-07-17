@@ -11,7 +11,7 @@ local function fannkuch(n)
     if q1 ~= 1 then
       for i=2,n do q[i] = p[i] end		-- Work on a copy.
       local flips = 1
-      exit = false
+      local exit = false
       repeat
 	      local qq = q[q1]
 	      if qq == 1 then				-- ... until 1st element is 1.
@@ -33,8 +33,8 @@ local function fannkuch(n)
       p[2], p[1] = p[1], p[2]; sign = -1	-- Rotate 1<-2.
     else
       p[2], p[3] = p[3], p[2]; sign = 1		-- Rotate 1<-2 and 1<-2<-3.
-      i = 3
-      loop = true
+      local i = 3
+      local loop = true
       while i <= n and loop do
 	      local sx = s[i]
 	      if sx ~= 1 then
@@ -58,7 +58,7 @@ local function fannkuch(n)
   until false
 end
 
-local n = 5
+local n = 10
 local sum, flips = fannkuch(n)
 print(sum)
 print("Pfannkuchen(", n, ") = ", flips)

@@ -1,16 +1,19 @@
 #include "lib.h"
 #include <stdlib.h>
+#include <stdio.h>
 
-uint64_t g_ptr;
-
-TPack get_arg_pack(int32_t sz) {
-  g_ptr = realloc(g_ptr, sz);
-
-  TPack ret;
-  ret.size = sz;
-  ret.objs = g_ptr;
-  return ret;
-}
-void release(void) {
-  free((void *)g_ptr);
+int main() {
+  int a = 10;
+  for (int i = 10; i < 100; ++i) {
+    a = a * 2 + a;
+    int g = a;
+    int q;
+    if (i == 55 && g > 22) {
+      q = 44;
+    } else {
+      q = a + 44;
+    }
+    a += q;
+  }
+  printf("%d\n", a);
 }

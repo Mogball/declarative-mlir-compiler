@@ -27,8 +27,6 @@ lua, luaopt, luac, luallvm = get_dialects()
 # Generic Helpers
 ################################################################################
 
-_test = True
-
 def neverWrittenTo(val):
     return all(val not in getWriteEffectingValues(use)
                for use in val.getOpUses())
@@ -1272,8 +1270,19 @@ def allocaTyped(b, tyAttr, loc):
     b.create(luallvm.set_type_direct, ref=ref, type=ty, loc=loc)
     return ref
 
+def unpackTyAndU(b, ref, loc):
+    return (b.create(luallvm.get_type_direct, ref=ref, loc=loc).type(),
+            b.create(luallvm.get_u_direct, ref=ref, loc=loc).u())
+
+def packTyAndU(b, ty, u, loc):
+    undef = b.create(LLVMUndefOp, ty=luallvm.value(), loc=loc).res()
+    val = b.create(LLVMInsertValueOp, res=luallvm.value(), container=undef,
+                   value=ty, pos=I64ArrayAttr([0]), loc=loc).res()
+    return b.create(LLVMInsertValueOp, res=luallvm.value(), container=val,
+                    value=u, pos=I64ArrayAttr([1]), loc=loc).res()
+
 def loadRef(b, ref, loc):
-    return b.create(LLVMLoadOp, res=luallvm.value(), addr=ref, loc=loc).res()
+    return packTyAndU(b, *unpackTyAndU(b, ref, loc), loc)
 
 def convertLuaNil(op, b):
     ref = allocaTyped(b, luac.type_nil(), op.loc)
@@ -1317,8 +1326,10 @@ def convertLuacWrapReal(op, b):
     return True
 
 def convertLuaCopy(op, b):
-    val = loadRef(b, op.val(), op.loc)
-    b.create(LLVMStoreOp, value=val, addr=op.tgt(), loc=op.loc)
+    ty = b.create(luallvm.get_type_direct, ref=op.val(), loc=op.loc).type()
+    u = b.create(luallvm.get_u_direct, ref=op.val(), loc=op.loc).u()
+    b.create(luallvm.set_type_direct, ref=op.tgt(), type=ty, loc=op.loc)
+    b.create(luallvm.set_u_direct, ref=op.tgt(), u=u, loc=op.loc)
     b.erase(op)
     return True
 
@@ -1602,14 +1613,9 @@ def convertLuacIntoAlloca(op, b):
     return True
 
 def convertLuacLoadFrom(op, b):
-    ty = b.create(luallvm.get_type_direct, ref=op.val(), loc=op.loc).type()
-    u = b.create(luallvm.get_u_direct, ref=op.val(), loc=op.loc).u()
-    undef = b.create(LLVMUndefOp, ty=luallvm.value(), loc=op.loc).res()
-    v0 = b.create(LLVMInsertValueOp, res=luallvm.value(), container=undef,
-                  value=ty, pos=I64ArrayAttr([0]), loc=op.loc).res()
-    v1 = b.create(LLVMInsertValueOp, res=luallvm.value(), container=v0,
-                  value=u, pos=I64ArrayAttr([1]), loc=op.loc).res()
-    b.replace(op, [v1])
+    ty, u = unpackTyAndU(b, op.val(), op.loc)
+    val = packTyAndU(b, ty, u, op.loc)
+    b.replace(op, [val])
     return True
 
 def convertLuacPackInsert(op, b):
@@ -1883,36 +1889,6 @@ def main():
     luaToLLVMThirdPass(module)
     print(module)
     verify(module)
-
-    if not _test:
-        verify(module)
-
-        os.system("clang -S -emit-llvm lib.c -o lib.ll -O1")
-        os.system("mlir-translate -import-llvm lib.ll -o libc.mlir")
-
-        libc = parseSourceFile("libc.mlir")
-        for glob in libc.getOps(LLVMGlobalOp):
-            module.append(glob.clone())
-        for func in libc.getOps(LLVMFuncOp):
-            module.append(func.clone())
-        luaToLLVM(module)
-        verify(module)
-
-        with open("main.mlir", "w") as f:
-            stdout = sys.stdout
-            sys.stdout = f
-            print(module)
-            sys.stdout = stdout
-
-        os.system("clang++ -c builtins.cpp -o builtins.o -O2 -std=c++17")
-        os.system("clang++ -c impl.cpp -o impl.o -O2 -std=c++17")
-        os.system("clang -c rx-cpp/src/lua-str.c -o str.o -O2")
-        os.system("clang -c main.c -o main_impl.o -O2")
-
-        os.system("mlir-translate -mlir-to-llvmir main.mlir -o main.ll")
-        os.system("clang -S -emit-llvm main.ll -o mainopt.ll -Ofast")
-        os.system("clang -c mainopt.ll -o main.o -Ofast")
-        os.system("clang++ main.o main_impl.o builtins.o impl.o str.o -o main")
 
 if __name__ == '__main__':
     main()

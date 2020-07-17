@@ -106,14 +106,14 @@ Dialect @lua {
     traits [@NoSideEffects, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
     config { fmt = "$region attr-dict" }
   Op @until() -> () (eval: Sized<1>)
-    traits [@IsTerminator, @LoopLike<"region", "licmDefinedOutside", "licmCanHoist">]
+    traits [@IsTerminator]
     config { fmt = "$eval attr-dict" }
   Op @end() -> ()
     traits [@IsTerminator]
     config { fmt = "attr-dict" }
   Op @ret(vals: !dmc.Variadic<!lua.value>,
           tail: !dmc.Variadic<!lua.value_pack>) -> ()
-    traits [@IsTerminator, @SizedOperandSegments]
+    traits [@IsTerminator, @SizedOperandSegments, @MemoryWrite]
     config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
   Op @cond(cond: !lua.value) -> ()
     traits [@IsTerminator]
