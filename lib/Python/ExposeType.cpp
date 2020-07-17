@@ -123,6 +123,8 @@ void exposeType(module &m, TypeClass &type) {
                   { return LLVM::LLVMType::getInt64Ty(llvmDialect); })
       .def_static("Int32", [llvmDialect]()
                   { return LLVM::LLVMType::getInt32Ty(llvmDialect); })
+      .def_static("Int16", [llvmDialect]()
+                  { return LLVM::LLVMType::getInt16Ty(llvmDialect); })
       .def_static("Double", [llvmDialect]()
                   { return LLVM::LLVMType::getDoubleTy(llvmDialect); })
       .def_static("Struct", [llvmDialect](std::vector<Type> tys) {
