@@ -1,0 +1,15 @@
+clang flags: -Ofast -flto
+
+binarytree N = 18
+luajit -jon  -O3: 9.0 sec
+luajit -joff -O3: 12.8 sec
+luac -Oall:  7.7 sec
+luac -Onone: 9.3 sec
+lua: 45.1 sec
+
+fannkuch N = 12
+luajit -jon  -O3: 42.4 sec
+luajit -joff -O3: 184.0 sec
+luac -Oall:  22.3 sec
+luac -Onone: 166.0 sec
+lua: 459.4 sec
