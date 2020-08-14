@@ -30,7 +30,9 @@ cmake --build $BINDIR --target gen
 
 ## Using DMC
 
-Let's define a dead simple dialect.
+Let's define a dead simple dialect. Make sure the shared library is built with
+`cmake --build $BINDIR -t mlir`, and that `$BINDIR/lib/Python` is added to your
+`PYTHONPATH`.
 
 ```mlir
 // toy.mlir
