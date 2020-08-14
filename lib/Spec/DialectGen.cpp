@@ -31,6 +31,8 @@ LogicalResult registerOp(OperationOp opOp, DynamicDialect *dialect) {
       ->getRegisteredDialect<TraitRegistry>();
   for (auto trait : opOp.getOpTraits().getValue()) {
     auto ctor = registry->lookupTrait(trait.getName());
+    if (!ctor)
+      continue;
     if (failed(ctor.verify(opOp.getLoc(), trait.getParameters())))
       return failure();
     if (failed(op->addOpTrait(trait.getName(),

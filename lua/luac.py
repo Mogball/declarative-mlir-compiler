@@ -11,11 +11,13 @@ from LuaParser import LuaParser
 
 import sys
 
+cwd = os.path.dirname(os.path.realpath(__file__))
+
 ################################################################################
 # Initialization
 ################################################################################
 
-def get_dialects(filename='lua.mlir'):
+def get_dialects(filename=cwd + '/lua.mlir'):
     m = parseSourceFile(filename)
     assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
@@ -769,7 +771,7 @@ def varAllocPass(module, main:FuncOp):
     applyOptPatterns(main, [Pattern(lua.assign, elideAssign)])
     applyOptPatterns(main, [Pattern(lua.number, constNumber)])
     #applyLICM(module)
-    applyCSE(module, licmCanHoist)
+    #applyCSE(module, licmCanHoist)
 
 ################################################################################
 # IR: Dialect Conversion to SCF
@@ -1047,7 +1049,7 @@ def applyOpts(module):
         Pattern(lua.table_get, tableGetPrealloc),
         Pattern(lua.table_set, tableSetPrealloc),
     ])
-    applyCSE(module, licmCanHoist)
+    #applyCSE(module, licmCanHoist)
 
 ################################################################################
 # IR: Dialect Conversion to StandardOps and LuaC Dialect
@@ -1878,7 +1880,7 @@ def main():
     cfExpand(module, main)
     applyOpts(module)
 
-    lib = parseSourceFile("lib.mlir")
+    lib = parseSourceFile(cwd + "/lib.mlir")
     for func in lib.getOps(FuncOp):
             module.append(func.clone())
 

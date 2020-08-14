@@ -71,8 +71,8 @@ LogicalResult OpTraitAttr::verifyConstructionInvariants(
   /// Check that the op trait exists.
   auto *registry = loc.getContext()->getRegisteredDialect<TraitRegistry>();
   assert(registry && "TraitRegistry dialect was not registered");
-  if (!registry->lookupTrait(nameAttr.getValue()))
-    return emitError(loc) << "op trait " << nameAttr << " not found";
+  //if (!registry->lookupTrait(nameAttr.getValue()))
+  //  return emitError(loc) << "op trait " << nameAttr << " not found";
   return success();
 }
 
