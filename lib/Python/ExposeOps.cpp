@@ -343,6 +343,13 @@ void exposeOps(module &m) {
       .def("append", &Block::push_back)
       .def("erase", &Block::erase)
       .def("insertBefore", &Block::insertBefore)
+      .def_property_readonly("args", [](Block &block) {
+        std::vector<Value> args;
+        args.reserve(block.getNumArguments());
+        for (auto v : block.getArguments())
+          args.push_back(v);
+        return args;
+      })
       .def("__iter__", [](Block &block) {
         return make_iterator(block.begin(), block.end());
       }, keep_alive<0, 1>());
