@@ -5,9 +5,11 @@ import numpy
 stencil = None
 
 class StencilProgramVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.kinds = set()
 
     def generic_visit(self, node):
-        print(node.__class__.__name__)
+        self.kinds.add(node.__class__.__name__)
         return ast.NodeVisitor.generic_visit(self, node)
 
     def visit_Module(self, node):
@@ -28,5 +30,6 @@ def laplace(a:numpy.ndarray, b:numpy.ndarray):
   stencil.store(b, btmp, [0, 0, 0], [64, 64, 64])
 
 node = ast.parse(inspect.getsource(laplace))
-StencilProgramVisitor().visit(node)
-astpretty.pprint(node)
+visitor = StencilProgramVisitor()
+visitor.visit(node)
+print(visitor.kinds)
