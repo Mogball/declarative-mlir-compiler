@@ -285,24 +285,24 @@ Dialect @luac {
 
 Dialect @luallvm {
   /// TODO auto-generated builders would be nice
-  Alias @value    -> !llvm<"{ i32, i64 }">  { builder = "LLVMType.Struct([LLVMType.Int32(), LLVMType.Int64()])" }
-  Alias @ref      -> !llvm<"{ i32, i64 }*"> { builder = "LLVMType.Struct([LLVMType.Int32(), LLVMType.Int64()]).ptr_to()" }
-  Alias @type     -> !llvm.i32              { builder = "LLVMType.Int32()" }
-  Alias @u        -> !llvm.i64              { builder = "LLVMType.Int64()" }
-  Alias @impl     -> !llvm<"i8*">           { builder = "LLVMType.Int8Ptr()" }
+  Alias @value    -> !llvm.struct<(i32, i64)> { builder = "LLVMType.Struct([LLVMType.Int32(), LLVMType.Int64()])" }
+  Alias @ref      -> !llvm.ptr<struct<(i32, i64)>> { builder = "LLVMType.Struct([LLVMType.Int32(), LLVMType.Int64()]).ptr_to()" }
+  Alias @type     -> !llvm.i32 { builder = "LLVMType.Int32()" }
+  Alias @u        -> !llvm.i64 { builder = "LLVMType.Int64()" }
+  Alias @impl     -> !llvm.ptr<i8> { builder = "LLVMType.Int8Ptr()" }
 
   Alias @noflag    -> 7 : i32
   Alias @type_int  -> 10 : i32
   Alias @flag      -> 8 : i32
 
-  Alias @pack     -> !llvm<"{ i32, { i32, i64 }* }">  { builder = "LLVMType.Struct([LLVMType.Int32(), luallvm.ref()])" }
-  Alias @capture  -> !llvm<"{ i32, i64 }**">          { builder = "luallvm.ref().ptr_to()" }
-  Alias @fcn      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*">  { builder = "LLVMType.Func(luallvm.pack(), [luallvm.capture(), luallvm.pack()])" }
-  Alias @closure  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*, { i32, i64 }** }">  { builder = "LLVMType.Struct([luallvm.fcn(), luallvm.capture()])" }
+  Alias @pack     -> !llvm.struct<(i32, ptr<struct<(i32, i64)>>)> { builder = "LLVMType.Struct([LLVMType.Int32(), luallvm.ref()])" }
+  Alias @capture  -> !llvm.ptr<ptr<struct<(i32, i64)>>> { builder = "luallvm.ref().ptr_to()" }
+  Alias @fcn      -> !llvm.ptr<func<struct<(i32, ptr<struct<(i32, i64)>>)> (ptr<ptr<struct<(i32, i64)>>>, struct<(i32, ptr<struct<(i32, i64)>>)>)>> { builder = "LLVMType.Func(luallvm.pack(), [luallvm.capture(), luallvm.pack()])" }
+  Alias @closure  -> !llvm.struct<(func<struct<(i32, ptr<struct<(i32, i64)>>)> (ptr<ptr<struct<(i32, i64)>>>, struct<(i32, ptr<struct<(i32, i64)>>)>)>, ptr<ptr<struct<(i32, i64)>>>)> { builder = "LLVMType.Struct([luallvm.fcn(), luallvm.capture()])" }
 
-  Alias @closure_ptr  -> !llvm<"{ { i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })*, { i32, i64 }** }*">
-  Alias @capture_ptr  -> !llvm<"{ i32, i64 }***">
-  Alias @fcn_ptr      -> !llvm<"{ i32, { i32, i64 }* } ({ i32, i64 }**, { i32, { i32, i64 }* })**">
+  Alias @capture_ptr  -> !llvm.ptr<ptr<ptr<struct<(i32, i64)>>>>
+  Alias @fcn_ptr      -> !llvm.ptr<ptr<func<struct<(i32, ptr<struct<(i32, i64)>>)> (ptr<ptr<struct<(i32, i64)>>>, struct<(i32, ptr<struct<(i32, i64)>>)>)>>>
+  Alias @closure_ptr  -> !llvm.ptr<struct<(func<struct<(i32, ptr<struct<(i32, i64)>>)> (ptr<ptr<struct<(i32, i64)>>>, struct<(i32, ptr<struct<(i32, i64)>>)>)>, ptr<ptr<struct<(i32, i64)>>>)>>
 
   Op @alloca_value() -> (ref: !luallvm.ref)
     traits [@Alloc<"ref">] config { fmt = "attr-dict" }
@@ -326,9 +326,9 @@ Dialect @luallvm {
 
   Op @new_table_impl() -> (impl: !luallvm.impl)
     traits [@Alloc<"impl">] config { fmt = "attr-dict" }
-  Op @get_string_data() -> (data: !llvm<"i8*">, length: !llvm.i64) { sym = #dmc.String }
+  Op @get_string_data() -> (data: !llvm.ptr<i8>, length: !llvm.i64) { sym = #dmc.String }
     traits [@NoSideEffects] config { fmt = "symbol($sym) attr-dict" }
-  Op @load_string_impl(data: !llvm<"i8*">, length: !llvm.i64) -> (impl: !luallvm.impl)
+  Op @load_string_impl(data: !llvm.ptr<i8>, length: !llvm.i64) -> (impl: !luallvm.impl)
     traits [@Alloc<"impl">] config { fmt = "`(` operands `)` `:` type(operands) attr-dict" }
   Op @make_fcn_impl(addr: !luallvm.fcn,
                     capture: !luallvm.capture) -> (impl: !luallvm.impl)
@@ -344,9 +344,9 @@ Dialect @luallvm {
   Op @table_set_prealloc_impl(impl: !luallvm.impl, iv: i64, val: !luallvm.value) -> ()
     traits [@WriteTo<"impl">] config { fmt = "$impl `[` $iv `]` `=` $val attr-dict" }
 
-  Alias @type_ptr -> !llvm<"i32*">          { builder = "LLVMType.Int32().ptr_to()" }
-  Alias @u_ptr    -> !llvm<"i64*">          { builder = "LLVMType.Int64().ptr_to()" }
-  Alias @impl_ptr -> !llvm<"i8**">          { builder = "LLVMType.Int8Ptr().ptr_to()" }
+  Alias @type_ptr -> !llvm.ptr<i32> { builder = "LLVMType.Int32().ptr_to()" }
+  Alias @u_ptr    -> !llvm.ptr<i64> { builder = "LLVMType.Int64().ptr_to()" }
+  Alias @impl_ptr -> !llvm.ptr<ptr<i8>> { builder = "LLVMType.Int8Ptr().ptr_to()" }
 
   Op @get_type_ptr(ref: !luallvm.ref) -> (type_ptr: !luallvm.type_ptr)
     traits [@ReadFrom<"ref">] config { fmt = "$ref attr-dict" }

@@ -114,6 +114,7 @@ DynamicType DynamicType::get(DynamicTypeImpl *impl,
                              ArrayRef<Attribute> params) {
   auto *ctx = impl->getDynContext()->getContext();
   return ctx->getTypeUniquer().get<Base::ImplType>(
+      impl->getTypeID(),
       [impl, ctx](TypeStorage *storage) {
         storage->initialize(AbstractType::lookup(impl->getTypeID(), ctx));
       },

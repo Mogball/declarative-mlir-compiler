@@ -2,7 +2,7 @@
 #set(MLIR_TRANSLATE_EXE $<TARGET_FILE:mlir-translate>)
 #set(CLANG_EXE $<TARGET_FILE:clang>)
 
-find_program(ANTLR NAMES antlr ntlr4 REQUIRED)
+find_program(ANTLR NAMES antlr antlr4 REQUIRED)
 add_custom_command(
   OUTPUT parser/Lua.interp
          parser/Lua.tokens

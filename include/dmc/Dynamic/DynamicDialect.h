@@ -19,8 +19,8 @@ class AttributeMetadata;
 
 /// Dynamic dialect underlying class. This class hooks Dialect methods
 /// into user-specified functions.
-class DynamicDialect : public mlir::Dialect,
-                       public DynamicObject {
+class DynamicDialect : public DynamicObject,
+                       public mlir::Dialect {
 public:
   ~DynamicDialect();
   DynamicDialect(llvm::StringRef name, DynamicContext *ctx);

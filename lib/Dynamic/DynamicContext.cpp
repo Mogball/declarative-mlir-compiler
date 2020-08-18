@@ -33,7 +33,7 @@ class DynamicContext::Impl {
 DynamicContext::~DynamicContext() = default;
 
 DynamicContext::DynamicContext(MLIRContext *ctx)
-    : Dialect{getDialectNamespace(), ctx},
+    : Dialect{getDialectNamespace(), ctx, TypeID::get<DynamicContext>()},
       typeIdAlloc{getFixedTypeIDAllocator()},
       impl{std::make_unique<Impl>()} {
   // Automatically initialize the interpreter
@@ -41,7 +41,15 @@ DynamicContext::DynamicContext(MLIRContext *ctx)
 }
 
 DynamicDialect *DynamicContext::createDynamicDialect(StringRef name) {
-  return new DynamicDialect{name, this};
+  auto *dialect = new DynamicDialect{name, this};
+  auto typeId = dynamic_cast<DynamicObject *>(dialect)->getTypeID();
+  auto ctor = [dialect, typeId]() {
+    std::unique_ptr<DynamicDialect> ptr{dialect};
+    ptr->dialectID = typeId;
+    return ptr;
+  };
+  getContext()->getOrCreateDialect(name, typeId, ctor);
+  return dialect;
 }
 
 DynamicDialect *DynamicContext::lookupDialectFor(Type type) {

@@ -7,3 +7,6 @@
 [submodule "lua/rx-cpp"]
 	path = lua/rx-cpp
 	url = https://github.com/stevedonovan/rx-cpp
+[submodule "oec/open-earth-compiler"]
+	path = oec/open-earth-compiler
+	url = https://github.com/spcl/open-earth-compiler.git

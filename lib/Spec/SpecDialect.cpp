@@ -15,7 +15,7 @@ namespace dmc {
 
 /// SpecDialect.
 SpecDialect::SpecDialect(MLIRContext *ctx)
-    : Dialect{getDialectNamespace(), ctx} {
+    : Dialect{getDialectNamespace(), ctx, TypeID::get<SpecDialect>()} {
   addOperations<
       DialectOp, DialectTerminatorOp, OperationOp, TypeOp, AttributeOp,
       AliasOp

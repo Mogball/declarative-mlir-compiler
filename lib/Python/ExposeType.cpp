@@ -110,30 +110,29 @@ void exposeType(module &m, TypeClass &type) {
         return ty.getParam(name);
       });
 
-  auto *llvmDialect = getMLIRContext()->getRegisteredDialect<LLVM::LLVMDialect>();
   class_<LLVM::LLVMType>(m, "LLVMType", type)
-      .def_static("Int1", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt1Ty(llvmDialect); })
-      .def_static("Int8", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt8Ty(llvmDialect); })
+      .def_static("Int1", []()
+                  { return LLVM::LLVMType::getInt1Ty(getMLIRContext()); })
+      .def_static("Int8", []()
+                  { return LLVM::LLVMType::getInt8Ty(getMLIRContext()); })
       .def_static("ArrayOf", [](Type ty, unsigned sz) {
         return LLVM::LLVMType::getArrayTy(ty.cast<LLVM::LLVMType>(), sz);
       })
-      .def_static("Int8Ptr", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt8PtrTy(llvmDialect); })
-      .def_static("Int64", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt64Ty(llvmDialect); })
-      .def_static("Int32", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt32Ty(llvmDialect); })
-      .def_static("Int16", [llvmDialect]()
-                  { return LLVM::LLVMType::getInt16Ty(llvmDialect); })
-      .def_static("Double", [llvmDialect]()
-                  { return LLVM::LLVMType::getDoubleTy(llvmDialect); })
-      .def_static("Struct", [llvmDialect](std::vector<Type> tys) {
+      .def_static("Int8Ptr", []()
+                  { return LLVM::LLVMType::getInt8PtrTy(getMLIRContext()); })
+      .def_static("Int64", []()
+                  { return LLVM::LLVMType::getInt64Ty(getMLIRContext()); })
+      .def_static("Int32", []()
+                  { return LLVM::LLVMType::getInt32Ty(getMLIRContext()); })
+      .def_static("Int16", []()
+                  { return LLVM::LLVMType::getInt16Ty(getMLIRContext()); })
+      .def_static("Double", []()
+                  { return LLVM::LLVMType::getDoubleTy(getMLIRContext()); })
+      .def_static("Struct", [](std::vector<Type> tys) {
         std::vector<LLVM::LLVMType> llvmTys;
         llvm::transform(tys, std::back_inserter(llvmTys),
                         [](Type ty) { return ty.cast<LLVM::LLVMType>(); });
-        return LLVM::LLVMType::getStructTy(llvmDialect, llvmTys);
+        return LLVM::LLVMType::getStructTy(getMLIRContext(), llvmTys);
       })
       .def_static("Func", [](Type res, std::vector<Type> args) {
         std::vector<LLVM::LLVMType> llvmArgs;

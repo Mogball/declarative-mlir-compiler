@@ -34,8 +34,8 @@ class DynamicDialect::Impl {
 DynamicDialect::~DynamicDialect() = default;
 
 DynamicDialect::DynamicDialect(StringRef name, DynamicContext *ctx)
-    : Dialect{name, ctx->getContext()},
-      DynamicObject{ctx},
+    : DynamicObject{ctx},
+      Dialect(name, ctx->getContext(), DynamicObject::getTypeID()),
       impl{std::make_unique<Impl>()} {}
 
 LogicalResult

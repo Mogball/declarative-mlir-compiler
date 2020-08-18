@@ -76,8 +76,9 @@ namespace {
 static dmc::AttributeMetadata *tryFindAttributeData(Attribute attr) {
   auto *ctx = attr.getContext()->getRegisteredDialect<dmc::DynamicContext>();
   assert(ctx && "Dynamic context has not been instantiated");
-  if (auto *dialect = ctx->lookupDialectFor(attr))
+  if (auto *dialect = ctx->lookupDialectFor(attr)) {
     return dialect->lookupAttributeData(attr);
+  }
   return nullptr;
 }
 

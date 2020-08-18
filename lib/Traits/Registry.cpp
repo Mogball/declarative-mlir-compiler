@@ -57,7 +57,7 @@ void registerTraits(TraitRegistry *reg) {
 } // end anonymous namespace
 
 TraitRegistry::TraitRegistry(MLIRContext *ctx)
-    : Dialect{getDialectNamespace(), ctx} {
+    : Dialect{getDialectNamespace(), ctx, TypeID::get<TraitRegistry>()} {
   addAttributes<
       OpTraitAttr, OpTraitsAttr
     >();

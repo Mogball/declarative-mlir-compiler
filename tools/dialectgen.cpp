@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
   }
 
   MLIRContext ctx;
-  auto *dynCtx = new DynamicContext{&ctx}; // MLIRContext takes ownership
+  auto *dynCtx = ctx.getOrCreateDialect<DynamicContext>();
 
   SourceMgr dialectSrcMgr;
   SourceMgrDiagnosticHandler dialectDiag{dialectSrcMgr, &ctx};

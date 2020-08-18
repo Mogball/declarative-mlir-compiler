@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   }
 
   MLIRContext ctx;
-  auto *dynCtx = new DynamicContext{&ctx};
+  auto *dynCtx = ctx.getOrCreateDialect<DynamicContext>();
   SourceMgr srcMgr;
   SourceMgrDiagnosticHandler srcMgrDiagHandler{srcMgr, &ctx};
   auto mlirModule = mlir::parseSourceFile(argv[1], srcMgr, &ctx);

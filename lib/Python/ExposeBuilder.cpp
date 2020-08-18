@@ -157,8 +157,7 @@ struct LLVMLoweringPass : public OperationPass<ModuleOp> {
     }
 
     OwningRewritePatternList patterns;
-    populateStdToLLVMConversionPatterns(typeConverter, patterns,
-                                        LowerToLLVMOptions::getDefaultOptions());
+    populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
     for (auto &pattern : extraPatterns) {
       patterns.insert<PyPatternImpl>(pattern);

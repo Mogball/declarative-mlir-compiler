@@ -14,7 +14,7 @@ using namespace pybind11;
 PYBIND11_MODULE(mlir, m) {
   mlir::py::getModule(m);
   // ownership is given to MLIRContext
-  auto *ctx = new DynamicContext{mlir::py::getMLIRContext()};
+  auto *ctx = mlir::py::getMLIRContext()->getOrCreateDialect<DynamicContext>();
 
   m.def("registerDynamicDialects", [ctx](ModuleOp module) {
     list ret;

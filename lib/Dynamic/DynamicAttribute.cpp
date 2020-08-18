@@ -104,6 +104,7 @@ DynamicAttribute DynamicAttribute::get(DynamicAttributeImpl *impl,
                                        ArrayRef<Attribute> params) {
   auto *ctx = impl->getDynContext()->getContext();
   return ctx->getAttributeUniquer().get<Base::ImplType>(
+      impl->getTypeID(),
       [impl, ctx](AttributeStorage *storage) {
         storage->initialize(AbstractAttribute::lookup(impl->getTypeID(), ctx));
       },
