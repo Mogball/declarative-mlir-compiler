@@ -40,10 +40,10 @@ class StencilProgramVisitor(ast.NodeVisitor):
     def visit_Load(self, node):
         return ast.NodeVisitor.generic_visit(self, node)
 
-    def visit_Attribute(self, node):
+    def visit_Store(self, node):
         return ast.NodeVisitor.generic_visit(self, node)
 
-    def visit_Store(self, node):
+    def visit_Attribute(self, node):
         return ast.NodeVisitor.generic_visit(self, node)
 
     def visit_Subscript(self, node):

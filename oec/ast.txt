@@ -1,0 +1,290 @@
+Module(
+    body=[
+        FunctionDef(
+            name='laplace',
+            args=arguments(
+                posonlyargs=[],
+                args=[
+                    arg(
+                        arg='a',
+                        annotation=Attribute(
+                            value=Name(id='numpy', ctx=Load()),
+                            attr='ndarray',
+                            ctx=Load(),
+                        ),
+                        type_comment=None,
+                    ),
+                    arg(
+                        arg='b',
+                        annotation=Attribute(
+                            value=Name(id='numpy', ctx=Load()),
+                            attr='ndarray',
+                            ctx=Load(),
+                        ),
+                        type_comment=None,
+                    ),
+                ],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            ),
+            body=[
+                Expr(
+                    value=Call(
+                        func=Attribute(
+                            value=Name(id='stencil', ctx=Load()),
+                            attr='cast',
+                            ctx=Load(),
+                        ),
+                        args=[
+                            Name(id='a', ctx=Load()),
+                            List(
+                                elts=[
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                ],
+                                ctx=Load(),
+                            ),
+                            List(
+                                elts=[
+                                    Constant(value=68, kind=None),
+                                    Constant(value=68, kind=None),
+                                    Constant(value=68, kind=None),
+                                ],
+                                ctx=Load(),
+                            ),
+                        ],
+                        keywords=[],
+                    ),
+                ),
+                Expr(
+                    value=Call(
+                        func=Attribute(
+                            value=Name(id='stencil', ctx=Load()),
+                            attr='cast',
+                            ctx=Load(),
+                        ),
+                        args=[
+                            Name(id='b', ctx=Load()),
+                            List(
+                                elts=[
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                    UnaryOp(
+                                        op=USub(),
+                                        operand=Constant(value=4, kind=None),
+                                    ),
+                                ],
+                                ctx=Load(),
+                            ),
+                            List(
+                                elts=[
+                                    Constant(value=68, kind=None),
+                                    Constant(value=68, kind=None),
+                                    Constant(value=68, kind=None),
+                                ],
+                                ctx=Load(),
+                            ),
+                        ],
+                        keywords=[],
+                    ),
+                ),
+                Assign(
+                    targets=[Name(id='atmp', ctx=Store())],
+                    value=Call(
+                        func=Attribute(
+                            value=Name(id='stencil', ctx=Load()),
+                            attr='load',
+                            ctx=Load(),
+                        ),
+                        args=[Name(id='a', ctx=Load())],
+                        keywords=[],
+                    ),
+                    type_comment=None,
+                ),
+                FunctionDef(
+                    name='applyFcn',
+                    args=arguments(
+                        posonlyargs=[],
+                        args=[arg(arg='c', annotation=None, type_comment=None)],
+                        vararg=None,
+                        kwonlyargs=[],
+                        kw_defaults=[],
+                        kwarg=None,
+                        defaults=[],
+                    ),
+                    body=[
+                        Return(
+                            value=BinOp(
+                                left=BinOp(
+                                    left=BinOp(
+                                        left=BinOp(
+                                            left=BinOp(
+                                                left=UnaryOp(
+                                                    op=USub(),
+                                                    operand=Constant(value=4, kind=None),
+                                                ),
+                                                op=Mult(),
+                                                right=Subscript(
+                                                    value=Name(id='c', ctx=Load()),
+                                                    slice=Index(
+                                                        value=Tuple(
+                                                            elts=[
+                                                                Constant(value=0, kind=None),
+                                                                Constant(value=0, kind=None),
+                                                                Constant(value=0, kind=None),
+                                                            ],
+                                                            ctx=Load(),
+                                                        ),
+                                                    ),
+                                                    ctx=Load(),
+                                                ),
+                                            ),
+                                            op=Add(),
+                                            right=Subscript(
+                                                value=Name(id='c', ctx=Load()),
+                                                slice=Index(
+                                                    value=Tuple(
+                                                        elts=[
+                                                            UnaryOp(
+                                                                op=USub(),
+                                                                operand=Constant(value=1, kind=None),
+                                                            ),
+                                                            Constant(value=0, kind=None),
+                                                            Constant(value=0, kind=None),
+                                                        ],
+                                                        ctx=Load(),
+                                                    ),
+                                                ),
+                                                ctx=Load(),
+                                            ),
+                                        ),
+                                        op=Add(),
+                                        right=Subscript(
+                                            value=Name(id='c', ctx=Load()),
+                                            slice=Index(
+                                                value=Tuple(
+                                                    elts=[
+                                                        Constant(value=1, kind=None),
+                                                        Constant(value=0, kind=None),
+                                                        Constant(value=0, kind=None),
+                                                    ],
+                                                    ctx=Load(),
+                                                ),
+                                            ),
+                                            ctx=Load(),
+                                        ),
+                                    ),
+                                    op=Add(),
+                                    right=Subscript(
+                                        value=Name(id='c', ctx=Load()),
+                                        slice=Index(
+                                            value=Tuple(
+                                                elts=[
+                                                    Constant(value=0, kind=None),
+                                                    Constant(value=1, kind=None),
+                                                    Constant(value=0, kind=None),
+                                                ],
+                                                ctx=Load(),
+                                            ),
+                                        ),
+                                        ctx=Load(),
+                                    ),
+                                ),
+                                op=Add(),
+                                right=Subscript(
+                                    value=Name(id='c', ctx=Load()),
+                                    slice=Index(
+                                        value=Tuple(
+                                            elts=[
+                                                Constant(value=0, kind=None),
+                                                UnaryOp(
+                                                    op=USub(),
+                                                    operand=Constant(value=1, kind=None),
+                                                ),
+                                                Constant(value=0, kind=None),
+                                            ],
+                                            ctx=Load(),
+                                        ),
+                                    ),
+                                    ctx=Load(),
+                                ),
+                            ),
+                        ),
+                    ],
+                    decorator_list=[],
+                    returns=None,
+                    type_comment=None,
+                ),
+                Assign(
+                    targets=[Name(id='btmp', ctx=Store())],
+                    value=Call(
+                        func=Attribute(
+                            value=Name(id='stencil', ctx=Load()),
+                            attr='apply',
+                            ctx=Load(),
+                        ),
+                        args=[
+                            Name(id='atmp', ctx=Load()),
+                            Name(id='applyFcn', ctx=Load()),
+                        ],
+                        keywords=[],
+                    ),
+                    type_comment=None,
+                ),
+                Expr(
+                    value=Call(
+                        func=Attribute(
+                            value=Name(id='stencil', ctx=Load()),
+                            attr='store',
+                            ctx=Load(),
+                        ),
+                        args=[
+                            Name(id='b', ctx=Load()),
+                            Name(id='btmp', ctx=Load()),
+                            List(
+                                elts=[
+                                    Constant(value=0, kind=None),
+                                    Constant(value=0, kind=None),
+                                    Constant(value=0, kind=None),
+                                ],
+                                ctx=Load(),
+                            ),
+                            List(
+                                elts=[
+                                    Constant(value=64, kind=None),
+                                    Constant(value=64, kind=None),
+                                    Constant(value=64, kind=None),
+                                ],
+                                ctx=Load(),
+                            ),
+                        ],
+                        keywords=[],
+                    ),
+                ),
+            ],
+            decorator_list=[],
+            returns=None,
+            type_comment=None,
+        ),
+    ],
+    type_ignores=[],
+)
