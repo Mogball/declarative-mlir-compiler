@@ -266,6 +266,8 @@ void exposeBuilder(module &m) {
     return getBuilder().getStrArrayAttr(refs);
   });
 
+  class_<OpBuilder::InsertPoint>(m, "InsertPoint");
+
   class_<PatternRewriter, std::unique_ptr<PatternRewriter, nodelete>>(m, "Builder")
       .def(init([]() { return &builderInstance; }), return_value_policy::reference)
       .def("insertBefore",
@@ -282,7 +284,9 @@ void exposeBuilder(module &m) {
         builder.replaceOp(op, newValues);
       })
       .def("erase", &PatternRewriter::eraseOp)
-      .def("erase", &PatternRewriter::eraseBlock);
+      .def("erase", &PatternRewriter::eraseBlock)
+      .def("saveIp", &PatternRewriter::saveInsertionPoint)
+      .def("restoreIp", &PatternRewriter::restoreInsertionPoint);
 
   m.def("verify", [](Operation *op) {
     return succeeded(mlir::verify(op));

@@ -11,13 +11,13 @@ Dialect @py {
     config { fmt = "symbol($name) $sig $body attr-dict" }
 
   Op @call(func: !py.obj,
-           args: !dmc.Variadic<!py.obj>) -> (rets: !dmc.Variadic<!py.obj>)
-    traits [@NoSideEffects, @SameVariadicOperandSizes, @SameVariadicResultSizes]
+           args: !dmc.Variadic<!py.obj>) -> (rets: !py.obj)
+    traits [@NoSideEffects, @SameVariadicOperandSizes]
     config { fmt = "$func`(`$args`)` `:` functional-type($args, $rets) attr-dict" }
 
   Op @ret(args: !dmc.Variadic<!py.obj>) -> ()
-    traits [@MemoryWrite, @SameVariadicOperandSizes]
-    config { fmt = "`(`$args`)` `:` type($args) attr-dict" }
+    traits [@IsTerminator, @SameVariadicOperandSizes]
+    config { fmt = "($args^ `:` type($args))? attr-dict" }
 
 
 
@@ -43,9 +43,9 @@ Dialect @py {
     traits [@NoSideEffects]
     config { fmt = "$arg`[`$name`]` attr-dict" }
 
-  Op @subscript(arg: !py.obj, slice: !py.obj) -> (res: !py.obj)
+  Op @subscript(arg: !py.obj, idx: !py.obj) -> (res: !py.obj)
     traits [@NoSideEffects]
-    config { fmt = "$arg`[`$slice`]` attr-dict" }
+    config { fmt = "$arg`[`$idx`]` attr-dict" }
 
   Op @index(arg: !py.obj) -> (res: !py.obj)
     traits [@NoSideEffects]
@@ -56,13 +56,13 @@ Dialect @py {
     traits [@NoSideEffects]
     config { fmt = "$value attr-dict" }
 
-  Op @tuple(args: !dmc.Variadic<!py.obj>) -> (res: !py.obj)
+  Op @make_tuple(elts: !dmc.Variadic<!py.obj>) -> (res: !py.obj)
     traits [@NoSideEffects, @SameVariadicOperandSizes]
-    config { fmt = "`(`$args`)` `:` type($args) attr-dict" }
+    config { fmt = "`(`$elts`)` `:` type($elts) attr-dict" }
 
-  Op @list(args: !dmc.Variadic<!py.obj>) -> (res: !py.obj)
+  Op @make_list(elts: !dmc.Variadic<!py.obj>) -> (res: !py.obj)
     traits [@NoSideEffects, @SameVariadicOperandSizes]
-    config { fmt = "`[`$args`]` `:` type($args) attr-dict" }
+    config { fmt = "`[`$elts`]` `:` type($elts) attr-dict" }
 
 
 
