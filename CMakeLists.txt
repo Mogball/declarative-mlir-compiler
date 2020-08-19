@@ -18,7 +18,7 @@ set(MLIR_DIR ${LLVM_PROJECT_DIR}/mlir)
 set(LLVM_BINARY_DIR ${CMAKE_BINARY_DIR}/${LLVM_DIR})
 set(MLIR_BINARY_DIR ${LLVM_BINARY_DIR}/tools/mlir)
 # Add LLVM and MLIR targets
-set(LLVM_TARGETS_TO_BUILD "X86" CACHE INTERNAL "")
+set(LLVM_TARGETS_TO_BUILD "host;NVPTX" CACHE INTERNAL "")
 set(LLVM_ENABLE_PROJECTS "mlir;clang" CACHE INTERNAL "")
 add_subdirectory(${LLVM_DIR})
 # Configure mlir-tblgen from built target
@@ -54,3 +54,4 @@ add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(tools)
 add_subdirectory(lua)
+add_subdirectory(oec)
