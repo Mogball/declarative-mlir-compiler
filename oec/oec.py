@@ -18,7 +18,7 @@ def get_dialects(filename):
     assert dialects, "failed to register dialects"
     return dialects
 
-py, tmp, stencil = get_dialects("python.mlir")
+py, stencil, tmp = get_dialects("python.mlir")
 
 ################################################################################
 # AST Visitor
@@ -247,7 +247,7 @@ def varAllocPass(m):
     ])
 
 ################################################################################
-# Raise Pass 1
+# Raise Pass
 ################################################################################
 
 def raiseStencilModule(op, b):
@@ -300,29 +300,173 @@ def raiseTupleOrListToIndex(op, b):
                      loc=op.loc).res()
     b.replace(op, [index])
 
-def raisePass1(m):
+def raiseFunctionRef(op, b):
+    if not isa(op.ref().definingOp, py.name):
+        return False
+    name = py.name(op.ref().definingOp)
+    if not isa(op.parentOp, py.func):
+        return False
+    func = py.func(op.parentOp)
+    for o in func.body().getBlock(0):
+        if isa(o, py.func) and py.func(o).name() == name.var():
+            f = py.func(o)
+            apply = b.create(tmp.stencil_apply_body, loc=op.loc)
+            f.body().cloneInto(apply.body())
+            b.erase(o)
+            b.replace(op, [apply.res()])
+            return
+    return False
+
+def get_index(arg):
+    assert isa(arg.definingOp, tmp.stencil_index)
+    return tmp.stencil_index(arg.definingOp).index()
+
+def convert_stencil_sig(sig):
+    args = [tmp.unshaped_f64_field() for field in sig.inputs]
+    rets = [tmp.unshaped_f64_field() for field in sig.results]
+    return FunctionType(args, rets)
+
+def copy_into(newBlk, oldBlk, bvm):
+    for oldOp in oldBlk:
+        newBlk.append(oldOp.clone(bvm))
+
+def raiseStencilProgram(op, b):
+    if not op.parentOp or not isa(op.parentOp, ModuleOp):
+        return False
+    func = b.create(FuncOp, name=op.name().getValue(),
+                    type=convert_stencil_sig(op.sig().type),
+                    attrs={"stencil.program":UnitAttr()})
+    bvm = BlockAndValueMapping()
+    entry = func.addEntryBlock()
+    body = op.body().getBlock(0)
+    for field, obj in zip(entry.getArguments(), body.getArguments()):
+        bvm[obj] = field
+    copy_into(entry, body, bvm)
+    b.erase(op)
+    return True
+
+def raiseStencilAssert(op, b):
+    if not isa(op.func().definingOp, tmp.stencil_assert):
+        return False
+    assert op.rets().useEmpty()
+    args = op.args()
+    b.create(stencil.Assert, field=args[0], lb=get_index(args[1]),
+             ub=get_index(args[2]), loc=op.loc)
+    b.erase(op)
+
+def raiseStencilLoad(op, b):
+    if not isa(op.func().definingOp, tmp.stencil_load):
+        return False
+    args = op.args()
+    lb = Attribute() if len(args) == 1 else get_index(args[1])
+    ub = Attribute() if len(args) == 1 else get_index(args[2])
+    load = b.create(stencil.load, field=args[0], lb=lb, ub=ub,
+                    res=tmp.unshaped_f64_temp(), loc=op.loc)
+    b.replace(op, [load.res()])
+
+def raiseStencilStore(op, b):
+    if not isa(op.func().definingOp, tmp.stencil_store):
+        return False
+    args = op.args()
+    lb = Attribute() if len(args) == 2 else get_index(args[2])
+    ub = Attribute() if len(args) == 2 else get_index(args[3])
+    b.create(stencil.store, temp=args[1], field=args[0], lb=lb, ub=ub,
+             loc=op.loc)
+    b.erase(op)
+
+def raiseStencilApply(op, b):
+    if not isa(op.func().definingOp, tmp.stencil_apply):
+        return False
+    args = op.args()
+    # TODO more than one induction variable
+    assert len(args) == 2 and isa(args[1].definingOp, tmp.stencil_apply_body)
+    apply = b.create(stencil.apply, operands=[args[0]],
+                     res=[tmp.unshaped_f64_temp()], loc=op.loc)
+    bvm = BlockAndValueMapping()
+    entry = apply.region().addEntryBlock([tmp.unshaped_f64_temp()])
+    body = tmp.stencil_apply_body(args[1].definingOp).body().getBlock(0)
+    for temp, obj in zip(entry.getArguments(), body.getArguments()):
+        bvm[obj] = temp
+    copy_into(entry, body, bvm)
+    b.replace(op, apply.res())
+
+def raiseStencilAccess(op, b):
+    if not isa(op.idx().definingOp, tmp.stencil_index):
+        return False
+    access = b.create(stencil.access, temp=op.arg(), offset=get_index(op.idx()),
+                      res=F64Type(), loc=op.loc)
+    b.replace(op, [access.res()])
+
+def raiseStdConstant(op, b):
+    const = b.create(ConstantOp, value=F64Attr(op.value().getInt()),
+                     loc=op.loc)
+    b.replace(op, [const.result()])
+
+def raiseStdUnary(op, b):
+    if op.op().getValue() != "-":
+        return False
+    neg1 = b.create(ConstantOp, value=F64Attr(-1), loc=op.loc).result()
+    mul = b.create(MulFOp, ty=F64Type(), lhs=neg1, rhs=op.arg(), loc=op.loc)
+    b.replace(op, [mul.result()])
+
+def raiseStdBinary(bin_op, std_op):
+    def patternFcn(op, b):
+        if op.op().getValue() != bin_op:
+            return False
+        stdOp = b.create(std_op, ty=F64Type(), lhs=op.lhs(), rhs=op.rhs(),
+                         loc=op.loc)
+        b.replace(op, [stdOp.result()])
+    return Pattern(py.binary, patternFcn)
+
+def raiseStencilReturn(op, b):
+    if not isa(op.parentOp, stencil.apply):
+        return False
+    b.create(stencil.Return, operands=list(op.args()), loc=op.loc)
+    b.erase(op)
+
+def raiseStdReturn(op, b):
+    if not isa(op.parentOp, FuncOp):
+        return False
+    b.create(ReturnOp, operands=list(op.args()), loc=op.loc)
+    b.erase(op)
+
+def raisePass(m):
     applyOptPatterns(m, [
         Pattern(py.load, raiseStencilModule),
-        raiseStencilFcn("cast", tmp.stencil_cast),
+        raiseStencilFcn("cast", tmp.stencil_assert),
         raiseStencilFcn("load", tmp.stencil_load),
         raiseStencilFcn("store", tmp.stencil_store),
         raiseStencilFcn("apply", tmp.stencil_apply),
         Pattern(py.make_tuple, raiseTupleOrListToIndex),
         Pattern(py.make_list, raiseTupleOrListToIndex),
+        Pattern(py.load, raiseFunctionRef),
+    ])
+    applyOptPatterns(m, [
+        Pattern(py.func, raiseStencilProgram),
+        Pattern(py.call, raiseStencilAssert),
+        Pattern(py.call, raiseStencilLoad),
+        Pattern(py.call, raiseStencilApply),
+        Pattern(py.call, raiseStencilStore),
+        Pattern(py.constant, raiseStdConstant),
+        Pattern(py.unary, raiseStdUnary),
+        raiseStdBinary("+", AddFOp),
+        raiseStdBinary("-", SubFOp),
+        raiseStdBinary("*", MulFOp),
+        Pattern(py.ret, raiseStencilReturn),
+        Pattern(py.ret, raiseStdReturn),
+        Pattern(py.subscript, raiseStencilAccess),
     ])
 
 ################################################################################
 # Test Area
 ################################################################################
 
-stencil = None
-
 def laplace(a:numpy.ndarray, b:numpy.ndarray):
   stencil.cast(a, [-4, -4, -4], [68, 68, 68])
   stencil.cast(b, [-4, -4, -4], [68, 68, 68])
   atmp = stencil.load(a)
 
-  def applyFcn(c):
+  def applyFcn(c) -> float:
     return -4 * c[0, 0, 0] + c[-1, 0, 0] + c[1, 0, 0] + c[0, 1, 0] + c[0, -1, 0]
 
   btmp = stencil.apply(atmp, applyFcn)
@@ -333,6 +477,6 @@ node = ast.parse(inspect.getsource(laplace))
 visitor = StencilProgramVisitor()
 m = visitor.visit(node)
 varAllocPass(m)
-raisePass1(m)
+raisePass(m)
 print(m)
 verify(m)

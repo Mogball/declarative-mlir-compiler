@@ -82,22 +82,6 @@ Dialect @py {
     traits [@NoSideEffects]
     config { fmt = "$lhs $op $rhs attr-dict" }
 }
-Dialect @tmp {
-  Op @stencil_module() -> (res: !py.obj)
-    traits [@NoSideEffects]
-  Op @stencil_cast() -> (res: !py.obj)
-    traits [@NoSideEffects]
-  Op @stencil_load() -> (res: !py.obj)
-    traits [@NoSideEffects]
-  Op @stencil_store() -> (res: !py.obj)
-    traits [@NoSideEffects]
-  Op @stencil_apply() -> (res: !py.obj)
-    traits [@NoSideEffects]
-
-  Op @stencil_index() -> (res: !py.obj)
-    { index = #dmc.Any }
-    traits [@NoSideEffects]
-}
 Dialect @stencil {
   /// Base constraints.
   Alias @Shape -> #dmc.AllOf<#dmc.Array, #dmc.ArrayOf<#dmc.APInt>>
@@ -122,6 +106,7 @@ Dialect @stencil {
   /// AssertOp
   Op @assert(field: !stencil.Field) -> () { lb = #stencil.Index,
                                             ub = #stencil.Index }
+    traits [@MemoryWrite]
     config { fmt = "$field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($field)" }
 
   /// AccessOp
@@ -137,6 +122,7 @@ Dialect @stencil {
   /// StoreOp
   Op @store(temp: !stencil.Temp, field: !stencil.Field) -> ()
     { lb = #stencil.Index, ub = #stencil.Index }
+    traits [@WriteTo<"field">]
     config { fmt = "$temp `to` $field `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)" }
 
   /// ApplyOp
@@ -144,6 +130,7 @@ Dialect @stencil {
     { lb = #stencil.OptionalIndex, ub = #stencil.OptionalIndex }
     (region: Sized<1>)
     traits [@SameVariadicOperandSizes, @SameVariadicResultSizes,
+            @IsIsolatedFromAbove,
             @SingleBlockImplicitTerminator<"stencil.return">]
     config { is_isolated_from_above = true,
              fmt = "`(` $operands `)` `:` functional-type($operands, $res) attr-dict-with-keyword $region (`to` `(` $lb^ `:` $ub `)`)?" }
@@ -153,4 +140,28 @@ Dialect @stencil {
     { unroll = #stencil.OptionalIndex }
     traits [@SameVariadicOperandSizes, @HasParent<"stencil.apply">, @IsTerminator]
     config { fmt = "(`unroll` $unroll^)? $operands attr-dict-with-keyword `:` type($operands)" }
+}
+Dialect @tmp {
+  Op @stencil_module() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_assert() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_load() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_store() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_apply() -> (res: !py.obj)
+    traits [@NoSideEffects]
+
+  Op @stencil_index() -> (res: !py.obj)
+    { index = #dmc.Any }
+    traits [@NoSideEffects]
+  Op @stencil_apply_body() -> (res: !py.obj)
+    (body: Sized<1>)
+    traits [@NoSideEffects]
+
+  Alias @unshaped_f64_field -> !stencil.field<?x?x?xf64>
+  Alias @unshaped_f32_field -> !stencil.field<?x?x?xf32>
+  Alias @unshaped_f64_temp -> !stencil.temp<?x?x?xf64>
+  Alias @unshaped_f32_temp -> !stencil.temp<?x?x?xf32>
 }
