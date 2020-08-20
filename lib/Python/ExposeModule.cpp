@@ -152,6 +152,15 @@ void exposeModule(module &m, OpClass &cls) {
       .def("rhs", &AddFOp::rhs)
       .def("result", &AddFOp::getResult);
 
+  class_<SubFOp>(m, "SubFOp", cls)
+      .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
+        OpBuilder b{getMLIRContext()};
+        return b.create<SubFOp>(loc, ty, lhs, rhs);
+      }), "ty"_a, "lhs"_a, "rhs"_a, "loc"_a)
+      .def("lhs", &SubFOp::lhs)
+      .def("rhs", &SubFOp::rhs)
+      .def("result", &SubFOp::getResult);
+
   class_<MulFOp>(m, "MulFOp", cls)
       .def(init([](Type ty, Value lhs, Value rhs, Location loc) {
         OpBuilder b{getMLIRContext()};

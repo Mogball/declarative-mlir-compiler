@@ -441,6 +441,9 @@ def raisePass(m):
         Pattern(py.make_list, raiseTupleOrListToIndex),
         Pattern(py.load, raiseFunctionRef),
     ])
+    target = ConversionTarget()
+    target.addIllegalDialect(str(py.name))
+    target.addIllegalDialect(str(tmp.name))
     applyOptPatterns(m, [
         Pattern(py.func, raiseStencilProgram),
         Pattern(py.call, raiseStencilAssert),
@@ -456,6 +459,7 @@ def raisePass(m):
         Pattern(py.ret, raiseStdReturn),
         Pattern(py.subscript, raiseStencilAccess),
     ])
+    applyPartialConversion(m, [], target)
 
 ################################################################################
 # Test Area

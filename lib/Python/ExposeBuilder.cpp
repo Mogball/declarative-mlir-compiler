@@ -347,21 +347,21 @@ void exposeBuilder(module &m) {
       .def("addLegalDialect", [](ConversionTarget &target, std::string name) {
         target.addLegalDialect(name);
       })
+      .def("addIllegalDialect", [](ConversionTarget &target, std::string name) {
+        target.addIllegalDialect(name);
+      })
       .def("addLegalDialect", [](ConversionTarget &target, object cls) {
         auto name = cls.attr("name").cast<std::string>();
         target.addLegalDialect(name);
+      })
+      .def("addIllegalDialect", [](ConversionTarget &target, object cls) {
+        auto name = cls.attr("name").cast<std::string>();
+        target.addIllegalDialect(name);
       })
       .def("addLegalDialects", [](ConversionTarget &target,
                                   std::vector<std::string> names) {
         for (auto &name : names)
           target.addLegalDialect(name);
-      })
-      .def("addIllegalDialect", [](ConversionTarget &target, std::string name) {
-        target.addIllegalDialect(name);
-      })
-      .def("addIllegalDialect", [](ConversionTarget &target, object cls) {
-        auto name = cls.attr("name").cast<std::string>();
-        target.addIllegalDialect(name);
       });
 
   m.def("applyPartialConversion", &applyPartialConversion);

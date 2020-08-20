@@ -86,13 +86,22 @@ template <typename T> auto inlineOrConcat(PythonGenStream::Line &line) {
   };
 }
 
+StringRef sanitizeClassName(StringRef name) {
+  if (name == "assert") {
+    return "Assert";
+  } else if (name == "return") {
+    return "Return";
+  }
+  return name;
+}
+
 void exposeDynamicOp(module &m, DynamicOperation *impl) {
   auto *dialect = impl->getDialect();
   auto *ctx = dialect->getDynContext();
 
   // Declare the class
   auto opName = impl->getName();
-  InMemoryClass cls{opName.substr(opName.find('.') + 1),
+  InMemoryClass cls{sanitizeClassName(opName.substr(opName.find('.') + 1)),
                     {"mlir.Op", "mlir.OperationWrap"}, m};
 
   // Retrieve op traits
