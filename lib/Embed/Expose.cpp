@@ -121,7 +121,7 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
     } else if (attr.isa<DefaultAttr>()) {
       throw std::runtime_error{"default attributes expose not implemented"};
     } else if (attr.isa<OptionalAttr>()) {
-      throw std::runtime_error{"optional attributes expose not implemented"};
+      b.add(name, "mlir.Attribute()", "mlir.Attribute");
     } else {
       b.add(name, "mlir.Attribute");
     }
@@ -159,19 +159,22 @@ void exposeDynamicOp(module &m, DynamicOperation *impl) {
 
   // Call to generic operation constructor
   {
+    s.line() << "theAttrs = {}";
+    for (auto &attr : opAttr) {
+      auto name = attr.first.strref();
+      s.if_(name); {
+        s.line() << "theAttrs[\"" << name << "\"] = " << name;
+      } s.endif();
+    }
+  }
+  {
     auto line = s.line() << "theOp = mlir.Operation(loc, \"" << opName << "\", [";
-    /// TODO unpack arrays for variadic operands, results, and successors
     interleave(opType.getResults(), line,
                inlineOrConcat<NamedType>(line), "");
     line << "], [";
     interleave(opType.getOperands(), line,
                inlineOrConcat<NamedType>(line), "");
-    line << "], {";
-    interleaveComma(opAttr, line, [&](const NamedAttribute &attr) {
-      auto name = attr.first.strref();
-      line << '"' << name << "\": " << name;
-    });
-    line << "}, [";
+    line << "], theAttrs, [";
     interleave(opSucc.getSuccessors(), line,
                inlineOrConcat<NamedConstraint>(line), "");
     line << "], numRegions)";
