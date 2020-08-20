@@ -7,12 +7,12 @@ Dialect @py {
   Op @func() -> ()
     { name = #dmc.String, sig = #dmc.Type }
     (body: Sized<1>)
-    traits [@MemoryWrite]
+    traits [@MemoryWrite, @IsIsolatedFromAbove]
     config { fmt = "symbol($name) $sig $body attr-dict" }
 
   Op @call(func: !py.obj,
            args: !dmc.Variadic<!py.obj>) -> (rets: !py.obj)
-    traits [@NoSideEffects, @SameVariadicOperandSizes]
+    traits [@MemoryWrite, @SameVariadicOperandSizes]
     config { fmt = "$func`(`$args`)` `:` functional-type($args, $rets) attr-dict" }
 
   Op @ret(args: !dmc.Variadic<!py.obj>) -> ()
@@ -28,8 +28,12 @@ Dialect @py {
     { var = #dmc.String }
     config { fmt = "$var attr-dict" }
 
+  Op @assign(ref: !py.ref, arg: !py.obj) -> (new: !py.ref)
+    traits [@WriteTo<"ref">]
+    config { fmt = "$ref `=` $arg attr-dict" }
+
   Op @load(ref: !py.ref) -> (res: !py.obj)
-    traits [@ReadFrom<"ref">]
+    traits [@NoSideEffects]
     config { fmt = "$ref attr-dict" }
 
   Op @store(ref: !py.ref, arg: !py.obj) -> ()
@@ -77,4 +81,22 @@ Dialect @py {
     { op = #py.BinOp }
     traits [@NoSideEffects]
     config { fmt = "$lhs $op $rhs attr-dict" }
+}
+Dialect @tmp {
+  Op @stencil_module() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_cast() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_load() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_store() -> (res: !py.obj)
+    traits [@NoSideEffects]
+  Op @stencil_apply() -> (res: !py.obj)
+    traits [@NoSideEffects]
+
+  Op @stencil_index() -> (res: !py.obj)
+    { index = #dmc.Any }
+    traits [@NoSideEffects]
+}
+Dialect @stencil {
 }

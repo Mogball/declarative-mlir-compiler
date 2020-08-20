@@ -11,14 +11,14 @@ from mlir import *
 
 cwd = os.path.dirname(os.path.realpath(__file__))
 
-def get_dialects(filename=cwd + '/python.mlir'):
-    m = parseSourceFile(filename)
+def get_dialects(filename):
+    m = parseSourceFile(cwd + '/' + filename)
     assert m, "failed to load dialects"
     dialects = registerDynamicDialects(m)
     assert dialects, "failed to register dialects"
-    return dialects[0]
+    return dialects
 
-py = get_dialects()
+py, tmp, stencil = get_dialects("python.mlir")
 
 ################################################################################
 # AST Visitor
@@ -70,7 +70,7 @@ class StencilProgramVisitor(ast.NodeVisitor):
         self.b.insertAtStart(b)
         for name, arg, loc in zip(arg_names, b.getArguments(), locs):
             ref = self.b.create(py.name, var=StringAttr(name), loc=loc).ref()
-            self.b.create(py.store, ref=ref, arg=arg, loc=loc)
+            self.b.create(py.assign, ref=ref, arg=arg, loc=loc)
         for stmt in node.body:
             self.visit(stmt)
         self.b.restoreIp(ip)
@@ -104,7 +104,7 @@ class StencilProgramVisitor(ast.NodeVisitor):
         assert nonnull_handle(ref)
         arg = self.visit(node.value)
         assert nonnull_object(arg)
-        self.b.create(py.store, ref=ref, arg=arg, loc=self.start_loc(node))
+        self.b.create(py.assign, ref=ref, arg=arg, loc=self.start_loc(node))
 
     def visit_Expr(self, node):
         self.visit(node.value)
@@ -197,6 +197,121 @@ class StencilProgramVisitor(ast.NodeVisitor):
         return "*"
 
 ################################################################################
+# Variable Allocation
+################################################################################
+
+class VarAllocVisitor:
+    def __init__(self):
+        self.vars = {}
+        self.b = Builder()
+
+    def visit(self, func):
+        if not isa(func, py.func):
+            return
+        func = py.func(func)
+        ops = list(op for op in func.body().getBlock(0))
+        for op in ops:
+            self.visit_op(op)
+
+    def visit_op(self, op):
+        if isa(op, py.func):
+            VarAllocVisitor().visit(op)
+        elif isa(op, py.assign):
+            op = py.assign(op)
+            var = py.name(op.ref().definingOp).var().getValue()
+            self.vars[var] = op.new()
+        elif isa(op, py.name):
+            op = py.name(op)
+            var = op.var().getValue()
+            if var in self.vars:
+                self.b.replace(op, [self.vars[var]])
+
+def elideLoad(op, b):
+    if not isa(op.ref().definingOp, py.assign):
+        return False
+    assign = py.assign(op.ref().definingOp)
+    b.replace(op, [assign.arg()])
+
+def elideAssign(op, b):
+    if not op.new().useEmpty() or op.arg().hasOneUse():
+        return False
+    b.erase(op)
+
+def varAllocPass(m):
+    for f in m:
+        VarAllocVisitor().visit(f)
+    applyCSE(m, lambda x: True)
+    applyOptPatterns(m, [
+        Pattern(py.load, elideLoad),
+        Pattern(py.assign, elideAssign),
+    ])
+
+################################################################################
+# Raise Pass 1
+################################################################################
+
+def raiseStencilModule(op, b):
+    if not isa(op.ref().definingOp, py.name):
+        return False
+    name = py.name(op.ref().definingOp)
+    if name.var().getValue() != "stencil":
+        return False
+    module = b.create(tmp.stencil_module, loc=op.loc).res()
+    b.replace(op, [module])
+
+def raiseStencilFcn(name, tmp_op):
+    def patternFcn(op, b):
+        if op.name().getValue() != name:
+            return False
+        fcn = b.create(tmp_op, loc=op.loc).res()
+        b.replace(op, [fcn])
+    return Pattern(py.attribute, patternFcn)
+
+def evalConstExpr(op):
+    if isa(op, py.constant):
+        return py.constant(op).value().getInt()
+    elif isa(op, py.unary):
+        op = py.unary(op)
+        assert op.op().getValue() == "-"
+        return -evalConstExpr(op.arg().definingOp)
+    elif isa(op, py.binary):
+        op = py.binary(op)
+        lhs = evalConstExpr(op.lhs().definingOp)
+        rhs = evalConstExpr(op.rhs().definingOp)
+        binOp = op.op().getValue()
+        if binOp == "+":
+            return lhs + rhs
+        elif binOp == "-":
+            return lhs - rhs
+        elif binOp == "*":
+            return lhs * rhs;
+        elif binOp == "/":
+            return lhs / rhs
+        else:
+            raise NotImplementedError("unrecognized constexpr binary op: " +
+                                      binOp)
+    else:
+        raise NotImplementedError("unrecognized constexpr operation: " +
+                                  str(op))
+
+def raiseTupleOrListToIndex(op, b):
+    vals = list(evalConstExpr(el.definingOp) for el in op.elts())
+    index = b.create(tmp.stencil_index, index=I64ArrayAttr(vals),
+                     loc=op.loc).res()
+    b.replace(op, [index])
+
+def raisePass1(m):
+    applyOptPatterns(m, [
+        Pattern(py.load, raiseStencilModule),
+        raiseStencilFcn("cast", tmp.stencil_cast),
+        raiseStencilFcn("load", tmp.stencil_load),
+        raiseStencilFcn("store", tmp.stencil_store),
+        raiseStencilFcn("apply", tmp.stencil_apply),
+        Pattern(py.make_tuple, raiseTupleOrListToIndex),
+        Pattern(py.make_list, raiseTupleOrListToIndex),
+    ])
+
+################################################################################
 # Test Area
 ################################################################################
 
@@ -217,6 +332,7 @@ def laplace(a:numpy.ndarray, b:numpy.ndarray):
 node = ast.parse(inspect.getsource(laplace))
 visitor = StencilProgramVisitor()
 m = visitor.visit(node)
-#astpretty.pprint(node)
+varAllocPass(m)
+raisePass1(m)
 print(m)
 verify(m)
