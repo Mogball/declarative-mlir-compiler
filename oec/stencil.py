@@ -491,7 +491,9 @@ def wait_proc(args):
 
     proc = subprocess.Popen(args, stderr=subprocess.PIPE)
     try:
-        proc.communicate(timeout=5)
+        outs, errs = proc.communicate(timeout=5)
+        if proc.returncode != 0:
+            print(errs)
     except TimeoutExpired:
         proc.kill()
         print(args[0], "call failed")
@@ -514,8 +516,9 @@ def compile_function(name, m):
     if not wait_proc(args):
         return None
 
-    o_file = prefix + '.o'
-    args = ["clang", "-O3", "-c", ll_file, "-o", o_file]
+    so_file = prefix + '.so'
+    args = ["clang", "-O3", ll_file, "-shared", "-l", "cuda-runtime-wrappers",
+            "-L", os.environ["LD_LIBRARY_PATH"], "-o", so_file]
     if not wait_proc(args):
         return None
 

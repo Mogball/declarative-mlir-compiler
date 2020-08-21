@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/functional.h>
 
 #include <cuda.h>
 #include <dlfcn.h>
