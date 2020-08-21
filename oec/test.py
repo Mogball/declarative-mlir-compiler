@@ -1,4 +1,5 @@
 import stencil
+import numpy as np
 
 @stencil.program
 def laplace(a, b):
@@ -7,10 +8,15 @@ def laplace(a, b):
   atmp = stencil.load(a)
 
   def applyFcn(c) -> float:
-    return -4 * c[0, 0, 0] + c[-1, 0, 0] + c[1, 0, 0] + c[0, 1, 0] + c[0, -1, 0]
+    return c[0, 0, 0] + c[-1, 0, 0] + c[1, 0, 0] + c[0, 1, 0] + c[0, -1, 0]
 
   btmp = stencil.apply(atmp, applyFcn)
   stencil.store(b, btmp, [0, 0, 0], [64, 64, 64])
   return
 
-laplace()
+a = np.empty([72, 72, 72], dtype='d')
+b = np.empty([72, 72, 72], dtype='d')
+a.fill(3)
+laplace(a, b)
+print(b)
+print(b[32,32,32])

@@ -494,6 +494,7 @@ def wait_proc(args):
         outs, errs = proc.communicate(timeout=5)
         if proc.returncode != 0:
             print(errs)
+            return False
     except TimeoutExpired:
         proc.kill()
         print(args[0], "call failed")
@@ -522,14 +523,13 @@ def compile_function(name, m):
     if not wait_proc(args):
         return None
 
+    import dl_stencil
+    dl_stencil.cuda_init()
+    return dl_stencil.bind_stencil(name, so_file)
 
 # Python automatically caches annotations
 def program(func):
-
     m = raise_function(func)
     if not m:
         return None
-    obj = compile_function(func.__qualname__, m)
-
-    def dummy(): return
-    return dummy
+    return compile_function(func.__qualname__, m)
