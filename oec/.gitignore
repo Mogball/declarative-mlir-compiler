@@ -3,3 +3,4 @@
 *.ll
 *.lowered
 main
+__pycache__
