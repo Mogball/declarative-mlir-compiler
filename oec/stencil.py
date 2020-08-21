@@ -1,7 +1,4 @@
-import inspect
 import ast
-import astpretty
-import numpy
 import os
 from mlir import *
 
@@ -465,10 +462,71 @@ def raisePass(m):
 # Public API
 ################################################################################
 
-# Python automatically caches annotations
-def program(func):
+cache = cwd + "/__pycache__"
+try:
+    os.makedirs(cache)
+except OSError as e:
+    pass
+
+def raise_function(func):
+    import inspect
+
     node = ast.parse(inspect.getsource(func))
     m = StencilProgramVisitor().visit(node)
     varAllocPass(m)
     raisePass(m)
-    verify(m)
+    if not verify(m):
+        return None
+    return m
+
+oec_compile_args = [
+    "oec-opt", "--stencil-shape-inference", "--convert-stencil-to-std",
+    "--cse", "--parallel-loop-tiling=parallel-loop-tile-sizes=128,1,1",
+    "--canonicalize", "--test-gpu-greedy-parallel-loop-mapping",
+    "--convert-parallel-loops-to-gpu", "--canonicalize", "--lower-affine",
+    "--convert-scf-to-std", "--stencil-kernel-to-cubin"]
+
+def wait_proc(args):
+    import subprocess
+
+    proc = subprocess.Popen(args, stderr=subprocess.PIPE)
+    try:
+        proc.communicate(timeout=5)
+    except TimeoutExpired:
+        proc.kill()
+        print(args[0], "call failed")
+        return False
+    return True
+
+def compile_function(name, m):
+    prefix = cache + '/' + name
+    in_file = prefix + '.mlir'
+    with open(in_file, 'w') as f:
+        f.write(str(m))
+
+    lower_file = prefix + '.lowered.mlir'
+    args = list(oec_compile_args) + [in_file, "-o", lower_file]
+    if not wait_proc(args):
+        return None
+
+    ll_file = prefix + '.ll'
+    args = ["mlir-translate", "--mlir-to-llvmir", lower_file, "-o", ll_file]
+    if not wait_proc(args):
+        return None
+
+    o_file = prefix + '.o'
+    args = ["clang", "-O3", "-c", ll_file, "-o", o_file]
+    if not wait_proc(args):
+        return None
+
+
+# Python automatically caches annotations
+def program(func):
+
+    m = raise_function(func)
+    if not m:
+        return None
+    obj = compile_function(func.__qualname__, m)
+
+    def dummy(): return
+    return dummy
