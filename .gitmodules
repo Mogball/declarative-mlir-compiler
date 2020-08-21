@@ -9,4 +9,4 @@
 	url = https://github.com/stevedonovan/rx-cpp
 [submodule "oec/open-earth-compiler"]
 	path = oec/open-earth-compiler
-	url = https://github.com/spcl/open-earth-compiler.git
+	url = https://github.com/Mogball/open-earth-compiler.git
