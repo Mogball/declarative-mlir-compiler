@@ -13,4 +13,3 @@ def laplace(a, b):
   stencil.store(b, btmp, [0, 0, 0], [64, 64, 64])
   return
 
-print(laplace())

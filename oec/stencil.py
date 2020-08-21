@@ -465,12 +465,10 @@ def raisePass(m):
 # Public API
 ################################################################################
 
+# Python automatically caches annotations
 def program(func):
     node = ast.parse(inspect.getsource(func))
     m = StencilProgramVisitor().visit(node)
     varAllocPass(m)
     raisePass(m)
     verify(m)
-    def wrapper():
-        return m
-    return wrapper
