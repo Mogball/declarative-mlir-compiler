@@ -21,8 +21,23 @@ MacOS:
 brew install cmake python3
 ```
 
-Clone the repo and its submodules. Configure CMake with whatever generator you
-prefer and then build the target `gen`.
+Clone the repo and its submodules:
+
+```bash
+git clone git@github.com:Mogball/declarative-mlir-compiler.git
+cd declarative-mlir-compiler
+git submodule update --init
+```
+
+Configure CMake with whatever generator you
+prefer:
+
+```bash
+cd bin/
+cmake ../ -G<generator>
+```
+
+Then build the target `gen`.
 
 ```bash
 cmake --build $BINDIR --target gen
